@@ -25,15 +25,15 @@ const T = {
 };
 
 const CATEGORIES = [
-  { id: "tout", label: "Toutes catégories", query: "promo" },
-  { id: "hightech", label: "High-tech / Informatique", query: "high-tech informatique promo" },
-  { id: "gaming", label: "Gaming / PC gamer", query: "PC gamer console promo" },
-  { id: "maison", label: "Maison / Électroménager", query: "électroménager maison promo" },
-  { id: "mode", label: "Mode / Vêtements", query: "mode vêtements promo" },
-  { id: "beaute", label: "Beauté / Hygiène", query: "beauté hygiène promo" },
-  { id: "alimentaire", label: "Alimentaire / Boissons", query: "épicerie boisson promo" },
-  { id: "sport", label: "Sport / Plein air", query: "sport plein air promo" },
-  { id: "auto", label: "Auto / Moto", query: "auto moto accessoires promo" },
+  { id: "tout", label: "Toutes catégories" },
+  { id: "hightech", label: "High-tech / Informatique" },
+  { id: "gaming", label: "Gaming / PC gamer" },
+  { id: "maison", label: "Maison / Électroménager" },
+  { id: "mode", label: "Mode / Vêtements" },
+  { id: "beaute", label: "Beauté / Hygiène" },
+  { id: "alimentaire", label: "Alimentaire / Boissons" },
+  { id: "sport", label: "Sport / Plein air" },
+  { id: "auto", label: "Auto / Moto" },
 ];
 
 /* ── Appels au backend (le seul endroit qui parle au réseau) ──── */
@@ -45,7 +45,7 @@ async function scanBackend(query, category) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
-  return data.items || [];
+  return { items: data.items || [], scannedQuery: data.query || query };
 }
 
 async function apiAuth(path, body) {
@@ -463,6 +463,7 @@ export default function RadarPrixSite() {
   const [verdictFilter, setVerdictFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score");
   const [maxPrice, setMaxPrice] = useState("");
+  const [scannedQuery, setScannedQuery] = useState(null);
 
   useEffect(() => {
     document.title = "RadarPrix — Le détecteur d'erreurs de prix";
@@ -470,9 +471,10 @@ export default function RadarPrixSite() {
 
   const startScan = async (newTab, opts = {}) => {
     const catId = opts.category !== undefined ? opts.category : category;
-    const term = opts.term;
-    const cat = CATEGORIES.find((c) => c.id === catId) || CATEGORIES[0];
-    const query = term || cat.query;
+    // Recherche libre (barre de recherche) : on envoie le terme exact.
+    // Scan par onglet/catégorie : on n'envoie PAS de requête — c'est le
+    // backend qui choisit un vrai produit dans son catalogue.
+    const term = opts.term || null;
 
     setTab(newTab);
     setSearchTerm(term || "");
@@ -482,11 +484,13 @@ export default function RadarPrixSite() {
     setLoading(true);
     setError(null);
     setItems(null);
-    setLastQuery({ query, category: catId });
+    setScannedQuery(null);
+    setLastQuery({ query: term, category: catId });
 
     try {
-      const found = await scanBackend(query, catId);
+      const { items: found, scannedQuery: sq } = await scanBackend(term, catId);
       setItems(found);
+      setScannedQuery(sq);
       setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
       console.error(e);
@@ -501,10 +505,11 @@ export default function RadarPrixSite() {
     setLoadingMore(true);
     setError(null);
     try {
-      const found = await scanBackend(lastQuery.query, lastQuery.category);
+      const { items: found, scannedQuery: sq } = await scanBackend(lastQuery.query, lastQuery.category);
       const seen = new Set((items || []).map((i) => (i.name || "").toLowerCase().slice(0, 40)));
       const fresh = found.filter((i) => !seen.has((i.name || "").toLowerCase().slice(0, 40)));
       setItems([...(items || []), ...fresh]);
+      setScannedQuery(sq);
       setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
       setError("Le nouveau scan a échoué : " + e.message);
@@ -661,6 +666,11 @@ export default function RadarPrixSite() {
             {followMsg && <p style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
             {lastScan && !loading && (
               <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>
+                {!searchTerm && scannedQuery && (
+                  <>
+                    Produit scanné : <strong style={{ color: T.ink }}>{scannedQuery}</strong> ·{" "}
+                  </>
+                )}
                 Scan de {lastScan} · {visible.length}/{items ? items.length : 0} offre(s) affichée(s)
               </p>
             )}
