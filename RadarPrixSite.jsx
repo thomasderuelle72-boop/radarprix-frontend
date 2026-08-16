@@ -48,6 +48,37 @@ async function scanBackend(query, category) {
   return data.items || [];
 }
 
+async function apiAuth(path, body) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Une erreur est survenue.");
+  return data;
+}
+
+async function apiWatchlistAdd(token, query, category) {
+  const res = await fetch(`${BACKEND_URL}/api/watchlist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ query, category }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible d'ajouter aux favoris.");
+  return data.items || [];
+}
+
+async function apiWatchlistGet(token) {
+  const res = await fetch(`${BACKEND_URL}/api/watchlist`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de charger les favoris.");
+  return data.items || [];
+}
+
 /* ── Styles globaux ─────────────────────────────────────────── */
 const GlobalStyles = () => (
   <style>{`
@@ -131,7 +162,76 @@ function SearchBar({ onSearch, big, placeholder }) {
   );
 }
 
-/* ── Carte offre (consomme directement les champs du backend) ─ */
+/* ── Connexion / inscription ───────────────────────────────── */
+function AuthModal({ onClose, onSuccess }) {
+  const [mode, setMode] = useState("login"); // login | register
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await apiAuth(mode === "login" ? "login" : "register", { email, password });
+      localStorage.setItem("radarprix_token", data.token);
+      localStorage.setItem("radarprix_email", data.user.email);
+      onSuccess(data.token, data.user.email);
+    } catch (e2) {
+      setError(e2.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div role="dialog" aria-modal="true" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 }}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 380, width: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{mode === "login" ? "Connexion" : "Créer un compte"}</h3>
+          <button type="button" onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub }}>×</button>
+        </div>
+
+        <label style={{ display: "block", fontSize: 12, color: T.sub, marginBottom: 4 }}>Email</label>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: "100%", padding: "11px 12px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 14, marginBottom: 12, fontFamily: "'Inter', sans-serif" }}
+        />
+
+        <label style={{ display: "block", fontSize: 12, color: T.sub, marginBottom: 4 }}>Mot de passe {mode === "register" && "(8 caractères min.)"}</label>
+        <input
+          type="password"
+          required
+          minLength={mode === "register" ? 8 : undefined}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "100%", padding: "11px 12px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 14, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}
+        />
+
+        {error && <div style={{ color: T.red, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+
+        <button type="submit" disabled={loading} style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: loading ? T.surface2 : T.ember, color: loading ? T.sub : "#0C0E14", fontWeight: 900, fontSize: 14, cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+          {loading ? "…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}
+          style={{ width: "100%", marginTop: 12, background: "none", border: "none", color: T.sub, fontSize: 13, cursor: "pointer", textAlign: "center" }}
+        >
+          {mode === "login" ? "Pas encore de compte ? Inscris-toi" : "Déjà un compte ? Connecte-toi"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+
 function Sticker({ item }) {
   const isGem = item.score >= 85;
   const isErr = item.verdict === "erreur";
@@ -314,6 +414,42 @@ function Footer({ setLegalPage }) {
 export default function RadarPrixSite() {
   const [view, setView] = useState("home");
   const [legalPage, setLegalPage] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authToken, setAuthToken] = useState(null);
+  const [authEmail, setAuthEmail] = useState(null);
+  const [followMsg, setFollowMsg] = useState(null);
+
+  useEffect(() => {
+    const t = localStorage.getItem("radarprix_token");
+    const e = localStorage.getItem("radarprix_email");
+    if (t && e) {
+      setAuthToken(t);
+      setAuthEmail(e);
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("radarprix_token");
+    localStorage.removeItem("radarprix_email");
+    setAuthToken(null);
+    setAuthEmail(null);
+  };
+
+  const followCurrentSearch = async () => {
+    if (!authToken) {
+      setAuthOpen(true);
+      return;
+    }
+    if (!lastQuery) return;
+    try {
+      await apiWatchlistAdd(authToken, lastQuery.query, lastQuery.category);
+      setFollowMsg("✓ Ajouté à tes favoris");
+      setTimeout(() => setFollowMsg(null), 2500);
+    } catch (e) {
+      setFollowMsg("Erreur : " + e.message);
+      setTimeout(() => setFollowMsg(null), 3000);
+    }
+  };
 
   const [tab, setTab] = useState("deals"); // deals | erreurs
   const [searchTerm, setSearchTerm] = useState("");
@@ -405,6 +541,12 @@ export default function RadarPrixSite() {
                 <SearchBar onSearch={(t) => startScan("deals", { term: t, category: "tout" })} />
               </div>
             )}
+            <button
+              onClick={() => (authToken ? logout() : setAuthOpen(true))}
+              style={{ marginLeft: 12, background: "none", border: `1.5px solid ${T.line}`, borderRadius: 8, padding: "6px 12px", color: T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
+            >
+              {authToken ? `👤 ${authEmail} · déconnexion` : "Connexion"}
+            </button>
           </div>
           <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 2 }}>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => startScan("deals")}>
@@ -505,9 +647,18 @@ export default function RadarPrixSite() {
             <button onClick={goHome} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 12, fontFamily: "'Inter', sans-serif" }}>
               ← Accueil
             </button>
-            <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>
-              {searchTerm ? `🔎 « ${searchTerm} »` : tab === "erreurs" ? "🔴 Erreurs de prix" : "🔥 Gros deals"}
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
+              <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>
+                {searchTerm ? `🔎 « ${searchTerm} »` : tab === "erreurs" ? "🔴 Erreurs de prix" : "🔥 Gros deals"}
+              </h2>
+              <button
+                onClick={followCurrentSearch}
+                style={{ flexShrink: 0, background: "none", border: `1.5px solid ${T.emberSolid}`, borderRadius: 8, padding: "7px 12px", color: T.ink, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+              >
+                ★ Suivre
+              </button>
+            </div>
+            {followMsg && <p style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
             {lastScan && !loading && (
               <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>
                 Scan de {lastScan} · {visible.length}/{items ? items.length : 0} offre(s) affichée(s)
@@ -600,6 +751,16 @@ export default function RadarPrixSite() {
 
       <Footer setLegalPage={setLegalPage} />
       <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
+      {authOpen && (
+        <AuthModal
+          onClose={() => setAuthOpen(false)}
+          onSuccess={(token, email) => {
+            setAuthToken(token);
+            setAuthEmail(email);
+            setAuthOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
