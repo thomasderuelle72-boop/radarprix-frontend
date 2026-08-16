@@ -90,6 +90,42 @@ async function apiWatchlistGet(token) {
   return data.items || [];
 }
 
+async function apiUpdateProfile(token, patch) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de mettre à jour le profil.");
+  return data.user;
+}
+
+async function apiAdminStats(token) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Accès refusé.");
+  return data;
+}
+
+async function apiAdminUsers(token) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Accès refusé.");
+  return data.users || [];
+}
+
+async function apiAdminTriggerScan(token, size) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/trigger-scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ size }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Le scan a échoué.");
+  return data;
+}
+
 /* ── Styles globaux ─────────────────────────────────────────── */
 const GlobalStyles = () => (
   <style>{`
@@ -173,7 +209,51 @@ function SearchBar({ onSearch, big, placeholder }) {
   );
 }
 
-/* ── Connexion / inscription ───────────────────────────────── */
+/* ── Avatar : photo si dispo, sinon initiale colorée (déterministe) ─ */
+const AVATAR_COLORS = ["#FF6A35", "#2FD98B", "#1F5EFF", "#FFC53D", "#FF3B30", "#A855F7"];
+function colorFor(str) {
+  let hash = 0;
+  for (let i = 0; i < (str || "").length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+function Avatar({ email, pseudo, avatarUrl, size = 32 }) {
+  const label = pseudo || email || "?";
+  const initial = label.trim()[0]?.toUpperCase() || "?";
+  const [imgFailed, setImgFailed] = useState(false);
+  if (avatarUrl && !imgFailed) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={label}
+        onError={() => setImgFailed(true)}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: colorFor(label),
+        color: "#0C0E14",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 900,
+        fontSize: size * 0.45,
+        fontFamily: "'Unbounded', system-ui, sans-serif",
+        flexShrink: 0,
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+
 function AuthModal({ onClose, onSuccess }) {
   const [mode, setMode] = useState("login"); // login | register
   const [email, setEmail] = useState("");
@@ -187,10 +267,7 @@ function AuthModal({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const data = await apiAuth(mode === "login" ? "login" : "register", { email, password });
-      localStorage.setItem("radarprix_token", data.token);
-      localStorage.setItem("radarprix_email", data.user.email);
-      localStorage.setItem("radarprix_role", data.user.role || "user");
-      onSuccess(data.token, data.user.email, data.user.role);
+      onSuccess(data.token, data.user);
     } catch (e2) {
       setError(e2.message);
     } finally {
@@ -243,6 +320,99 @@ function AuthModal({ onClose, onSuccess }) {
   );
 }
 
+/* ── Menu déroulant de profil ──────────────────────────────── */
+function ProfileMenu({ user, token, role, onUpdated, onLogout, onOpenAdmin }) {
+  const [pseudo, setPseudo] = useState(user.pseudo || "");
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const updated = await apiUpdateProfile(token, { pseudo, avatarUrl });
+      onUpdated(updated);
+      setMsg("✓ Profil mis à jour");
+      setTimeout(() => setMsg(null), 2000);
+    } catch (e) {
+      setMsg("Erreur : " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        width: 260,
+        background: T.surface,
+        border: `1px solid ${T.line}`,
+        borderRadius: 14,
+        padding: 16,
+        boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
+        zIndex: 60,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <Avatar email={user.email} pseudo={pseudo} avatarUrl={avatarUrl} size={40} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {pseudo || user.email}
+          </div>
+          <div style={{ fontSize: 11, color: T.sub }}>{role === "admin" ? "🛡️ Administrateur" : "Membre"}</div>
+        </div>
+      </div>
+
+      <label style={{ display: "block", fontSize: 11, color: T.sub, marginBottom: 4 }}>Pseudo</label>
+      <input
+        value={pseudo}
+        onChange={(e) => setPseudo(e.target.value)}
+        maxLength={30}
+        placeholder="Ton pseudo"
+        style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
+      />
+
+      <label style={{ display: "block", fontSize: 11, color: T.sub, marginBottom: 4 }}>Photo de profil (lien URL)</label>
+      <input
+        value={avatarUrl}
+        onChange={(e) => setAvatarUrl(e.target.value)}
+        placeholder="https://…"
+        style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
+      />
+
+      {msg && <div style={{ fontSize: 12, color: msg.startsWith("Erreur") ? T.red : T.green, marginBottom: 10 }}>{msg}</div>}
+
+      <button
+        onClick={save}
+        disabled={saving}
+        style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: saving ? T.surface2 : T.ember, color: saving ? T.sub : "#0C0E14", fontWeight: 800, fontSize: 13, cursor: saving ? "default" : "pointer", marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
+      >
+        {saving ? "…" : "Enregistrer"}
+      </button>
+
+      {role === "admin" && (
+        <button
+          onClick={onOpenAdmin}
+          style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1.5px solid ${T.yellow}`, background: "transparent", color: T.yellow, fontWeight: 800, fontSize: 13, cursor: "pointer", marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
+        >
+          🛡️ Tableau de bord admin
+        </button>
+      )}
+
+      <button
+        onClick={onLogout}
+        style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: "transparent", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+      >
+        Se déconnecter
+      </button>
+    </div>
+  );
+}
 
 function Sticker({ item }) {
   const isGem = item.score >= 85;
@@ -423,34 +593,164 @@ function Footer({ setLegalPage }) {
 }
 
 /* ── App ────────────────────────────────────────────────────── */
+/* ── Tableau de bord admin ─────────────────────────────────── */
+function AdminDashboard({ token, onBack }) {
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState(null);
+  const [error, setError] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+
+  const load = async () => {
+    setError(null);
+    try {
+      const [s, u] = await Promise.all([apiAdminStats(token), apiAdminUsers(token)]);
+      setStats(s);
+      setUsers(u);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const triggerScan = async () => {
+    setScanning(true);
+    setScanResult(null);
+    setError(null);
+    try {
+      const res = await apiAdminTriggerScan(token, 10);
+      setScanResult(res);
+      await load(); // rafraîchit les stats après le scan
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const cardStyle = { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: "18px 20px" };
+
+  return (
+    <main style={{ maxWidth: 780, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
+        ← Retour au site
+      </button>
+      <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, marginBottom: 4, color: T.yellow }}>🛡️ Tableau de bord admin</h2>
+      <p style={{ fontSize: 13, color: T.sub, marginBottom: 24 }}>Visible uniquement par toi.</p>
+
+      {error && (
+        <div style={{ background: "rgba(255,59,48,0.12)", border: `1.5px solid ${T.red}`, borderRadius: 10, padding: 12, fontSize: 14, color: T.ink, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
+      {!stats && !error && <div style={{ color: T.sub, fontSize: 14 }}>Chargement…</div>}
+
+      {stats && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
+            <div style={cardStyle}>
+              <div className="rp-display" style={{ fontSize: 28, fontWeight: 900, color: T.ink }}>{stats.totalUsers}</div>
+              <div style={{ fontSize: 12, color: T.sub, marginTop: 4 }}>Utilisateurs inscrits</div>
+            </div>
+            <div style={cardStyle}>
+              <div className="rp-display" style={{ fontSize: 28, fontWeight: 900, color: T.ink }}>{stats.totalScans}</div>
+              <div style={{ fontSize: 12, color: T.sub, marginTop: 4 }}>Scans enregistrés</div>
+            </div>
+          </div>
+
+          <div style={{ ...cardStyle, marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>Scan manuel</h3>
+              <button
+                onClick={triggerScan}
+                disabled={scanning}
+                style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: scanning ? T.surface2 : T.ember, color: scanning ? T.sub : "#0C0E14", fontWeight: 800, fontSize: 12.5, cursor: scanning ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}
+              >
+                {scanning ? "Scan en cours…" : "Lancer un scan (10 produits)"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.5 }}>
+              Consomme du quota SerpApi à chaque clic — à utiliser avec modération, le cron tourne déjà en tâche de fond.
+            </p>
+            {scanResult && (
+              <div style={{ marginTop: 10, fontSize: 12, color: T.green }}>
+                ✓ {scanResult.scanned} produit(s) scanné(s) à l'instant.
+              </div>
+            )}
+          </div>
+
+          <div style={{ ...cardStyle, marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink, marginBottom: 12 }}>Produits les plus scannés</h3>
+            {stats.topProducts.length === 0 && <p style={{ fontSize: 13, color: T.sub }}>Aucune donnée pour l'instant.</p>}
+            {stats.topProducts.map((p) => (
+              <div key={p.query} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${T.line}`, fontSize: 13 }}>
+                <span style={{ color: T.ink, textTransform: "capitalize" }}>{p.query}</span>
+                <span style={{ color: T.sub }}>{p.times_seen}×</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink, marginBottom: 12 }}>Utilisateurs ({users?.length || 0})</h3>
+            {users?.map((u) => (
+              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.line}`, fontSize: 13 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <Avatar email={u.email} pseudo={u.pseudo} size={22} />
+                  <span style={{ color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.pseudo || u.email}</span>
+                  {u.role === "admin" && <span style={{ fontSize: 10, color: T.yellow }}>🛡️</span>}
+                </div>
+                <span style={{ color: T.sub, fontSize: 11, flexShrink: 0 }}>{u.created_at?.slice(0, 10)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </main>
+  );
+}
+
+
 export default function RadarPrixSite() {
   const [view, setView] = useState("home");
   const [legalPage, setLegalPage] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [authToken, setAuthToken] = useState(null);
-  const [authEmail, setAuthEmail] = useState(null);
-  const [authRole, setAuthRole] = useState(null);
+  const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
 
   useEffect(() => {
     const t = localStorage.getItem("radarprix_token");
-    const e = localStorage.getItem("radarprix_email");
-    const r = localStorage.getItem("radarprix_role");
-    if (t && e) {
+    const u = localStorage.getItem("radarprix_user");
+    if (t && u) {
       setAuthToken(t);
-      setAuthEmail(e);
-      setAuthRole(r || "user");
+      try {
+        setAuthUser(JSON.parse(u));
+      } catch {}
     }
   }, []);
 
+  const persistUser = (user) => {
+    setAuthUser(user);
+    localStorage.setItem("radarprix_user", JSON.stringify(user));
+  };
+
   const logout = () => {
     localStorage.removeItem("radarprix_token");
-    localStorage.removeItem("radarprix_email");
+    localStorage.removeItem("radarprix_user");
+    localStorage.removeItem("radarprix_email"); // nettoyage des anciennes clés
     localStorage.removeItem("radarprix_role");
     setAuthToken(null);
-    setAuthEmail(null);
-    setAuthRole(null);
+    setAuthUser(null);
+    setProfileMenuOpen(false);
   };
+
+  const authRole = authUser?.role || null;
 
   const followCurrentSearch = async () => {
     if (!authToken) {
@@ -574,7 +874,7 @@ export default function RadarPrixSite() {
   };
 
   return (
-    <div className="rp-body" style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="rp-body" onClick={() => profileMenuOpen && setProfileMenuOpen(false)} style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <GlobalStyles />
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
@@ -588,12 +888,37 @@ export default function RadarPrixSite() {
                 <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
             )}
-            <button
-              onClick={() => (authToken ? logout() : setAuthOpen(true))}
-              style={{ marginLeft: 12, background: "none", border: `1.5px solid ${authRole === "admin" ? T.yellow : T.line}`, borderRadius: 8, padding: "6px 12px", color: authRole === "admin" ? T.yellow : T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
-            >
-              {authToken ? `${authRole === "admin" ? "🛡️ Admin · " : "👤 "}${authEmail} · déconnexion` : "Connexion"}
-            </button>
+            {authToken && authUser ? (
+              <div style={{ position: "relative", marginLeft: 12 }}>
+                <button
+                  onClick={() => setProfileMenuOpen((v) => !v)}
+                  aria-label="Menu du profil"
+                  style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: `1.5px solid ${authRole === "admin" ? T.yellow : T.line}`, borderRadius: 20, padding: "4px 10px 4px 4px", cursor: "pointer" }}
+                >
+                  <Avatar email={authUser.email} pseudo={authUser.pseudo} avatarUrl={authUser.avatar_url} size={26} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: authRole === "admin" ? T.yellow : T.sub, maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {authUser.pseudo || authUser.email}
+                  </span>
+                </button>
+                {profileMenuOpen && (
+                  <ProfileMenu
+                    user={authUser}
+                    token={authToken}
+                    role={authRole}
+                    onUpdated={(u) => persistUser(u)}
+                    onLogout={logout}
+                    onOpenAdmin={() => { setView("admin"); setProfileMenuOpen(false); }}
+                  />
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthOpen(true)}
+                style={{ marginLeft: 12, background: "none", border: `1.5px solid ${T.line}`, borderRadius: 8, padding: "6px 12px", color: T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
+              >
+                Connexion
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 2 }}>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
@@ -804,6 +1129,10 @@ export default function RadarPrixSite() {
             </div>
           </main>
         )}
+
+        {view === "admin" && authRole === "admin" && (
+          <AdminDashboard token={authToken} onBack={goHome} />
+        )}
       </div>
 
       <Footer setLegalPage={setLegalPage} />
@@ -811,10 +1140,10 @@ export default function RadarPrixSite() {
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
-          onSuccess={(token, email, role) => {
+          onSuccess={(token, user) => {
             setAuthToken(token);
-            setAuthEmail(email);
-            setAuthRole(role || "user");
+            localStorage.setItem("radarprix_token", token);
+            persistUser(user);
             setAuthOpen(false);
           }}
         />
