@@ -102,6 +102,28 @@ async function apiUpdateProfile(token, patch) {
   return data.user;
 }
 
+async function apiChangePassword(token, currentPassword, newPassword) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/password`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de changer le mot de passe.");
+  return data;
+}
+
+async function apiDeleteAccount(token, password) {
+  const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de supprimer le compte.");
+  return data;
+}
+
 async function apiAdminStats(token) {
   const res = await fetch(`${BACKEND_URL}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json();
@@ -400,27 +422,7 @@ function AuthModal({ onClose, onSuccess }) {
 }
 
 /* ── Menu déroulant de profil ──────────────────────────────── */
-function ProfileMenu({ user, token, role, onUpdated, onLogout, onOpenAdmin }) {
-  const [pseudo, setPseudo] = useState(user.pseudo || "");
-  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState(null);
-
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
-    try {
-      const updated = await apiUpdateProfile(token, { pseudo, avatarUrl });
-      onUpdated(updated);
-      setMsg("✓ Profil mis à jour");
-      setTimeout(() => setMsg(null), 2000);
-    } catch (e) {
-      setMsg("Erreur : " + e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
+function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -428,67 +430,196 @@ function ProfileMenu({ user, token, role, onUpdated, onLogout, onOpenAdmin }) {
         position: "absolute",
         top: "calc(100% + 8px)",
         right: 0,
-        width: 260,
+        width: 240,
         background: T.surface,
         border: `1px solid ${T.line}`,
         borderRadius: 14,
-        padding: 16,
+        padding: 12,
         boxShadow: "0 16px 40px rgba(0,0,0,0.5)",
         zIndex: 60,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-        <Avatar email={user.email} pseudo={pseudo} avatarUrl={avatarUrl} size={40} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px 14px" }}>
+        <Avatar email={user.email} pseudo={user.pseudo} avatarUrl={user.avatar_url} size={38} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {pseudo || user.email}
+            {user.pseudo || user.email}
           </div>
           <div style={{ fontSize: 11, color: T.sub }}>{role === "admin" ? "🛡️ Administrateur" : "Membre"}</div>
         </div>
       </div>
 
-      <label style={{ display: "block", fontSize: 11, color: T.sub, marginBottom: 4 }}>Pseudo</label>
-      <input
-        value={pseudo}
-        onChange={(e) => setPseudo(e.target.value)}
-        maxLength={30}
-        placeholder="Ton pseudo"
-        style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
-      />
-
-      <label style={{ display: "block", fontSize: 11, color: T.sub, marginBottom: 4 }}>Photo de profil (lien URL)</label>
-      <input
-        value={avatarUrl}
-        onChange={(e) => setAvatarUrl(e.target.value)}
-        placeholder="https://…"
-        style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
-      />
-
-      {msg && <div style={{ fontSize: 12, color: msg.startsWith("Erreur") ? T.red : T.green, marginBottom: 10 }}>{msg}</div>}
-
-      <button
-        onClick={save}
-        disabled={saving}
-        style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: saving ? T.surface2 : T.ember, color: saving ? T.sub : "#0C0E14", fontWeight: 800, fontSize: 13, cursor: saving ? "default" : "pointer", marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
-      >
-        {saving ? "…" : "Enregistrer"}
-      </button>
-
-      {role === "admin" && (
+      {[
+        ["⚙️ Paramètres du compte", onOpenSettings, T.ink],
+        ...(role === "admin" ? [["🛡️ Tableau de bord admin", onOpenAdmin, T.yellow]] : []),
+        ["Se déconnecter", onLogout, T.sub],
+      ].map(([label, action, color]) => (
         <button
-          onClick={onOpenAdmin}
-          style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1.5px solid ${T.yellow}`, background: "transparent", color: T.yellow, fontWeight: 800, fontSize: 13, cursor: "pointer", marginBottom: 10, fontFamily: "'Inter', sans-serif" }}
+          key={label}
+          onClick={action}
+          style={{ width: "100%", textAlign: "left", padding: "10px 8px", borderRadius: 8, border: "none", background: "transparent", color, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
         >
-          🛡️ Tableau de bord admin
+          {label}
         </button>
-      )}
+      ))}
+    </div>
+  );
+}
 
-      <button
-        onClick={onLogout}
-        style={{ width: "100%", padding: "10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: "transparent", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-      >
-        Se déconnecter
-      </button>
+/* ── Paramètres du compte : modale à onglets (Compte / Sécurité) ─ */
+function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
+  const [tab, setTab] = useState("compte"); // compte | securite
+
+  // Onglet Compte
+  const [pseudo, setPseudo] = useState(user.pseudo || "");
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState(null);
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    setProfileMsg(null);
+    try {
+      const updated = await apiUpdateProfile(token, { pseudo, avatarUrl });
+      onUpdated(updated);
+      setProfileMsg("✓ Profil mis à jour");
+    } catch (e) {
+      setProfileMsg("Erreur : " + e.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  // Onglet Sécurité — mot de passe
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [savingPw, setSavingPw] = useState(false);
+  const [pwMsg, setPwMsg] = useState(null);
+
+  const changePassword = async () => {
+    setPwMsg(null);
+    if (newPw.length < 8) return setPwMsg("Erreur : le nouveau mot de passe doit faire au moins 8 caractères.");
+    if (newPw !== confirmPw) return setPwMsg("Erreur : les deux mots de passe ne correspondent pas.");
+    setSavingPw(true);
+    try {
+      await apiChangePassword(token, oldPw, newPw);
+      setPwMsg("✓ Mot de passe changé");
+      setOldPw(""); setNewPw(""); setConfirmPw("");
+    } catch (e) {
+      setPwMsg("Erreur : " + e.message);
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  // Onglet Sécurité — suppression de compte
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePw, setDeletePw] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState(null);
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    setDeleteMsg(null);
+    try {
+      await apiDeleteAccount(token, deletePw);
+      onAccountDeleted();
+    } catch (e) {
+      setDeleteMsg(e.message);
+      setDeleting(false);
+    }
+  };
+
+  const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" };
+  const cardStyle = { background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: 16, marginBottom: 14 };
+  const btnStyle = (disabled) => ({ padding: "10px 18px", borderRadius: 8, border: "none", background: disabled ? T.line : T.ember, color: disabled ? T.sub : "#0C0E14", fontWeight: 800, fontSize: 13, cursor: disabled ? "default" : "pointer", fontFamily: "'Inter', sans-serif" });
+
+  return (
+    <div role="dialog" aria-modal="true" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 14, zIndex: 100 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: `1px solid ${T.line}` }}>
+          <h3 className="rp-display" style={{ fontSize: 16, color: T.ink }}>⚙️ Paramètres</h3>
+          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub }}>×</button>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "14px 12px", borderBottom: `1px solid ${T.line}`, width: "100%" }}>
+            <button onClick={() => setTab("compte")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "compte" ? T.surface2 : "transparent", color: tab === "compte" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+              👤 Compte général
+            </button>
+            <button onClick={() => setTab("securite")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "securite" ? T.surface2 : "transparent", color: tab === "securite" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+              🔒 Confidentialité & sécurité
+            </button>
+          </div>
+
+          <div style={{ padding: 20, width: "100%" }}>
+            {tab === "compte" && (
+              <div style={cardStyle}>
+                <h4 style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, marginBottom: 4 }}>Profil public</h4>
+                <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>Visible par les autres membres dans le salon et les commentaires.</p>
+
+                <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Email (privé, jamais affiché publiquement)</label>
+                <input value={user.email} disabled style={{ ...inputStyle, marginBottom: 14, opacity: 0.6, cursor: "not-allowed" }} />
+
+                <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Pseudo</label>
+                <input value={pseudo} onChange={(e) => setPseudo(e.target.value)} maxLength={30} placeholder="Ton pseudo" style={{ ...inputStyle, marginBottom: 14 }} />
+
+                <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Photo de profil (lien URL)</label>
+                <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…" style={{ ...inputStyle, marginBottom: 14 }} />
+
+                {profileMsg && <p style={{ fontSize: 12, color: profileMsg.startsWith("Erreur") ? T.red : T.green, marginBottom: 10 }}>{profileMsg}</p>}
+                <button onClick={saveProfile} disabled={savingProfile} style={btnStyle(savingProfile)}>
+                  {savingProfile ? "…" : "Enregistrer"}
+                </button>
+              </div>
+            )}
+
+            {tab === "securite" && (
+              <>
+                <div style={cardStyle}>
+                  <h4 style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, marginBottom: 14 }}>Mot de passe</h4>
+                  <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Mot de passe actuel</label>
+                  <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+                  <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Nouveau mot de passe</label>
+                  <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+                  <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Confirmer le nouveau mot de passe</label>
+                  <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }} />
+                  {pwMsg && <p style={{ fontSize: 12, color: pwMsg.startsWith("Erreur") ? T.red : T.green, marginBottom: 10 }}>{pwMsg}</p>}
+                  <button onClick={changePassword} disabled={savingPw} style={btnStyle(savingPw)}>
+                    {savingPw ? "…" : "Changer le mot de passe"}
+                  </button>
+                </div>
+
+                <div style={{ ...cardStyle, border: `1px solid ${T.red}55`, marginBottom: 0 }}>
+                  <h4 style={{ fontSize: 13.5, fontWeight: 800, color: T.red, marginBottom: 4 }}>Zone de danger</h4>
+                  <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>Supprime définitivement ton compte, tes favoris, commentaires et messages. Action irréversible.</p>
+
+                  {!showDeleteConfirm ? (
+                    <button onClick={() => setShowDeleteConfirm(true)} style={{ padding: "10px 18px", borderRadius: 8, border: `1.5px solid ${T.red}`, background: "transparent", color: T.red, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+                      Supprimer mon compte
+                    </button>
+                  ) : (
+                    <>
+                      <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Confirme avec ton mot de passe</label>
+                      <input type="password" value={deletePw} onChange={(e) => setDeletePw(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
+                      {deleteMsg && <p style={{ fontSize: 12, color: T.red, marginBottom: 10 }}>{deleteMsg}</p>}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={deleteAccount} disabled={deleting} style={{ padding: "10px 18px", borderRadius: 8, border: "none", background: T.red, color: "#fff", fontWeight: 800, fontSize: 13, cursor: deleting ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
+                          {deleting ? "…" : "Confirmer la suppression"}
+                        </button>
+                        <button onClick={() => { setShowDeleteConfirm(false); setDeletePw(""); setDeleteMsg(null); }} style={{ padding: "10px 18px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: "transparent", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+                          Annuler
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1148,6 +1279,7 @@ export default function RadarPrixSite() {
   const [legalPage, setLegalPage] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
@@ -1331,9 +1463,8 @@ export default function RadarPrixSite() {
                 {profileMenuOpen && (
                   <ProfileMenu
                     user={authUser}
-                    token={authToken}
                     role={authRole}
-                    onUpdated={(u) => persistUser(u)}
+                    onOpenSettings={() => { setSettingsOpen(true); setProfileMenuOpen(false); }}
                     onLogout={logout}
                     onOpenAdmin={() => { setView("admin"); setProfileMenuOpen(false); }}
                   />
@@ -1591,6 +1722,19 @@ export default function RadarPrixSite() {
             localStorage.setItem("radarprix_token", token);
             persistUser(user);
             setAuthOpen(false);
+          }}
+        />
+      )}
+      {settingsOpen && authUser && (
+        <SettingsModal
+          user={authUser}
+          token={authToken}
+          onClose={() => setSettingsOpen(false)}
+          onUpdated={(u) => persistUser(u)}
+          onAccountDeleted={() => {
+            setSettingsOpen(false);
+            logout();
+            goHome();
           }}
         />
       )}
