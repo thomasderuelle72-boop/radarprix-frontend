@@ -37,6 +37,17 @@ const CATEGORIES = [
 ];
 
 /* ── Appels au backend (le seul endroit qui parle au réseau) ──── */
+
+// Lit les deals déjà repérés en base (cron), instantané et gratuit.
+async function fetchDeals(category, page, pageSize = 15) {
+  const params = new URLSearchParams({ category, page, pageSize });
+  const res = await fetch(`${BACKEND_URL}/api/deals?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
+  return data; // { category, page, pageSize, total, hasMore, items }
+}
+
+// Recherche libre d'un produit précis : celle-ci lance un vrai scan SerpApi en direct.
 async function scanBackend(query, category) {
   const res = await fetch(`${BACKEND_URL}/api/scan`, {
     method: "POST",
@@ -178,7 +189,8 @@ function AuthModal({ onClose, onSuccess }) {
       const data = await apiAuth(mode === "login" ? "login" : "register", { email, password });
       localStorage.setItem("radarprix_token", data.token);
       localStorage.setItem("radarprix_email", data.user.email);
-      onSuccess(data.token, data.user.email);
+      localStorage.setItem("radarprix_role", data.user.role || "user");
+      onSuccess(data.token, data.user.email, data.user.role);
     } catch (e2) {
       setError(e2.message);
     } finally {
@@ -417,22 +429,27 @@ export default function RadarPrixSite() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authToken, setAuthToken] = useState(null);
   const [authEmail, setAuthEmail] = useState(null);
+  const [authRole, setAuthRole] = useState(null);
   const [followMsg, setFollowMsg] = useState(null);
 
   useEffect(() => {
     const t = localStorage.getItem("radarprix_token");
     const e = localStorage.getItem("radarprix_email");
+    const r = localStorage.getItem("radarprix_role");
     if (t && e) {
       setAuthToken(t);
       setAuthEmail(e);
+      setAuthRole(r || "user");
     }
   }, []);
 
   const logout = () => {
     localStorage.removeItem("radarprix_token");
     localStorage.removeItem("radarprix_email");
+    localStorage.removeItem("radarprix_role");
     setAuthToken(null);
     setAuthEmail(null);
+    setAuthRole(null);
   };
 
   const followCurrentSearch = async () => {
@@ -440,9 +457,9 @@ export default function RadarPrixSite() {
       setAuthOpen(true);
       return;
     }
-    if (!lastQuery) return;
+    const followQuery = searchTerm || `Catégorie : ${CATEGORIES.find((c) => c.id === category)?.label || category}`;
     try {
-      await apiWatchlistAdd(authToken, lastQuery.query, lastQuery.category);
+      await apiWatchlistAdd(authToken, followQuery, category);
       setFollowMsg("✓ Ajouté à tes favoris");
       setTimeout(() => setFollowMsg(null), 2500);
     } catch (e) {
@@ -459,62 +476,87 @@ export default function RadarPrixSite() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [lastScan, setLastScan] = useState(null);
-  const [lastQuery, setLastQuery] = useState(null);
   const [verdictFilter, setVerdictFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score");
   const [maxPrice, setMaxPrice] = useState("");
   const [scannedQuery, setScannedQuery] = useState(null);
+  const [totalDeals, setTotalDeals] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   useEffect(() => {
     document.title = "RadarPrix — Le détecteur d'erreurs de prix";
   }, []);
 
-  const startScan = async (newTab, opts = {}) => {
+  // Onglets "Gros deals" / "Erreurs de prix" : lecture instantanée du pool
+  // de deals déjà repérés en base par le cron — pas de scan à la volée,
+  // pas de limite arbitraire, juste de la pagination.
+  const openTab = async (newTab, opts = {}) => {
     const catId = opts.category !== undefined ? opts.category : category;
-    // Recherche libre (barre de recherche) : on envoie le terme exact.
-    // Scan par onglet/catégorie : on n'envoie PAS de requête — c'est le
-    // backend qui choisit un vrai produit dans son catalogue.
-    const term = opts.term || null;
-
     setTab(newTab);
-    setSearchTerm(term || "");
+    setSearchTerm("");
     setVerdictFilter(newTab === "erreurs" ? "erreur" : "all");
     setView("results");
     window.scrollTo(0, 0);
     setLoading(true);
     setError(null);
     setItems(null);
-    setScannedQuery(null);
-    setLastQuery({ query: term, category: catId });
-
+    setPage(1);
     try {
-      const { items: found, scannedQuery: sq } = await scanBackend(term, catId);
+      const data = await fetchDeals(catId, 1, PAGE_SIZE);
+      setItems(data.items);
+      setTotalDeals(data.total);
+      setHasMore(data.hasMore);
+      setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+    } catch (e) {
+      console.error(e);
+      setError("Impossible de charger les deals : " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMoreDeals = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const nextPage = page + 1;
+      const data = await fetchDeals(category, nextPage, PAGE_SIZE);
+      setItems([...(items || []), ...data.items]);
+      setHasMore(data.hasMore);
+      setPage(nextPage);
+    } catch (e) {
+      setError("Impossible de charger la suite : " + e.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Recherche libre (barre de recherche) : ici, un vrai scan SerpApi en
+  // direct sur le produit précis demandé — action explicite de l'utilisateur.
+  const searchProduct = async (term) => {
+    setTab("deals");
+    setSearchTerm(term);
+    setVerdictFilter("all");
+    setView("results");
+    window.scrollTo(0, 0);
+    setLoading(true);
+    setError(null);
+    setItems(null);
+    setScannedQuery(null);
+    try {
+      const { items: found, scannedQuery: sq } = await scanBackend(term, "tout");
       setItems(found);
       setScannedQuery(sq);
+      setHasMore(false);
       setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
       console.error(e);
       setError("Le scan a échoué : " + e.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const rescan = async () => {
-    if (!lastQuery || loadingMore) return;
-    setLoadingMore(true);
-    setError(null);
-    try {
-      const { items: found, scannedQuery: sq } = await scanBackend(lastQuery.query, lastQuery.category);
-      const seen = new Set((items || []).map((i) => (i.name || "").toLowerCase().slice(0, 40)));
-      const fresh = found.filter((i) => !seen.has((i.name || "").toLowerCase().slice(0, 40)));
-      setItems([...(items || []), ...fresh]);
-      setScannedQuery(sq);
-      setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
-    } catch (e) {
-      setError("Le nouveau scan a échoué : " + e.message);
-    } finally {
-      setLoadingMore(false);
     }
   };
 
@@ -543,21 +585,21 @@ export default function RadarPrixSite() {
             </button>
             {view === "results" && (
               <div style={{ flex: 1, maxWidth: 340, marginLeft: 14 }}>
-                <SearchBar onSearch={(t) => startScan("deals", { term: t, category: "tout" })} />
+                <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
             )}
             <button
               onClick={() => (authToken ? logout() : setAuthOpen(true))}
-              style={{ marginLeft: 12, background: "none", border: `1.5px solid ${T.line}`, borderRadius: 8, padding: "6px 12px", color: T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
+              style={{ marginLeft: 12, background: "none", border: `1.5px solid ${authRole === "admin" ? T.yellow : T.line}`, borderRadius: 8, padding: "6px 12px", color: authRole === "admin" ? T.yellow : T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
             >
-              {authToken ? `👤 ${authEmail} · déconnexion` : "Connexion"}
+              {authToken ? `${authRole === "admin" ? "🛡️ Admin · " : "👤 "}${authEmail} · déconnexion` : "Connexion"}
             </button>
           </div>
           <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 2 }}>
-            <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => startScan("deals")}>
+            <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
               🔥 Gros deals
             </button>
-            <button className={`rp-tab ${view === "results" && tab === "erreurs" ? "active" : ""}`} onClick={() => startScan("erreurs")}>
+            <button className={`rp-tab ${view === "results" && tab === "erreurs" ? "active" : ""}`} onClick={() => openTab("erreurs")}>
               🔴 Erreurs de prix
             </button>
           </div>
@@ -579,12 +621,12 @@ export default function RadarPrixSite() {
               </p>
 
               <div style={{ maxWidth: 520, margin: "0 auto" }}>
-                <SearchBar big onSearch={(t) => startScan("deals", { term: t, category: "tout" })} placeholder="Cherchez un produit : PS5, aspirateur, iPhone…" />
+                <SearchBar big onSearch={(t) => searchProduct(t)} placeholder="Cherchez un produit : PS5, aspirateur, iPhone…" />
               </div>
 
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
                 {[["deals", "🔥 Gros deals"], ["erreurs", "🔴 Erreurs de prix"]].map(([m, label]) => (
-                  <button key={m} onClick={() => startScan(m)} style={{ padding: "12px 18px", borderRadius: 12, border: `1.5px solid ${T.line}`, background: T.surface, color: T.ink, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif" }}>
+                  <button key={m} onClick={() => openTab(m)} style={{ padding: "12px 18px", borderRadius: 12, border: `1.5px solid ${T.line}`, background: T.surface, color: T.ink, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif" }}>
                     {label}
                   </button>
                 ))}
@@ -666,12 +708,9 @@ export default function RadarPrixSite() {
             {followMsg && <p style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
             {lastScan && !loading && (
               <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>
-                {!searchTerm && scannedQuery && (
-                  <>
-                    Produit scanné : <strong style={{ color: T.ink }}>{scannedQuery}</strong> ·{" "}
-                  </>
-                )}
-                Scan de {lastScan} · {visible.length}/{items ? items.length : 0} offre(s) affichée(s)
+                {searchTerm
+                  ? `Scan de ${lastScan} · ${visible.length}/${items ? items.length : 0} offre(s) affichée(s)`
+                  : `${totalDeals} deal(s) au total dans cette catégorie · ${visible.length}/${items ? items.length : 0} chargée(s) et affichée(s)`}
               </p>
             )}
 
@@ -688,7 +727,7 @@ export default function RadarPrixSite() {
                   ))}
                 </select>
                 <button
-                  onClick={() => startScan(tab)}
+                  onClick={() => openTab(tab)}
                   disabled={loading}
                   style={{ padding: "0 18px", borderRadius: 10, border: "none", background: loading ? T.surface2 : T.ember, color: loading ? T.sub : "#0C0E14", fontWeight: 900, fontSize: 13, cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}
                 >
@@ -740,13 +779,21 @@ export default function RadarPrixSite() {
               {visible.map((it, i) => (
                 <Sticker key={i} item={it} />
               ))}
-              {items && items.length > 0 && !loading && (
+              {items && items.length > 0 && !loading && !searchTerm && hasMore && (
                 <button
-                  onClick={rescan}
+                  onClick={loadMoreDeals}
                   disabled={loadingMore}
                   style={{ padding: "13px", borderRadius: 10, border: `1.5px solid ${T.emberSolid}`, background: "transparent", color: loadingMore ? T.sub : T.ink, fontWeight: 800, fontSize: 13.5, cursor: loadingMore ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}
                 >
-                  {loadingMore ? "Nouveau scan en cours…" : "🔄 Relancer un scan (nouveaux prix)"}
+                  {loadingMore ? "Chargement…" : `Voir plus (${totalDeals - visible.length} restant(s))`}
+                </button>
+              )}
+              {items && items.length > 0 && !loading && searchTerm && (
+                <button
+                  onClick={() => searchProduct(searchTerm)}
+                  style={{ padding: "13px", borderRadius: 10, border: `1.5px solid ${T.emberSolid}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 13.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+                >
+                  🔄 Relancer ce scan (nouveaux prix)
                 </button>
               )}
               {items && !loading && (
@@ -764,9 +811,10 @@ export default function RadarPrixSite() {
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
-          onSuccess={(token, email) => {
+          onSuccess={(token, email, role) => {
             setAuthToken(token);
             setAuthEmail(email);
+            setAuthRole(role || "user");
             setAuthOpen(false);
           }}
         />
