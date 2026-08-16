@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -123,6 +124,84 @@ async function apiAdminTriggerScan(token, size) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Le scan a échoué.");
+  return data;
+}
+
+async function apiGetHistory(query, days = 30) {
+  const params = new URLSearchParams({ query, days });
+  const res = await fetch(`${BACKEND_URL}/api/history?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Historique indisponible.");
+  return data.days || [];
+}
+
+async function apiGetComments(query) {
+  const params = new URLSearchParams({ query });
+  const res = await fetch(`${BACKEND_URL}/api/comments?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Commentaires indisponibles.");
+  return data.items || [];
+}
+
+async function apiPostComment(token, query, body) {
+  const res = await fetch(`${BACKEND_URL}/api/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ query, body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible d'envoyer le commentaire.");
+  return data.items || [];
+}
+
+async function apiGetPublicChat(afterId = 0) {
+  const params = new URLSearchParams({ afterId });
+  const res = await fetch(`${BACKEND_URL}/api/chat/public?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Chat indisponible.");
+  return data.items || [];
+}
+
+async function apiPostPublicChat(token, body) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/public`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Envoi impossible.");
+  return data;
+}
+
+async function apiGetMembers(token) {
+  const res = await fetch(`${BACKEND_URL}/api/members`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Membres indisponibles.");
+  return data.items || [];
+}
+
+async function apiGetConversations(token) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Conversations indisponibles.");
+  return data.items || [];
+}
+
+async function apiGetConversationWith(token, userId) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Conversation indisponible.");
+  return data.items || [];
+}
+
+async function apiPostMessageTo(token, userId, body) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Envoi impossible.");
   return data;
 }
 
@@ -414,9 +493,111 @@ function ProfileMenu({ user, token, role, onUpdated, onLogout, onOpenAdmin }) {
   );
 }
 
-function Sticker({ item }) {
+/* ── Mini-graphique d'historique de prix (dépliable) ──────────── */
+function PriceHistoryPanel({ query }) {
+  const [days, setDays] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGetHistory(query)
+      .then((d) => !cancelled && setDays(d))
+      .catch((e) => !cancelled && setError(e.message));
+    return () => { cancelled = true; };
+  }, [query]);
+
+  if (error) return <p style={{ fontSize: 12, color: T.sub }}>Historique indisponible.</p>;
+  if (!days) return <p style={{ fontSize: 12, color: T.sub }}>Chargement…</p>;
+  if (days.length < 2) return <p style={{ fontSize: 12, color: T.sub }}>Pas encore assez de données pour un graphique — revenez dans quelques jours.</p>;
+
+  const chartData = days.map((d) => ({ day: d.day.slice(5), prix: Math.round(d.avg_price) }));
+  return (
+    <div style={{ height: 140, marginTop: 4 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData}>
+          <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.sub }} axisLine={{ stroke: T.line }} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: T.sub }} axisLine={false} tickLine={false} width={40} />
+          <Tooltip contentStyle={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: T.ink }} formatter={(v) => [`${v} €`, "Prix moyen"]} />
+          <Line type="monotone" dataKey="prix" stroke={T.emberSolid} strokeWidth={2} dot={{ r: 3, fill: T.emberSolid }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── Fil de commentaires d'un deal (dépliable) ─────────────────── */
+function CommentsPanel({ query, authToken, onNeedAuth }) {
+  const [comments, setComments] = useState(null);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = () => {
+    apiGetComments(query).then(setComments).catch((e) => setError(e.message));
+  };
+  useEffect(load, [query]);
+
+  const send = async () => {
+    if (!authToken) return onNeedAuth();
+    if (!text.trim()) return;
+    setSending(true);
+    setError(null);
+    try {
+      const items = await apiPostComment(authToken, query, text.trim());
+      setComments(items);
+      setText("");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      {!comments && <p style={{ fontSize: 12, color: T.sub }}>Chargement…</p>}
+      {comments?.length === 0 && <p style={{ fontSize: 12, color: T.sub }}>Aucun commentaire pour l'instant — sois le premier.</p>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+        {comments?.map((c) => (
+          <div key={c.id} style={{ display: "flex", gap: 8 }}>
+            <Avatar email={c.author} avatarUrl={c.avatar_url} size={22} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12 }}>
+                <strong style={{ color: T.ink }}>{c.author}</strong>{" "}
+                <span style={{ color: T.sub, fontSize: 10.5 }}>{c.created_at?.slice(0, 16).replace("T", " ")}</span>
+              </div>
+              <div style={{ fontSize: 13, color: T.ink }}>{c.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          maxLength={500}
+          placeholder={authToken ? "Ajouter un commentaire…" : "Connecte-toi pour commenter"}
+          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, fontFamily: "'Inter', sans-serif" }}
+        />
+        <button
+          onClick={send}
+          disabled={sending}
+          style={{ padding: "0 14px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+        >
+          Envoyer
+        </button>
+      </div>
+      {error && <p style={{ fontSize: 11.5, color: T.red, marginTop: 4 }}>{error}</p>}
+    </div>
+  );
+}
+
+function Sticker({ item, authToken, onNeedAuth }) {
   const isGem = item.score >= 85;
   const isErr = item.verdict === "erreur";
+  const [panel, setPanel] = useState(null); // null | "history" | "comments"
+
   return (
     <div
       className="fade-up"
@@ -431,9 +612,18 @@ function Sticker({ item }) {
         gap: 8,
       }}
     >
-      {isGem && (
-        <div className="rp-display" style={{ fontSize: 11, letterSpacing: "0.08em", color: T.yellow }}>
-          💎 PÉPITE · score {item.score}/100
+      {(isGem || item.allTimeLow) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {isGem && (
+            <div className="rp-display" style={{ fontSize: 11, letterSpacing: "0.08em", color: T.yellow }}>
+              💎 PÉPITE · score {item.score}/100
+            </div>
+          )}
+          {item.allTimeLow && (
+            <div className="rp-display" style={{ fontSize: 11, letterSpacing: "0.04em", color: T.green }}>
+              🏆 Prix le plus bas jamais vu
+            </div>
+          )}
         </div>
       )}
       <div style={{ display: "flex", gap: 12 }}>
@@ -484,16 +674,34 @@ function Sticker({ item }) {
           </div>
         </div>
       </div>
-      {item.url && (
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: "inline-block", alignSelf: "flex-start", padding: "9px 16px", borderRadius: 8, background: isErr ? T.red : T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {item.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "inline-block", padding: "9px 16px", borderRadius: 8, background: isErr ? T.red : T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
+          >
+            Voir l'offre →
+          </a>
+        )}
+        <button
+          onClick={() => setPanel(panel === "history" ? null : "history")}
+          style={{ padding: "9px 14px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: panel === "history" ? T.surface2 : "transparent", color: T.sub, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
         >
-          Voir l'offre →
-        </a>
-      )}
+          📈 Historique
+        </button>
+        <button
+          onClick={() => setPanel(panel === "comments" ? null : "comments")}
+          style={{ padding: "9px 14px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: panel === "comments" ? T.surface2 : "transparent", color: T.sub, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+        >
+          💬 Discussion
+        </button>
+      </div>
+
+      {panel === "history" && <PriceHistoryPanel query={item.name} />}
+      {panel === "comments" && <CommentsPanel query={item.name} authToken={authToken} onNeedAuth={onNeedAuth} />}
     </div>
   );
 }
@@ -714,6 +922,226 @@ function AdminDashboard({ token, onBack }) {
   );
 }
 
+/* ── Favoris ────────────────────────────────────────────────── */
+function FavorisView({ token, onBack, onOpenSearch }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    apiWatchlistGet(token).then(setItems).catch((e) => setError(e.message));
+  }, [token]);
+
+  return (
+    <main style={{ maxWidth: 620, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
+        ← Accueil
+      </button>
+      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>⭐ Mes favoris</h2>
+      {error && <p style={{ color: T.red, fontSize: 13 }}>{error}</p>}
+      {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — clique sur "★ Suivre" sur une page de résultats pour en ajouter.</p>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {items?.map((it) => (
+          <button
+            key={it.query}
+            onClick={() => onOpenSearch(it.query)}
+            style={{ textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", color: T.ink, fontFamily: "'Inter', sans-serif" }}
+          >
+            <div style={{ fontWeight: 800, fontSize: 14 }}>{it.query}</div>
+            <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>Ajouté le {it.created_at?.slice(0, 10)}</div>
+          </button>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* ── Communauté : salon général + messages privés ──────────────── */
+function CommunityView({ token, currentUserId, onBack }) {
+  const [tab, setTab] = useState("public"); // public | dm
+  const [publicMsgs, setPublicMsgs] = useState([]);
+  const [text, setText] = useState("");
+  const [error, setError] = useState(null);
+
+  const [conversations, setConversations] = useState(null);
+  const [members, setMembers] = useState(null);
+  const [activeConvo, setActiveConvo] = useState(null); // {id, display_name}
+  const [dmMsgs, setDmMsgs] = useState([]);
+  const [dmText, setDmText] = useState("");
+
+  // Salon public : sondage régulier (toutes les 4s) pour un effet "live" sans websocket.
+  useEffect(() => {
+    let cancelled = false;
+    let lastId = 0;
+    const poll = async () => {
+      try {
+        const items = await apiGetPublicChat(lastId);
+        if (cancelled || items.length === 0) return;
+        lastId = items[items.length - 1].id;
+        setPublicMsgs((prev) => [...prev, ...items]);
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  const sendPublic = async () => {
+    if (!text.trim()) return;
+    setError(null);
+    try {
+      await apiPostPublicChat(token, text.trim());
+      setText("");
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== "dm") return;
+    apiGetConversations(token).then(setConversations).catch((e) => setError(e.message));
+    apiGetMembers(token).then(setMembers).catch(() => {});
+  }, [tab, token]);
+
+  const openConvo = async (user) => {
+    setActiveConvo(user);
+    try {
+      const msgs = await apiGetConversationWith(token, user.user_id ?? user.id);
+      setDmMsgs(msgs);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const sendDm = async () => {
+    if (!dmText.trim() || !activeConvo) return;
+    try {
+      await apiPostMessageTo(token, activeConvo.user_id ?? activeConvo.id, dmText.trim());
+      const msgs = await apiGetConversationWith(token, activeConvo.user_id ?? activeConvo.id);
+      setDmMsgs(msgs);
+      setDmText("");
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  return (
+    <main style={{ maxWidth: 620, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
+        ← Accueil
+      </button>
+      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>👥 Communauté</h2>
+
+      <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16 }}>
+        <button onClick={() => setTab("public")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+          💬 Salon général
+        </button>
+        <button onClick={() => setTab("dm")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "dm" ? T.ember : "transparent", color: tab === "dm" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+          ✉️ Messages privés
+        </button>
+      </div>
+
+      {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
+
+      {tab === "public" && (
+        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 360, overflowY: "auto", marginBottom: 12 }}>
+            {publicMsgs.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun message pour l'instant — lance la discussion.</p>}
+            {publicMsgs.map((m) => (
+              <div key={m.id} style={{ display: "flex", gap: 8 }}>
+                <Avatar email={m.author} avatarUrl={m.avatar_url} size={26} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12 }}>
+                    <strong style={{ color: m.user_id === currentUserId ? T.emberSolid : T.ink }}>{m.author}</strong>{" "}
+                    <span style={{ color: T.sub, fontSize: 10.5 }}>{m.created_at?.slice(11, 16)}</span>
+                  </div>
+                  <div style={{ fontSize: 13.5, color: T.ink }}>{m.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendPublic()}
+              maxLength={500}
+              placeholder="Écris un message au salon…"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
+            />
+            <button onClick={sendPublic} style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+              Envoyer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "dm" && !activeConvo && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {conversations?.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: 13, color: T.sub, marginBottom: 8, fontWeight: 700 }}>Conversations en cours</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {conversations.map((c) => (
+                  <button key={c.user_id} onClick={() => openConvo(c)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
+                    <Avatar email={c.display_name} avatarUrl={c.avatar_url} size={30} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{c.display_name}</div>
+                      <div style={{ fontSize: 12, color: T.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.last_body}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <h3 style={{ fontSize: 13, color: T.sub, marginBottom: 8, fontWeight: 700 }}>Démarrer une conversation</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {members?.map((m) => (
+                <button key={m.id} onClick={() => openConvo(m)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
+                  <Avatar email={m.display_name} avatarUrl={m.avatar_url} size={30} />
+                  <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{m.display_name}</div>
+                </button>
+              ))}
+              {members?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun autre membre inscrit pour l'instant.</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "dm" && activeConvo && (
+        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
+          <button onClick={() => setActiveConvo(null)} style={{ background: "none", border: "none", color: T.sub, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}>
+            ← Toutes les conversations
+          </button>
+          <div style={{ fontWeight: 800, fontSize: 14, color: T.ink, marginBottom: 10 }}>{activeConvo.display_name}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto", marginBottom: 12 }}>
+            {dmMsgs.map((m) => (
+              <div key={m.id} style={{ alignSelf: m.from_user_id === currentUserId ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+                <div style={{ background: m.from_user_id === currentUserId ? T.ember : T.surface2, color: m.from_user_id === currentUserId ? "#0C0E14" : T.ink, padding: "8px 12px", borderRadius: 10, fontSize: 13.5 }}>
+                  {m.body}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              value={dmText}
+              onChange={(e) => setDmText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendDm()}
+              maxLength={500}
+              placeholder="Ton message…"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
+            />
+            <button onClick={sendDm} style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+              Envoyer
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
 
 export default function RadarPrixSite() {
   const [view, setView] = useState("home");
@@ -927,6 +1355,12 @@ export default function RadarPrixSite() {
             <button className={`rp-tab ${view === "results" && tab === "erreurs" ? "active" : ""}`} onClick={() => openTab("erreurs")}>
               🔴 Erreurs de prix
             </button>
+            <button className={`rp-tab ${view === "favoris" ? "active" : ""}`} onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}>
+              ⭐ Favoris
+            </button>
+            <button className={`rp-tab ${view === "communaute" ? "active" : ""}`} onClick={() => (authToken ? setView("communaute") : setAuthOpen(true))}>
+              👥 Communauté
+            </button>
           </div>
         </div>
       </nav>
@@ -1102,7 +1536,7 @@ export default function RadarPrixSite() {
                 </div>
               )}
               {visible.map((it, i) => (
-                <Sticker key={i} item={it} />
+                <Sticker key={i} item={it} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} />
               ))}
               {items && items.length > 0 && !loading && !searchTerm && hasMore && (
                 <button
@@ -1132,6 +1566,18 @@ export default function RadarPrixSite() {
 
         {view === "admin" && authRole === "admin" && (
           <AdminDashboard token={authToken} onBack={goHome} />
+        )}
+
+        {view === "favoris" && authToken && (
+          <FavorisView
+            token={authToken}
+            onBack={goHome}
+            onOpenSearch={(q) => searchProduct(q)}
+          />
+        )}
+
+        {view === "communaute" && authToken && (
+          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} />
         )}
       </div>
 
