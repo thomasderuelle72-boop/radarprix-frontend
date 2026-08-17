@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { T, FEATURED_MERCHANTS } from "./theme.js";
+import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
+import MobileNav from "./components/MobileNav.jsx";
+import ProductDetailView from "./components/ProductDetailView.jsx";
+import Avatar from "./components/Avatar.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -8,22 +12,35 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
    tourne côté serveur (src/algorithm.js), en pur code.
    ════════════════════════════════════════════════════════════════ */
 
-// ⚠️ Change cette URL si tu redéploies le backend ailleurs.
-const BACKEND_URL = "https://radarprix-backend-production.up.railway.app";
-
-const T = {
-  bg: "#0C0E14",
-  surface: "#151926",
-  surface2: "#1B2032",
-  ink: "#F2F4F8",
-  sub: "#8B93A7",
-  ember: "linear-gradient(90deg, #FF5A2C, #FFB13D)",
-  emberSolid: "#FF6A35",
-  red: "#FF3B30",
-  green: "#2FD98B",
-  yellow: "#FFC53D",
-  line: "#232838",
-};
+import {
+  fetchDeals,
+  scanBackend,
+  apiGetLatest,
+  apiAuth,
+  apiWatchlistAdd,
+  apiWatchlistGet,
+  apiUpdateProfile,
+  apiChangePassword,
+  apiDeleteAccount,
+  apiAdminStats,
+  apiAdminUsers,
+  apiAdminTriggerScan,
+  apiGetPublicChat,
+  apiPostPublicChat,
+  apiGetMembers,
+  apiGetConversations,
+  apiGetConversationWith,
+  apiPostMessageTo,
+  apiCommunityListDeals,
+  apiCommunitySubmitDeal,
+  apiCommunityVote,
+  apiCommunityRemoveVote,
+  apiForumCategories,
+  apiForumThreads,
+  apiForumCreateThread,
+  apiForumThread,
+  apiForumReply,
+} from "./api.js";
 
 const CATEGORIES = [
   { id: "tout", label: "Toutes catégories" },
@@ -39,283 +56,6 @@ const CATEGORIES = [
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
-
-/* ── Appels au backend (le seul endroit qui parle au réseau) ──── */
-
-// Lit les deals déjà repérés en base (cron), instantané et gratuit.
-async function fetchDeals(category, page, pageSize = 15) {
-  const params = new URLSearchParams({ category, page, pageSize });
-  const res = await fetch(`${BACKEND_URL}/api/deals?${params}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
-  return data; // { category, page, pageSize, total, hasMore, items }
-}
-
-// Recherche libre d'un produit précis : celle-ci lance un vrai scan SerpApi en direct.
-async function scanBackend(query, category) {
-  const res = await fetch(`${BACKEND_URL}/api/scan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, category }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
-  return { items: data.items || [], scannedQuery: data.query || query };
-}
-
-async function apiAuth(path, body) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Une erreur est survenue.");
-  return data;
-}
-
-async function apiWatchlistAdd(token, query, category) {
-  const res = await fetch(`${BACKEND_URL}/api/watchlist`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ query, category }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible d'ajouter aux favoris.");
-  return data.items || [];
-}
-
-async function apiWatchlistGet(token) {
-  const res = await fetch(`${BACKEND_URL}/api/watchlist`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de charger les favoris.");
-  return data.items || [];
-}
-
-async function apiUpdateProfile(token, patch) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(patch),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de mettre à jour le profil.");
-  return data.user;
-}
-
-async function apiChangePassword(token, currentPassword, newPassword) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/password`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ currentPassword, newPassword }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de changer le mot de passe.");
-  return data;
-}
-
-async function apiDeleteAccount(token, password) {
-  const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de supprimer le compte.");
-  return data;
-}
-
-async function apiAdminStats(token) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Accès refusé.");
-  return data;
-}
-
-async function apiAdminUsers(token) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Accès refusé.");
-  return data.users || [];
-}
-
-async function apiAdminTriggerScan(token, size) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/trigger-scan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ size }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Le scan a échoué.");
-  return data;
-}
-
-async function apiGetHistory(query, days = 30) {
-  const params = new URLSearchParams({ query, days });
-  const res = await fetch(`${BACKEND_URL}/api/history?${params}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Historique indisponible.");
-  return data.days || [];
-}
-
-async function apiGetComments(query) {
-  const params = new URLSearchParams({ query });
-  const res = await fetch(`${BACKEND_URL}/api/comments?${params}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Commentaires indisponibles.");
-  return data.items || [];
-}
-
-async function apiPostComment(token, query, body) {
-  const res = await fetch(`${BACKEND_URL}/api/comments`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ query, body }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible d'envoyer le commentaire.");
-  return data.items || [];
-}
-
-async function apiGetPublicChat(afterId = 0) {
-  const params = new URLSearchParams({ afterId });
-  const res = await fetch(`${BACKEND_URL}/api/chat/public?${params}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Chat indisponible.");
-  return data.items || [];
-}
-
-async function apiPostPublicChat(token, body) {
-  const res = await fetch(`${BACKEND_URL}/api/chat/public`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ body }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Envoi impossible.");
-  return data;
-}
-
-async function apiGetMembers(token) {
-  const res = await fetch(`${BACKEND_URL}/api/members`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Membres indisponibles.");
-  return data.items || [];
-}
-
-async function apiGetConversations(token) {
-  const res = await fetch(`${BACKEND_URL}/api/chat/conversations`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Conversations indisponibles.");
-  return data.items || [];
-}
-
-async function apiGetConversationWith(token, userId) {
-  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Conversation indisponible.");
-  return data.items || [];
-}
-
-async function apiPostMessageTo(token, userId, body) {
-  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ body }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Envoi impossible.");
-  return data;
-}
-
-/* ── Communauté : deals soumis par les membres + votes de pertinence ── */
-async function apiCommunityListDeals(token, category = "tout", sort = "hot", page = 1, pageSize = 20) {
-  const params = new URLSearchParams({ category, sort, page, pageSize });
-  const res = await fetch(`${BACKEND_URL}/api/community/deals?${params}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Deals communautaires indisponibles.");
-  return data; // { items, total, hasMore, page, pageSize, category, sort }
-}
-
-async function apiCommunitySubmitDeal(token, payload) {
-  const res = await fetch(`${BACKEND_URL}/api/community/deals`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de publier ce deal.");
-  return data.deal;
-}
-
-async function apiCommunityVote(token, dealId, value) {
-  const res = await fetch(`${BACKEND_URL}/api/community/deals/${dealId}/vote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ value }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Vote impossible.");
-  return data.deal;
-}
-
-async function apiCommunityRemoveVote(token, dealId) {
-  const res = await fetch(`${BACKEND_URL}/api/community/deals/${dealId}/vote`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Vote impossible.");
-  return data.deal;
-}
-
-/* ── Forum : catégories, sujets, réponses ──────────────────────── */
-async function apiForumCategories() {
-  const res = await fetch(`${BACKEND_URL}/api/forum/categories`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Catégories indisponibles.");
-  return data.items || [];
-}
-
-async function apiForumThreads(slug) {
-  const res = await fetch(`${BACKEND_URL}/api/forum/categories/${slug}/threads`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Sujets indisponibles.");
-  return data; // { category, items }
-}
-
-async function apiForumCreateThread(token, slug, title, body) {
-  const res = await fetch(`${BACKEND_URL}/api/forum/categories/${slug}/threads`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ title, body }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Impossible de créer ce sujet.");
-  return data.thread;
-}
-
-async function apiForumThread(threadId) {
-  const res = await fetch(`${BACKEND_URL}/api/forum/threads/${threadId}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Sujet indisponible.");
-  return data; // { thread, replies }
-}
-
-async function apiForumReply(token, threadId, body) {
-  const res = await fetch(`${BACKEND_URL}/api/forum/threads/${threadId}/replies`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ body }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Réponse impossible.");
-  return data.replies || [];
-}
 
 /* ── Styles globaux ─────────────────────────────────────────── */
 const GlobalStyles = () => (
@@ -344,6 +84,30 @@ const GlobalStyles = () => (
       background-image: repeating-linear-gradient(90deg, ${T.ink} 0 2px, transparent 2px 3px, ${T.ink} 3px 4px, transparent 4px 7px, ${T.ink} 7px 9px, transparent 9px 10px);
       opacity: 0.82;
     }
+    /* Encoches façon coupon/ticket : demi-cercles "découpés" dans les bords
+       gauche/droit de la carte, couleur du fond de page pour l'effet de trou. */
+    .rp-ticket { position: relative; }
+    .rp-ticket::before, .rp-ticket::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: ${T.bg};
+      z-index: 2;
+    }
+    .rp-ticket::before { left: -9px; }
+    .rp-ticket::after { right: -9px; }
+    /* Bandeau diagonal "alerte", réservé aux cartes ERREUR — même famille
+       de technique que .rp-barcode (repeating-linear-gradient). */
+    .rp-zigzag {
+      height: 5px;
+      border-radius: 3px;
+      background-image: repeating-linear-gradient(-45deg, ${T.red} 0 6px, ${T.pink} 6px 12px);
+      opacity: 0.9;
+    }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     }
@@ -362,6 +126,25 @@ const GlobalStyles = () => (
     .rp-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: ${T.ink}; font-weight: 700; font-size: 13px; padding: 10px 11px; border-radius: 8px; cursor: pointer; font-family: 'Inter', system-ui, sans-serif; }
     .rp-dropdown-item:hover { background: ${T.surface2}; color: ${T.emberSolid}; }
     .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 1px; }
+    html, body { overflow-x: hidden; }
+    .rp-mobile-nav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 55;
+      background: rgba(12,14,20,0.96);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid ${T.line};
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    @media (max-width: 640px) {
+      .rp-mobile-nav { display: flex; }
+      .rp-body { padding-bottom: 60px; }
+    }
+    .rp-cat-btn { transition: border-color .15s ease, background .15s ease, transform .1s ease; }
+    .rp-cat-btn:hover { border-color: ${T.emberSolid}; background: rgba(255,106,53,0.08); }
+    .rp-cat-btn:active { transform: scale(0.97); }
+    .rp-mobile-nav button { transition: color .15s ease; }
   `}</style>
 );
 
@@ -416,49 +199,6 @@ function SearchBar({ onSearch, big, placeholder }) {
   );
 }
 
-/* ── Avatar : photo si dispo, sinon initiale colorée (déterministe) ─ */
-const AVATAR_COLORS = ["#FF6A35", "#2FD98B", "#1F5EFF", "#FFC53D", "#FF3B30", "#A855F7"];
-function colorFor(str) {
-  let hash = 0;
-  for (let i = 0; i < (str || "").length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-function Avatar({ email, pseudo, avatarUrl, size = 32 }) {
-  const label = pseudo || email || "?";
-  const initial = label.trim()[0]?.toUpperCase() || "?";
-  const [imgFailed, setImgFailed] = useState(false);
-  if (avatarUrl && !imgFailed) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={label}
-        onError={() => setImgFailed(true)}
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-      />
-    );
-  }
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: colorFor(label),
-        color: "#0C0E14",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 900,
-        fontSize: size * 0.45,
-        fontFamily: "'Unbounded', system-ui, sans-serif",
-        flexShrink: 0,
-      }}
-    >
-      {initial}
-    </div>
-  );
-}
 
 
 function AuthModal({ onClose, onSuccess }) {
@@ -730,271 +470,6 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
   );
 }
 
-/* ── Mini-graphique d'historique de prix (dépliable) ──────────── */
-function PriceHistoryPanel({ query }) {
-  const [days, setDays] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiGetHistory(query)
-      .then((d) => !cancelled && setDays(d))
-      .catch((e) => !cancelled && setError(e.message));
-    return () => { cancelled = true; };
-  }, [query]);
-
-  if (error) return <p style={{ fontSize: 12, color: T.sub }}>Historique indisponible.</p>;
-  if (!days) return <p style={{ fontSize: 12, color: T.sub }}>Chargement…</p>;
-  if (days.length < 2) return <p style={{ fontSize: 12, color: T.sub }}>Pas encore assez de données pour un graphique — revenez dans quelques jours.</p>;
-
-  const chartData = days.map((d) => ({ day: d.day.slice(5), prix: Math.round(d.avg_price) }));
-  return (
-    <div style={{ height: 140, marginTop: 4 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData}>
-          <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.sub }} axisLine={{ stroke: T.line }} tickLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: T.sub }} axisLine={false} tickLine={false} width={40} />
-          <Tooltip contentStyle={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: T.ink }} formatter={(v) => [`${v} €`, "Prix moyen"]} />
-          <Line type="monotone" dataKey="prix" stroke={T.emberSolid} strokeWidth={2} dot={{ r: 3, fill: T.emberSolid }} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-/* ── Fil de commentaires d'un deal (dépliable) ─────────────────── */
-function CommentsPanel({ query, authToken, onNeedAuth }) {
-  const [comments, setComments] = useState(null);
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState(null);
-
-  const load = () => {
-    apiGetComments(query).then(setComments).catch((e) => setError(e.message));
-  };
-  useEffect(load, [query]);
-
-  const send = async () => {
-    if (!authToken) return onNeedAuth();
-    if (!text.trim()) return;
-    setSending(true);
-    setError(null);
-    try {
-      const items = await apiPostComment(authToken, query, text.trim());
-      setComments(items);
-      setText("");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div style={{ marginTop: 4 }}>
-      {!comments && <p style={{ fontSize: 12, color: T.sub }}>Chargement…</p>}
-      {comments?.length === 0 && <p style={{ fontSize: 12, color: T.sub }}>Aucun commentaire pour l'instant — sois le premier.</p>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
-        {comments?.map((c) => (
-          <div key={c.id} style={{ display: "flex", gap: 8 }}>
-            <Avatar email={c.author} avatarUrl={c.avatar_url} size={22} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12 }}>
-                <strong style={{ color: T.ink }}>{c.author}</strong>{" "}
-                <span style={{ color: T.sub, fontSize: 10.5 }}>{c.created_at?.slice(0, 16).replace("T", " ")}</span>
-              </div>
-              <div style={{ fontSize: 13, color: T.ink }}>{c.body}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          maxLength={500}
-          placeholder={authToken ? "Ajouter un commentaire…" : "Connecte-toi pour commenter"}
-          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13, fontFamily: "'Inter', sans-serif" }}
-        />
-        <button
-          onClick={send}
-          disabled={sending}
-          style={{ padding: "0 14px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-        >
-          Envoyer
-        </button>
-      </div>
-      {error && <p style={{ fontSize: 11.5, color: T.red, marginTop: 4 }}>{error}</p>}
-    </div>
-  );
-}
-
-// Code à 12 chiffres purement décoratif (pas un vrai EAN), dérivé du nom
-// et du prix pour rester stable entre deux rendus de la même carte.
-function fakeBarcodeDigits(seedStr) {
-  let h = 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
-  }
-  const digits = String(h).padStart(12, "0").slice(0, 12);
-  return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-}
-
-/* ── Squelette de chargement, même gabarit qu'une carte-ticket ─── */
-function SkeletonCard() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        background: T.surface,
-        border: `1.5px solid ${T.line}`,
-        borderRadius: 14,
-        padding: "16px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-    >
-      <div style={{ display: "flex", gap: 12 }}>
-        <div className="rp-shimmer" style={{ width: 68, height: 68, borderRadius: 10, flexShrink: 0 }} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-          <div className="rp-shimmer" style={{ height: 14, width: "72%", borderRadius: 6 }} />
-          <div className="rp-shimmer" style={{ height: 24, width: "42%", borderRadius: 6 }} />
-          <div className="rp-shimmer" style={{ height: 12, width: "58%", borderRadius: 6 }} />
-        </div>
-      </div>
-      <div className="rp-shimmer" style={{ height: 34, width: "45%", borderRadius: 8 }} />
-    </div>
-  );
-}
-
-/* ── Carte de deal, façon ticket de caisse ─────────────────────── */
-function Sticker({ item, authToken, onNeedAuth }) {
-  const isGem = item.score >= 85;
-  const isErr = item.verdict === "erreur";
-  const [panel, setPanel] = useState(null); // null | "history" | "comments"
-
-  return (
-    <div
-      className="fade-up"
-      style={{
-        background: T.surface,
-        border: isGem ? `1.5px solid ${T.yellow}` : `1.5px solid ${isErr ? T.red : T.line}`,
-        boxShadow: isGem ? `0 0 24px ${T.yellow}22` : "none",
-        borderRadius: 14,
-        padding: "16px 18px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}
-    >
-      {(isGem || item.allTimeLow) && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {isGem && (
-            <div className="rp-display" style={{ fontSize: 11, letterSpacing: "0.08em", color: T.yellow }}>
-              💎 PÉPITE · score {item.score}/100
-            </div>
-          )}
-          {item.allTimeLow && (
-            <div className="rp-display" style={{ fontSize: 11, letterSpacing: "0.04em", color: T.green }}>
-              🏆 Prix le plus bas jamais vu
-            </div>
-          )}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 12 }}>
-        {item.img && (
-          <img
-            src={item.img}
-            alt={item.name}
-            loading="lazy"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
-            style={{ width: 68, height: 68, objectFit: "cover", borderRadius: 10, background: T.surface2, border: `1px solid ${T.line}`, flexShrink: 0 }}
-          />
-        )}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.35, color: T.ink }}>{item.name}</div>
-            <span
-              style={{
-                background: isErr ? T.red : T.yellow,
-                color: "#0C0E14",
-                fontFamily: "'Unbounded', system-ui, sans-serif",
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.07em",
-                padding: "5px 9px",
-                borderRadius: 6,
-                alignSelf: "flex-start",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {isErr ? "ERREUR ?" : "GROS DEAL"}
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-            <span className="rp-display" style={{ fontSize: 24, fontWeight: 900, color: isErr ? T.red : T.ink }}>
-              {Number(item.price).toFixed(2).replace(".", ",")} €
-            </span>
-            {item.refPrice > 0 && (
-              <span style={{ color: T.sub, textDecoration: "line-through", fontSize: 14 }}>
-                {Number(item.refPrice).toFixed(0)} €
-              </span>
-            )}
-            {item.pct > 0 && <span style={{ color: isErr ? T.red : T.green, fontWeight: 800, fontSize: 14 }}>−{item.pct}%</span>}
-          </div>
-        </div>
-      </div>
-
-      <hr className="rp-ticket-sep" />
-
-      <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.5, fontFamily: "'Courier New', monospace" }}>
-        {item.seller && <strong style={{ color: T.ink, fontFamily: "'Inter', sans-serif" }}>{item.seller}</strong>}
-        {item.seller && " · "}
-        référence {Math.round(item.refPrice)} €
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {item.url && (
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: "inline-block", padding: "9px 16px", borderRadius: 8, background: isErr ? T.red : T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, textDecoration: "none" }}
-          >
-            Voir l'offre →
-          </a>
-        )}
-        <button
-          onClick={() => setPanel(panel === "history" ? null : "history")}
-          style={{ padding: "9px 14px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: panel === "history" ? T.surface2 : "transparent", color: T.sub, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-        >
-          📈 Historique
-        </button>
-        <button
-          onClick={() => setPanel(panel === "comments" ? null : "comments")}
-          style={{ padding: "9px 14px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: panel === "comments" ? T.surface2 : "transparent", color: T.sub, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-        >
-          💬 Discussion
-        </button>
-      </div>
-
-      {panel === "history" && <PriceHistoryPanel query={item.name} />}
-      {panel === "comments" && <CommentsPanel query={item.name} authToken={authToken} onNeedAuth={onNeedAuth} />}
-
-      <hr className="rp-ticket-sep" />
-      <div>
-        <div className="rp-barcode" />
-        <div style={{ textAlign: "center", fontSize: 10, letterSpacing: "0.12em", color: T.sub, fontFamily: "'Courier New', monospace", marginTop: 4 }}>
-          {fakeBarcodeDigits(`${item.name || ""}${item.price || ""}`)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Bloc "prix en direct" du hero, basé sur une vraie pépite ──── */
 function HeroLiveDeal() {
   const [deal, setDeal] = useState(undefined); // undefined = chargement, null = aucun deal
@@ -1039,7 +514,7 @@ function HeroLiveDeal() {
 }
 
 /* ── Section "Pépites du moment" de la homepage, alimentée par /api/deals ── */
-function HomeDealsSection({ authToken, onNeedAuth, onSeeAll }) {
+function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
   const pageSize = 4;
 
@@ -1079,10 +554,102 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll }) {
       {items && items.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
-            <Sticker key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} />
+            <DealCard key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+/* ── Section "Erreurs de prix détectées" de la homepage — même source que
+   HomeDealsSection (/api/deals), filtrée côté client sur verdict "erreur". ── */
+function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
+  const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDeals("tout", 1, 15)
+      .then((data) => {
+        if (cancelled) return;
+        setItems((data.items || []).filter((it) => it.verdict === "erreur").slice(0, 4));
+      })
+      .catch(() => { if (!cancelled) setItems(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (items === null || items?.length === 0) return null;
+
+  return (
+    <section style={{ maxWidth: 960, margin: "0 auto", padding: "10px 18px 10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔴 Erreurs de prix détectées</h2>
+        {items && items.length > 0 && (
+          <button
+            onClick={onSeeAll}
+            style={{ background: "none", border: "none", color: T.red, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+          >
+            Voir toutes les erreurs →
+          </button>
+        )}
+      </div>
+      {items === undefined && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+          {[0, 1].map((i) => <SkeletonCard key={`err-skel-${i}`} />)}
+        </div>
+      )}
+      {items && items.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+          {items.map((it, i) => (
+            <DealCard key={i} item={it} variant="price-error" authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ── Bandeau de statistiques réelles — aucune route publique n'existe
+   aujourd'hui pour ces chiffres (/api/admin/stats est réservé admin), donc
+   pas de valeurs affichées pour cette passe : composant masqué proprement,
+   prêt à être branché dès qu'une route publique existera. ── */
+function HomeStatsBar() {
+  return null;
+}
+
+/* ── Grille de catégories + marchands populaires (badges texte) ─── */
+function CategoryGrid({ onSelectCategory }) {
+  const iconFor = {
+    hightech: "💻", gaming: "🎮", maison: "🏠", mode: "👟",
+    beaute: "💄", alimentaire: "☕", sport: "🏃", auto: "🚗",
+  };
+  return (
+    <section style={{ maxWidth: 960, margin: "0 auto", padding: "36px 18px 10px" }}>
+      <h2 className="rp-display" style={{ fontSize: 18, fontWeight: 900, marginBottom: 16 }}>Catégories</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 30 }}>
+        {CATEGORIES.filter((c) => c.id !== "tout").map((c) => (
+          <button
+            key={c.id}
+            className="rp-cat-btn"
+            onClick={() => onSelectCategory(c.id)}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "16px 8px", borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+          >
+            <span style={{ fontSize: 22 }}>{iconFor[c.id] || "🛒"}</span>
+            <span style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", lineHeight: 1.3 }}>{c.label.split(" / ")[0]}</span>
+          </button>
+        ))}
+      </div>
+      <h3 style={{ fontSize: 12.5, fontWeight: 800, color: T.sub, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Marchands populaires</h3>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {FEATURED_MERCHANTS.map((m) => (
+          <span
+            key={m}
+            style={{ padding: "7px 13px", borderRadius: 20, border: `1px solid ${T.line}`, background: T.surface2, color: T.sub, fontWeight: 700, fontSize: 12 }}
+          >
+            {m}
+          </span>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1304,7 +871,48 @@ function AdminDashboard({ token, onBack }) {
 }
 
 /* ── Favoris ────────────────────────────────────────────────── */
-function FavorisView({ token, onBack, onOpenSearch }) {
+// Une ligne de favori : relit le dernier scan enregistré pour cette requête
+// suivie (route existante /api/latest, pas de nouvelle route backend) pour
+// afficher le vrai prix/score courant, plutôt que juste le nom recherché.
+function FavoriteCard({ query, addedAt, authToken, onNeedAuth, onOpenDetail, onOpenSearch }) {
+  const [offers, setOffers] = useState(undefined); // undefined = chargement, null = erreur
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGetLatest(query)
+      .then((items) => !cancelled && setOffers(items))
+      .catch(() => !cancelled && setOffers(null));
+    return () => { cancelled = true; };
+  }, [query]);
+
+  if (offers === undefined) return <SkeletonCard />;
+
+  // Aucune anomalie de prix en cours pour ce favori — état neutre, honnête,
+  // plutôt qu'une carte de deal vide ou inventée.
+  if (!offers || offers.length === 0) {
+    return (
+      <div className="rp-ticket" style={{ background: T.surface, border: `1.5px solid ${T.line}`, borderRadius: 14, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: T.ink }}>{query}</div>
+          <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>
+            Suivi depuis le {addedAt?.slice(0, 10)} · aucune anomalie de prix en ce moment
+          </div>
+        </div>
+        <button
+          onClick={() => onOpenSearch(query)}
+          style={{ padding: "8px 14px", borderRadius: 8, border: `1.5px solid ${T.emberSolid}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif", flexShrink: 0 }}
+        >
+          🔄 Relancer
+        </button>
+      </div>
+    );
+  }
+
+  const best = [...offers].sort((a, b) => b.score - a.score)[0];
+  return <DealCard item={best} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />;
+}
+
+function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
 
@@ -1313,23 +921,24 @@ function FavorisView({ token, onBack, onOpenSearch }) {
   }, [token]);
 
   return (
-    <main style={{ maxWidth: 620, margin: "0 auto", padding: "22px 16px 60px" }}>
+    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
         ← Accueil
       </button>
       <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>⭐ Mes favoris</h2>
       {error && <p style={{ color: T.red, fontSize: 13 }}>{error}</p>}
       {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — clique sur "★ Suivre" sur une page de résultats pour en ajouter.</p>}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items?.map((it) => (
-          <button
+          <FavoriteCard
             key={it.query}
-            onClick={() => onOpenSearch(it.query)}
-            style={{ textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "14px 16px", cursor: "pointer", color: T.ink, fontFamily: "'Inter', sans-serif" }}
-          >
-            <div style={{ fontWeight: 800, fontSize: 14 }}>{it.query}</div>
-            <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>Ajouté le {it.created_at?.slice(0, 10)}</div>
-          </button>
+            query={it.query}
+            addedAt={it.created_at}
+            authToken={token}
+            onNeedAuth={onNeedAuth}
+            onOpenDetail={onOpenDetail}
+            onOpenSearch={onOpenSearch}
+          />
         ))}
       </div>
     </main>
@@ -1937,6 +1546,7 @@ export default function RadarPrixSite() {
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
+  const [dealDetailItem, setDealDetailItem] = useState(null);
 
   // Ouvre une des trois sous-pages du menu "Communauté" (connexion requise, comme le reste de l'espace membre).
   const goToCommunity = (targetView) => {
@@ -1946,6 +1556,13 @@ export default function RadarPrixSite() {
       return;
     }
     setView(targetView);
+    window.scrollTo(0, 0);
+  };
+
+  // Ouvre la fiche produit détaillée d'un deal (cliqué depuis une DealCard).
+  const openDealDetail = (item) => {
+    setDealDetailItem(item);
+    setView("dealDetail");
     window.scrollTo(0, 0);
   };
 
@@ -2098,6 +1715,27 @@ export default function RadarPrixSite() {
     window.scrollTo(0, 0);
   };
 
+  // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
+  const mobileNavActive =
+    view === "favoris" ? "favoris" :
+    view === "results" && tab === "erreurs" ? "erreurs" :
+    view === "results" ? "deals" :
+    view === "home" ? "home" :
+    null;
+
+  const handleMobileNav = (key) => {
+    if (key === "home") return goHome();
+    if (key === "deals") return openTab("deals");
+    if (key === "erreurs") return openTab("erreurs");
+    if (key === "favoris") {
+      if (!authToken) return setAuthOpen(true);
+      setView("favoris");
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (key === "profil") return authToken ? setProfileMenuOpen(true) : setAuthOpen(true);
+  };
+
   return (
     <div
       className="rp-body"
@@ -2111,12 +1749,12 @@ export default function RadarPrixSite() {
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 54 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, minWidth: 0 }}>
             <button onClick={goHome} className="rp-display" style={{ fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
             </button>
             {view === "results" && (
-              <div style={{ flex: 1, maxWidth: 340, marginLeft: 14 }}>
+              <div style={{ flex: "1 1 100px", minWidth: 0, maxWidth: 340, marginLeft: 14 }}>
                 <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
             )}
@@ -2237,10 +1875,22 @@ export default function RadarPrixSite() {
               <HeroLiveDeal />
             </header>
 
+            <HomeStatsBar />
+
+            <CategoryGrid onSelectCategory={(id) => openTab("deals", { category: id })} />
+
             <HomeDealsSection
               authToken={authToken}
               onNeedAuth={() => setAuthOpen(true)}
               onSeeAll={() => openTab("deals")}
+              onOpenDetail={openDealDetail}
+            />
+
+            <HomeErrorsSection
+              authToken={authToken}
+              onNeedAuth={() => setAuthOpen(true)}
+              onSeeAll={() => openTab("erreurs")}
+              onOpenDetail={openDealDetail}
             />
 
             <section style={{ background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 40 }}>
@@ -2378,7 +2028,7 @@ export default function RadarPrixSite() {
                 </div>
               )}
               {visible.map((it, i) => (
-                <Sticker key={i} item={it} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} />
+                <DealCard key={i} item={it} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} onOpenDetail={openDealDetail} />
               ))}
               {items && items.length > 0 && !loading && !searchTerm && hasMore && (
                 <button
@@ -2410,11 +2060,23 @@ export default function RadarPrixSite() {
           <AdminDashboard token={authToken} onBack={goHome} />
         )}
 
+        {view === "dealDetail" && dealDetailItem && (
+          <ProductDetailView
+            item={dealDetailItem}
+            authToken={authToken}
+            onNeedAuth={() => setAuthOpen(true)}
+            onBack={goHome}
+            onOpenDetail={openDealDetail}
+          />
+        )}
+
         {view === "favoris" && authToken && (
           <FavorisView
             token={authToken}
             onBack={goHome}
             onOpenSearch={(q) => searchProduct(q)}
+            onOpenDetail={openDealDetail}
+            onNeedAuth={() => setAuthOpen(true)}
           />
         )}
 
@@ -2448,6 +2110,7 @@ export default function RadarPrixSite() {
         )}
       </div>
 
+      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
       <Footer setLegalPage={setLegalPage} />
       <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
       {authOpen && (
