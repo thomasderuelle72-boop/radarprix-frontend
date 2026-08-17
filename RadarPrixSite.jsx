@@ -243,6 +243,17 @@ const GlobalStyles = () => (
     @keyframes sweep { from { transform: rotate(0); } to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
     .fade-up { animation: fadeUp .5s ease both; }
+    @keyframes rpShimmer { 0% { background-position: -300% 0; } 100% { background-position: 300% 0; } }
+    .rp-shimmer { background: linear-gradient(90deg, ${T.surface2} 22%, ${T.line} 42%, ${T.surface2} 62%); background-size: 500% 100%; animation: rpShimmer 1.7s ease-in-out infinite; }
+    .rp-ticket-sep {
+      height: 1px; border: none; margin: 2px 0;
+      background-image: repeating-linear-gradient(90deg, ${T.line} 0 7px, transparent 7px 14px);
+    }
+    .rp-barcode {
+      height: 30px;
+      background-image: repeating-linear-gradient(90deg, ${T.ink} 0 2px, transparent 2px 3px, ${T.ink} 3px 4px, transparent 4px 7px, ${T.ink} 7px 9px, transparent 9px 10px);
+      opacity: 0.82;
+    }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     }
@@ -724,6 +735,46 @@ function CommentsPanel({ query, authToken, onNeedAuth }) {
   );
 }
 
+// Code à 12 chiffres purement décoratif (pas un vrai EAN), dérivé du nom
+// et du prix pour rester stable entre deux rendus de la même carte.
+function fakeBarcodeDigits(seedStr) {
+  let h = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = (h * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  const digits = String(h).padStart(12, "0").slice(0, 12);
+  return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+}
+
+/* ── Squelette de chargement, même gabarit qu'une carte-ticket ─── */
+function SkeletonCard() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        background: T.surface,
+        border: `1.5px solid ${T.line}`,
+        borderRadius: 14,
+        padding: "16px 18px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", gap: 12 }}>
+        <div className="rp-shimmer" style={{ width: 68, height: 68, borderRadius: 10, flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+          <div className="rp-shimmer" style={{ height: 14, width: "72%", borderRadius: 6 }} />
+          <div className="rp-shimmer" style={{ height: 24, width: "42%", borderRadius: 6 }} />
+          <div className="rp-shimmer" style={{ height: 12, width: "58%", borderRadius: 6 }} />
+        </div>
+      </div>
+      <div className="rp-shimmer" style={{ height: 34, width: "45%", borderRadius: 8 }} />
+    </div>
+  );
+}
+
+/* ── Carte de deal, façon ticket de caisse ─────────────────────── */
 function Sticker({ item, authToken, onNeedAuth }) {
   const isGem = item.score >= 85;
   const isErr = item.verdict === "erreur";
@@ -740,7 +791,8 @@ function Sticker({ item, authToken, onNeedAuth }) {
         padding: "16px 18px",
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 10,
+        fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
       {(isGem || item.allTimeLow) && (
@@ -798,12 +850,15 @@ function Sticker({ item, authToken, onNeedAuth }) {
             )}
             {item.pct > 0 && <span style={{ color: isErr ? T.red : T.green, fontWeight: 800, fontSize: 14 }}>−{item.pct}%</span>}
           </div>
-          <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.5 }}>
-            {item.seller && <strong style={{ color: T.ink }}>{item.seller}</strong>}
-            {item.seller && " · "}
-            référence {Math.round(item.refPrice)} €
-          </div>
         </div>
+      </div>
+
+      <hr className="rp-ticket-sep" />
+
+      <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.5, fontFamily: "'Courier New', monospace" }}>
+        {item.seller && <strong style={{ color: T.ink, fontFamily: "'Inter', sans-serif" }}>{item.seller}</strong>}
+        {item.seller && " · "}
+        référence {Math.round(item.refPrice)} €
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -833,7 +888,107 @@ function Sticker({ item, authToken, onNeedAuth }) {
 
       {panel === "history" && <PriceHistoryPanel query={item.name} />}
       {panel === "comments" && <CommentsPanel query={item.name} authToken={authToken} onNeedAuth={onNeedAuth} />}
+
+      <hr className="rp-ticket-sep" />
+      <div>
+        <div className="rp-barcode" />
+        <div style={{ textAlign: "center", fontSize: 10, letterSpacing: "0.12em", color: T.sub, fontFamily: "'Courier New', monospace", marginTop: 4 }}>
+          {fakeBarcodeDigits(`${item.name || ""}${item.price || ""}`)}
+        </div>
+      </div>
     </div>
+  );
+}
+
+/* ── Bloc "prix en direct" du hero, basé sur une vraie pépite ──── */
+function HeroLiveDeal() {
+  const [deal, setDeal] = useState(undefined); // undefined = chargement, null = aucun deal
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDeals("tout", 1, 1)
+      .then((data) => { if (!cancelled) setDeal((data.items && data.items[0]) || null); })
+      .catch(() => { if (!cancelled) setDeal(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (deal === null) return null;
+
+  return (
+    <div aria-hidden="true" style={{ margin: "38px auto 0", width: "fit-content", minWidth: 260, background: T.surface, border: `1.5px solid ${T.line}`, borderRadius: 16, padding: "18px 30px", boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}>
+      {deal === undefined ? (
+        <>
+          <div className="rp-shimmer" style={{ height: 12, width: 140, borderRadius: 6, marginBottom: 10 }} />
+          <div className="rp-shimmer" style={{ height: 44, width: 180, borderRadius: 8 }} />
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: T.sub, fontWeight: 700, marginBottom: 6, textAlign: "left" }}>{deal.name}</div>
+          <div style={{ overflow: "hidden", height: 44 }}>
+            <div style={{ animation: "priceGlitch 4s ease-in-out infinite" }}>
+              <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, textDecoration: "line-through", textDecorationColor: T.red, color: T.sub }}>
+                {Number(deal.refPrice).toFixed(2).replace(".", ",")} €
+              </div>
+              <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, color: T.emberSolid }}>
+                {Number(deal.price).toFixed(2).replace(".", ",")} €
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 11.5, color: T.green, fontWeight: 800, textAlign: "left", marginTop: 4 }}>
+            ● Écart détecté vs prix de référence — c'est ça, une erreur de prix
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Section "Pépites du moment" de la homepage, alimentée par /api/deals ── */
+function HomeDealsSection({ authToken, onNeedAuth, onSeeAll }) {
+  const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
+  const pageSize = 4;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDeals("tout", 1, pageSize)
+      .then((data) => { if (!cancelled) setItems(data.items || []); })
+      .catch(() => { if (!cancelled) setItems(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (items === null) return null;
+
+  return (
+    <section style={{ maxWidth: 960, margin: "0 auto", padding: "44px 18px 10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔥 Pépites du moment</h2>
+        {items && items.length > 0 && (
+          <button
+            onClick={onSeeAll}
+            style={{ background: "none", border: "none", color: T.emberSolid, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+          >
+            Voir tous les deals →
+          </button>
+        )}
+      </div>
+      {items === undefined && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+          {[0, 1, 2, 3].map((i) => <SkeletonCard key={`home-skel-${i}`} />)}
+        </div>
+      )}
+      {items && items.length === 0 && (
+        <div style={{ textAlign: "center", color: T.sub, fontSize: 13, padding: 20 }}>
+          Aucune pépite détectée à l'instant — le scan tourne en tâche de fond, revenez bientôt.
+        </div>
+      )}
+      {items && items.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+          {items.map((it, i) => (
+            <Sticker key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1522,19 +1677,14 @@ export default function RadarPrixSite() {
                 ))}
               </div>
 
-              <div aria-hidden="true" style={{ margin: "38px auto 0", width: "fit-content", background: T.surface, border: `1.5px solid ${T.line}`, borderRadius: 16, padding: "18px 30px", boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}>
-                <div style={{ fontSize: 12, color: T.sub, fontWeight: 700, marginBottom: 6, textAlign: "left" }}>Casque gaming sans fil</div>
-                <div style={{ overflow: "hidden", height: 44 }}>
-                  <div style={{ animation: "priceGlitch 4s ease-in-out infinite" }}>
-                    <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, textDecoration: "line-through", textDecorationColor: T.red, color: T.sub }}>449,00 €</div>
-                    <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, color: T.emberSolid }}>44,90 €</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 11.5, color: T.green, fontWeight: 800, textAlign: "left", marginTop: 4 }}>
-                  ● Écart détecté vs prix de référence — c'est ça, une erreur de prix
-                </div>
-              </div>
+              <HeroLiveDeal />
             </header>
+
+            <HomeDealsSection
+              authToken={authToken}
+              onNeedAuth={() => setAuthOpen(true)}
+              onSeeAll={() => openTab("deals")}
+            />
 
             <section style={{ background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 40 }}>
               <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 18px" }}>
@@ -1649,10 +1799,14 @@ export default function RadarPrixSite() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {loading && (
-                <div style={{ textAlign: "center", color: T.sub, fontSize: 14, padding: 40 }}>
-                  <span aria-hidden="true" style={{ display: "inline-block", width: 22, height: 22, border: `3px solid ${T.line}`, borderTopColor: T.emberSolid, borderRadius: "50%", animation: "sweep 0.9s linear infinite", marginBottom: 12 }} />
-                  <div>Interrogation des marchands en cours…</div>
-                </div>
+                <>
+                  <div style={{ textAlign: "center", color: T.sub, fontSize: 13, marginBottom: 4 }}>
+                    Interrogation des marchands en cours…
+                  </div>
+                  {[0, 1, 2, 3].map((i) => (
+                    <SkeletonCard key={`skeleton-${i}`} />
+                  ))}
+                </>
               )}
               {error && (
                 <div style={{ background: "rgba(255,59,48,0.12)", border: `1.5px solid ${T.red}`, borderRadius: 10, padding: 12, fontSize: 14, color: T.ink }}>
