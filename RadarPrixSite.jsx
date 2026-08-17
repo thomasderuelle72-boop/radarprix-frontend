@@ -37,6 +37,9 @@ const CATEGORIES = [
   { id: "auto", label: "Auto / Moto" },
 ];
 
+// Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
+const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
+
 /* ── Appels au backend (le seul endroit qui parle au réseau) ──── */
 
 // Lit les deals déjà repérés en base (cron), instantané et gratuit.
@@ -227,6 +230,93 @@ async function apiPostMessageTo(token, userId, body) {
   return data;
 }
 
+/* ── Communauté : deals soumis par les membres + votes de pertinence ── */
+async function apiCommunityListDeals(token, category = "tout", sort = "hot", page = 1, pageSize = 20) {
+  const params = new URLSearchParams({ category, sort, page, pageSize });
+  const res = await fetch(`${BACKEND_URL}/api/community/deals?${params}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Deals communautaires indisponibles.");
+  return data; // { items, total, hasMore, page, pageSize, category, sort }
+}
+
+async function apiCommunitySubmitDeal(token, payload) {
+  const res = await fetch(`${BACKEND_URL}/api/community/deals`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de publier ce deal.");
+  return data.deal;
+}
+
+async function apiCommunityVote(token, dealId, value) {
+  const res = await fetch(`${BACKEND_URL}/api/community/deals/${dealId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ value }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Vote impossible.");
+  return data.deal;
+}
+
+async function apiCommunityRemoveVote(token, dealId) {
+  const res = await fetch(`${BACKEND_URL}/api/community/deals/${dealId}/vote`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Vote impossible.");
+  return data.deal;
+}
+
+/* ── Forum : catégories, sujets, réponses ──────────────────────── */
+async function apiForumCategories() {
+  const res = await fetch(`${BACKEND_URL}/api/forum/categories`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Catégories indisponibles.");
+  return data.items || [];
+}
+
+async function apiForumThreads(slug) {
+  const res = await fetch(`${BACKEND_URL}/api/forum/categories/${slug}/threads`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Sujets indisponibles.");
+  return data; // { category, items }
+}
+
+async function apiForumCreateThread(token, slug, title, body) {
+  const res = await fetch(`${BACKEND_URL}/api/forum/categories/${slug}/threads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ title, body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Impossible de créer ce sujet.");
+  return data.thread;
+}
+
+async function apiForumThread(threadId) {
+  const res = await fetch(`${BACKEND_URL}/api/forum/threads/${threadId}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Sujet indisponible.");
+  return data; // { thread, replies }
+}
+
+async function apiForumReply(token, threadId, body) {
+  const res = await fetch(`${BACKEND_URL}/api/forum/threads/${threadId}/replies`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Réponse impossible.");
+  return data.replies || [];
+}
+
 /* ── Styles globaux ─────────────────────────────────────────── */
 const GlobalStyles = () => (
   <style>{`
@@ -264,9 +354,14 @@ const GlobalStyles = () => (
     details.rp-faq[open] summary::after { content: '−'; }
     details.rp-faq p { margin-top: 10px; color: ${T.sub}; font-size: 14px; line-height: 1.65; }
     select, input { color-scheme: dark; }
-    .rp-tab { background: none; border: none; color: ${T.sub}; font-weight: 800; font-size: 13px; cursor: pointer; padding: 8px 4px; font-family: 'Inter', system-ui, sans-serif; border-bottom: 2.5px solid transparent; }
-    .rp-tab:hover { color: ${T.ink}; }
-    .rp-tab.active { color: ${T.ink}; border-bottom-color: ${T.emberSolid}; }
+    .rp-tab { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; color: ${T.sub}; font-weight: 800; font-size: 13px; cursor: pointer; padding: 8px 13px; border-radius: 9px; font-family: 'Inter', system-ui, sans-serif; white-space: nowrap; transition: background .15s ease, color .15s ease; }
+    .rp-tab:hover { color: ${T.ink}; background: rgba(255,106,53,0.1); }
+    .rp-tab.active { color: #0C0E14; background: ${T.ember}; box-shadow: 0 2px 10px rgba(255,106,53,0.35); }
+    .rp-dropdown-wrap { position: relative; }
+    .rp-dropdown { position: absolute; top: calc(100% + 6px); left: 0; background: ${T.surface}; border: 1px solid ${T.line}; border-radius: 12px; padding: 6px; min-width: 220px; box-shadow: 0 16px 32px rgba(0,0,0,0.5); z-index: 60; animation: fadeUp .15s ease both; }
+    .rp-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: ${T.ink}; font-weight: 700; font-size: 13px; padding: 10px 11px; border-radius: 8px; cursor: pointer; font-family: 'Inter', system-ui, sans-serif; }
+    .rp-dropdown-item:hover { background: ${T.surface2}; color: ${T.emberSolid}; }
+    .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 1px; }
   `}</style>
 );
 
@@ -1315,7 +1410,7 @@ function CommunityView({ token, currentUserId, onBack }) {
       <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
         ← Accueil
       </button>
-      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>👥 Communauté</h2>
+      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>💬 Chat de la communauté</h2>
 
       <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16 }}>
         <button onClick={() => setTab("public")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
@@ -1429,15 +1524,430 @@ function CommunityView({ token, currentUserId, onBack }) {
 }
 
 
+/* ── Petits styles partagés entre les vues Communauté / Forum ──── */
+const backButtonStyle = { background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" };
+const emberButtonStyle = { padding: "9px 16px", borderRadius: 10, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 900, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
+const inputStyle = { padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif", width: "100%" };
+function pillTabStyle(active) {
+  return { flex: 1, padding: "9px 14px", borderRadius: 7, border: "none", background: active ? T.ember : "transparent", color: active ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
+}
+function voteBtnStyle(active, isDown) {
+  return {
+    width: 28,
+    height: 24,
+    borderRadius: 6,
+    border: "none",
+    cursor: "pointer",
+    background: active ? (isDown ? "rgba(255,59,48,0.18)" : "rgba(47,217,139,0.18)") : "transparent",
+    color: active ? (isDown ? T.red : T.green) : T.sub,
+    fontWeight: 900,
+    fontSize: 13,
+    fontFamily: "'Inter', sans-serif",
+  };
+}
+
+/* ── Communauté : "Choix de la communauté" — deals soumis + votés par les membres ── */
+function CommunityPicksView({ token, onBack, onNeedAuth }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState(null);
+  const [sort, setSort] = useState("hot");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout" });
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const load = async (s) => {
+    setError(null);
+    try {
+      const data = await apiCommunityListDeals(token, "tout", s || sort, 1, 30);
+      setItems(data.items);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  useEffect(() => {
+    load(sort);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort]);
+
+  const vote = async (deal, value) => {
+    if (!token) {
+      onNeedAuth();
+      return;
+    }
+    try {
+      const cancelling = deal.myVote === value;
+      const updated = cancelling ? await apiCommunityRemoveVote(token, deal.id) : await apiCommunityVote(token, deal.id, value);
+      setItems((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...updated, myVote: cancelling ? null : value } : d)));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const submit = async () => {
+    if (!token) {
+      onNeedAuth();
+      return;
+    }
+    if (!form.title.trim()) {
+      setFormError("Le titre du deal est requis.");
+      return;
+    }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await apiCommunitySubmitDeal(token, {
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        url: form.url.trim() || undefined,
+        price: form.price ? Number(form.price) : undefined,
+        category: form.category,
+      });
+      setForm({ title: "", description: "", url: "", price: "", category: "tout" });
+      setShowForm(false);
+      load(sort);
+    } catch (e) {
+      setFormError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={onBack} style={backButtonStyle}>
+        ← Accueil
+      </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+        <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>🏆 Choix de la communauté</h2>
+        <button onClick={() => (token ? setShowForm((v) => !v) : onNeedAuth())} style={emberButtonStyle}>
+          {showForm ? "Annuler" : "+ Proposer un deal"}
+        </button>
+      </div>
+      <p style={{ color: T.sub, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+        Des deals trouvés et postés par les membres eux-mêmes. Votez pour les plus pertinents : plus un deal reçoit de votes, mieux il est classé.
+      </p>
+
+      {showForm && (
+        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          {formError && <p style={{ color: T.red, fontSize: 12 }}>{formError}</p>}
+          <input placeholder="Titre du deal *" value={form.title} maxLength={150} onChange={(e) => setForm({ ...form, title: e.target.value })} style={inputStyle} />
+          <textarea
+            placeholder="Description (optionnel)"
+            value={form.description}
+            maxLength={1000}
+            rows={3}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            style={{ ...inputStyle, resize: "vertical" }}
+          />
+          <input placeholder="Lien vers le deal (optionnel)" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} style={inputStyle} />
+          <div style={{ display: "flex", gap: 10 }}>
+            <input placeholder="Prix € (optionnel)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+              {CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button onClick={submit} disabled={submitting} style={{ ...emberButtonStyle, opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? "Publication…" : "Publier le deal"}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16, width: "fit-content" }}>
+        <button onClick={() => setSort("hot")} style={pillTabStyle(sort === "hot")}>
+          🔥 Pertinents
+        </button>
+        <button onClick={() => setSort("new")} style={pillTabStyle(sort === "new")}>
+          🆕 Récents
+        </button>
+      </div>
+
+      {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
+      {items === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
+      {items?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun deal communautaire pour l'instant — soyez le premier à en proposer un !</p>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {items?.map((d) => (
+          <div key={d.id} style={{ display: "flex", gap: 12, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+              <button onClick={() => vote(d, 1)} aria-label="Voter pertinent" style={voteBtnStyle(d.myVote === 1)}>
+                ▲
+              </button>
+              <span style={{ fontWeight: 900, fontSize: 13, color: T.ink }}>{(d.upvotes || 0) - (d.downvotes || 0)}</span>
+              <button onClick={() => vote(d, -1)} aria-label="Voter pas pertinent" style={voteBtnStyle(d.myVote === -1, true)}>
+                ▼
+              </button>
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{d.title}</h3>
+                {d.price != null && (
+                  <span style={{ fontWeight: 900, color: T.emberSolid, whiteSpace: "nowrap" }}>{Number(d.price).toFixed(2)} €</span>
+                )}
+              </div>
+              {d.description && <p style={{ fontSize: 13, color: T.sub, marginTop: 4, lineHeight: 1.5 }}>{d.description}</p>}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                <Avatar email={d.author} avatarUrl={d.avatar_url} size={20} />
+                <span style={{ fontSize: 11.5, color: T.sub }}>
+                  {d.author} · {d.created_at?.slice(0, 10)}
+                </span>
+                {d.url && (
+                  <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.emberSolid, fontWeight: 800, marginLeft: "auto" }}>
+                    Voir l'offre →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* ── Communauté : Forum (catégories → sujets) ──────────────────── */
+function ForumView({ token, onBack, onOpenThread }) {
+  const [categories, setCategories] = useState(null);
+  const [error, setError] = useState(null);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [threads, setThreads] = useState(null);
+  const [showNewThread, setShowNewThread] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newBody, setNewBody] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  useEffect(() => {
+    apiForumCategories().then(setCategories).catch((e) => setError(e.message));
+  }, []);
+
+  const openCategory = async (cat) => {
+    setActiveCategory(cat);
+    setThreads(null);
+    setShowNewThread(false);
+    setError(null);
+    try {
+      const data = await apiForumThreads(cat.slug);
+      setThreads(data.items);
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const createThread = async () => {
+    if (!token || !activeCategory) return;
+    if (!newTitle.trim() || !newBody.trim()) {
+      setError("Titre et message sont requis.");
+      return;
+    }
+    setPosting(true);
+    setError(null);
+    try {
+      const thread = await apiForumCreateThread(token, activeCategory.slug, newTitle.trim(), newBody.trim());
+      setNewTitle("");
+      setNewBody("");
+      setShowNewThread(false);
+      onOpenThread(thread.id);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  return (
+    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={activeCategory ? () => setActiveCategory(null) : onBack} style={backButtonStyle}>
+        {activeCategory ? "← Catégories" : "← Accueil"}
+      </button>
+
+      {!activeCategory && (
+        <>
+          <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>🗂️ Forum</h2>
+          {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
+          {categories === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {categories?.map((c) => (
+              <button key={c.id} onClick={() => openCategory(c)} style={{ textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{c.name}</h3>
+                  <span style={{ fontSize: 12, color: T.sub, fontWeight: 700, flexShrink: 0 }}>
+                    {c.thread_count} sujet{c.thread_count > 1 ? "s" : ""}
+                  </span>
+                </div>
+                {c.description && <p style={{ fontSize: 13, color: T.sub, marginTop: 6, lineHeight: 1.5 }}>{c.description}</p>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeCategory && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
+            <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>{activeCategory.name}</h2>
+            <button onClick={() => setShowNewThread((v) => !v)} style={emberButtonStyle}>
+              {showNewThread ? "Annuler" : "+ Nouveau sujet"}
+            </button>
+          </div>
+          {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
+          {showNewThread && (
+            <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              <input placeholder="Titre du sujet" value={newTitle} maxLength={150} onChange={(e) => setNewTitle(e.target.value)} style={inputStyle} />
+              <textarea placeholder="Votre message…" value={newBody} maxLength={5000} rows={4} onChange={(e) => setNewBody(e.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
+              <button onClick={createThread} disabled={posting} style={{ ...emberButtonStyle, opacity: posting ? 0.6 : 1 }}>
+                {posting ? "Publication…" : "Publier le sujet"}
+              </button>
+            </div>
+          )}
+          {threads === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
+          {threads?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun sujet dans cette catégorie — lancez la discussion !</p>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {threads?.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onOpenThread(t.id)}
+                style={{ textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
+                  <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>
+                    {t.author} · {t.last_activity_at?.slice(0, 10)}
+                  </div>
+                </div>
+                <span style={{ fontSize: 12, color: T.sub, fontWeight: 800, flexShrink: 0 }}>{t.reply_count} 💬</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </main>
+  );
+}
+
+/* ── Communauté : Forum — détail d'un sujet + réponses ─────────── */
+function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [replyText, setReplyText] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  useEffect(() => {
+    setData(null);
+    setError(null);
+    apiForumThread(threadId).then(setData).catch((e) => setError(e.message));
+  }, [threadId]);
+
+  const reply = async () => {
+    if (!token || !replyText.trim()) return;
+    setPosting(true);
+    setError(null);
+    try {
+      const replies = await apiForumReply(token, threadId, replyText.trim());
+      setData((prev) => ({ ...prev, replies }));
+      setReplyText("");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  if (!data) {
+    return (
+      <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
+        <button onClick={onBack} style={backButtonStyle}>← Retour</button>
+        {error ? <p style={{ color: T.red, fontSize: 13 }}>{error}</p> : <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
+      </main>
+    );
+  }
+
+  const { thread, replies } = data;
+  return (
+    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
+      <button onClick={onBack} style={backButtonStyle}>← {thread.category_name}</button>
+      <h2 className="rp-display" style={{ fontSize: 19, fontWeight: 900, marginBottom: 12 }}>{thread.title}</h2>
+      <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <Avatar email={thread.author} avatarUrl={thread.avatar_url} size={26} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{thread.author}</div>
+            <div style={{ fontSize: 11, color: T.sub }}>{thread.created_at?.slice(0, 16).replace("T", " ")}</div>
+          </div>
+        </div>
+        <p style={{ fontSize: 14, color: T.ink, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{thread.body}</p>
+      </div>
+
+      <h3 style={{ fontSize: 13, color: T.sub, fontWeight: 800, marginBottom: 10 }}>
+        {replies.length} réponse{replies.length > 1 ? "s" : ""}
+      </h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+        {replies.map((r) => (
+          <div key={r.id} style={{ display: "flex", gap: 8 }}>
+            <Avatar email={r.author} avatarUrl={r.avatar_url} size={24} />
+            <div style={{ minWidth: 0, background: T.surface2, borderRadius: 10, padding: "8px 12px", flex: 1 }}>
+              <div style={{ fontSize: 12, marginBottom: 2 }}>
+                <strong style={{ color: r.user_id === currentUserId ? T.emberSolid : T.ink }}>{r.author}</strong>{" "}
+                <span style={{ color: T.sub, fontSize: 10.5 }}>{r.created_at?.slice(0, 16).replace("T", " ")}</span>
+              </div>
+              <div style={{ fontSize: 13.5, color: T.ink, whiteSpace: "pre-wrap" }}>{r.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
+      {token ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && reply()}
+            maxLength={5000}
+            placeholder="Votre réponse…"
+            style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
+          />
+          <button
+            onClick={reply}
+            disabled={posting}
+            style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", opacity: posting ? 0.6 : 1 }}
+          >
+            Répondre
+          </button>
+        </div>
+      ) : (
+        <p style={{ color: T.sub, fontSize: 13 }}>Connectez-vous pour répondre à ce sujet.</p>
+      )}
+    </main>
+  );
+}
+
 export default function RadarPrixSite() {
   const [view, setView] = useState("home");
   const [legalPage, setLegalPage] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [communityMenuOpen, setCommunityMenuOpen] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
+
+  // Ouvre une des trois sous-pages du menu "Communauté" (connexion requise, comme le reste de l'espace membre).
+  const goToCommunity = (targetView) => {
+    setCommunityMenuOpen(false);
+    if (!authToken) {
+      setAuthOpen(true);
+      return;
+    }
+    setView(targetView);
+    window.scrollTo(0, 0);
+  };
 
   useEffect(() => {
     const t = localStorage.getItem("radarprix_token");
@@ -1589,7 +2099,14 @@ export default function RadarPrixSite() {
   };
 
   return (
-    <div className="rp-body" onClick={() => profileMenuOpen && setProfileMenuOpen(false)} style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div
+      className="rp-body"
+      onClick={() => {
+        if (profileMenuOpen) setProfileMenuOpen(false);
+        if (communityMenuOpen) setCommunityMenuOpen(false);
+      }}
+      style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}
+    >
       <GlobalStyles />
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
@@ -1634,7 +2151,9 @@ export default function RadarPrixSite() {
               </button>
             )}
           </div>
-          <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 2 }}>
+          {/* overflowX: "visible" (pas "auto") : un axe non-"visible" forcerait l'autre à "auto" en CSS,
+              ce qui découperait le menu déroulant "Communauté" qui dépasse verticalement sous la barre. */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
               🔥 Gros deals
             </button>
@@ -1644,9 +2163,47 @@ export default function RadarPrixSite() {
             <button className={`rp-tab ${view === "favoris" ? "active" : ""}`} onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}>
               ⭐ Favoris
             </button>
-            <button className={`rp-tab ${view === "communaute" ? "active" : ""}`} onClick={() => (authToken ? setView("communaute") : setAuthOpen(true))}>
-              👥 Communauté
-            </button>
+            <div className="rp-dropdown-wrap" onMouseEnter={() => setCommunityMenuOpen(true)} onMouseLeave={() => setCommunityMenuOpen(false)}>
+              <button
+                className={`rp-tab ${COMMUNITY_VIEWS.includes(view) ? "active" : ""}`}
+                aria-haspopup="true"
+                aria-expanded={communityMenuOpen}
+                onClick={(e) => {
+                  // Ne bascule pas (toggle) : un survol suivi d'un clic (souris) doit laisser le
+                  // menu ouvert, pas le refermer aussitôt. Un clic répété (tactile) le rouvre simplement ;
+                  // il se referme via onMouseLeave ou un clic à l'extérieur (voir le onClick racine).
+                  e.stopPropagation();
+                  setCommunityMenuOpen(true);
+                }}
+              >
+                👥 Communauté <span style={{ fontSize: 9 }}>▾</span>
+              </button>
+              {communityMenuOpen && (
+                <div className="rp-dropdown" role="menu" onClick={(e) => e.stopPropagation()}>
+                  <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-picks")}>
+                    <span>🏆</span>
+                    <span>
+                      Choix de la communauté
+                      <span className="rp-dropdown-desc">Deals postés et votés par les membres</span>
+                    </span>
+                  </button>
+                  <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-chat")}>
+                    <span>💬</span>
+                    <span>
+                      Chat
+                      <span className="rp-dropdown-desc">Salon général et messages privés</span>
+                    </span>
+                  </button>
+                  <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-forum")}>
+                    <span>🗂️</span>
+                    <span>
+                      Forum
+                      <span className="rp-dropdown-desc">Sujets par catégorie, avec réponses</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -1861,8 +2418,33 @@ export default function RadarPrixSite() {
           />
         )}
 
-        {view === "communaute" && authToken && (
+        {view === "communaute-chat" && authToken && (
           <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} />
+        )}
+
+        {view === "communaute-picks" && authToken && (
+          <CommunityPicksView token={authToken} onBack={goHome} onNeedAuth={() => setAuthOpen(true)} />
+        )}
+
+        {view === "communaute-forum" && authToken && (
+          <ForumView
+            token={authToken}
+            onBack={goHome}
+            onOpenThread={(id) => {
+              setActiveThreadId(id);
+              setView("communaute-forum-thread");
+              window.scrollTo(0, 0);
+            }}
+          />
+        )}
+
+        {view === "communaute-forum-thread" && authToken && activeThreadId && (
+          <ThreadDetailView
+            threadId={activeThreadId}
+            token={authToken}
+            currentUserId={authUser?.id}
+            onBack={() => setView("communaute-forum")}
+          />
         )}
       </div>
 
