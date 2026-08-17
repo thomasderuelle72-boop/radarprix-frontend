@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { T, FEATURED_MERCHANTS } from "./theme.js";
+import { T, FEATURED_MERCHANTS, CATEGORIES } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import ProductDetailView from "./components/ProductDetailView.jsx";
 import Avatar from "./components/Avatar.jsx";
+import MerchantBadge from "./components/MerchantBadge.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -41,18 +42,6 @@ import {
   apiForumThread,
   apiForumReply,
 } from "./api.js";
-
-const CATEGORIES = [
-  { id: "tout", label: "Toutes catégories" },
-  { id: "hightech", label: "High-tech / Informatique" },
-  { id: "gaming", label: "Gaming / PC gamer" },
-  { id: "maison", label: "Maison / Électroménager" },
-  { id: "mode", label: "Mode / Vêtements" },
-  { id: "beaute", label: "Beauté / Hygiène" },
-  { id: "alimentaire", label: "Alimentaire / Boissons" },
-  { id: "sport", label: "Sport / Plein air" },
-  { id: "auto", label: "Auto / Moto" },
-];
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
@@ -144,6 +133,8 @@ const GlobalStyles = () => (
     .rp-cat-btn { transition: border-color .15s ease, background .15s ease, transform .1s ease; }
     .rp-cat-btn:hover { border-color: ${T.emberSolid}; background: rgba(255,106,53,0.08); }
     .rp-cat-btn:active { transform: scale(0.97); }
+    .rp-deal-card { transition: transform .15s ease, border-color .15s ease; }
+    .rp-deal-card:hover { transform: translateY(-3px); border-color: ${T.emberSolid}; }
     .rp-mobile-nav button { transition: color .15s ease; }
   `}</style>
 );
@@ -542,7 +533,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         )}
       </div>
       {items === undefined && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
           {[0, 1, 2, 3].map((i) => <SkeletonCard key={`home-skel-${i}`} />)}
         </div>
       )}
@@ -552,7 +543,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         </div>
       )}
       {items && items.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
             <DealCard key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
@@ -594,12 +585,12 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         )}
       </div>
       {items === undefined && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
           {[0, 1].map((i) => <SkeletonCard key={`err-skel-${i}`} />)}
         </div>
       )}
       {items && items.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
             <DealCard key={i} item={it} variant="price-error" authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
@@ -609,12 +600,53 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   );
 }
 
-/* ── Bandeau de statistiques réelles — aucune route publique n'existe
-   aujourd'hui pour ces chiffres (/api/admin/stats est réservé admin), donc
-   pas de valeurs affichées pour cette passe : composant masqué proprement,
-   prêt à être branché dès qu'une route publique existera. ── */
+/* ── Bandeau de statistiques réelles — calculées à partir de /api/deals
+   (route publique existante), pas d'une route de stats dédiée qui
+   n'existe pas encore. Pas de framing "aujourd'hui" : on ne connaît pas
+   la date de détection ligne à ligne, donc on affiche des totaux vrais
+   plutôt que des chiffres quotidiens inventés. ── */
 function HomeStatsBar() {
-  return null;
+  const [stats, setStats] = useState(undefined); // undefined = chargement, null = indisponible
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchDeals("tout", 1, 50)
+      .then((data) => {
+        if (cancelled) return;
+        const items = data.items || [];
+        const sellers = new Set(items.map((it) => it.seller).filter(Boolean));
+        const errors = items.filter((it) => it.verdict === "erreur").length;
+        setStats({ total: data.total, sellers: sellers.size, errors });
+      })
+      .catch(() => { if (!cancelled) setStats(null); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (stats === null) return null;
+
+  const tiles = [
+    { icon: "📡", label: "Deals actifs détectés", value: stats?.total },
+    { icon: "🏬", label: "Marchands identifiés", value: stats?.sellers },
+    { icon: "🔴", label: "Erreurs de prix en cours", value: stats?.errors },
+  ];
+
+  return (
+    <section style={{ maxWidth: 960, margin: "0 auto", padding: "0 18px" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+        {tiles.map((t) => (
+          <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 10, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 18px", flex: "1 1 220px", maxWidth: 280 }}>
+            <span style={{ fontSize: 20 }}>{t.icon}</span>
+            <div>
+              <div className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: T.ink, minHeight: 23 }}>
+                {stats === undefined ? <span className="rp-shimmer" style={{ display: "inline-block", width: 40, height: 16, borderRadius: 4 }} /> : t.value}
+              </div>
+              <div style={{ fontSize: 11, color: T.sub }}>{t.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /* ── Grille de catégories + marchands populaires (badges texte) ─── */
@@ -640,14 +672,15 @@ function CategoryGrid({ onSelectCategory }) {
         ))}
       </div>
       <h3 style={{ fontSize: 12.5, fontWeight: 800, color: T.sub, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Marchands populaires</h3>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {FEATURED_MERCHANTS.map((m) => (
-          <span
+          <div
             key={m}
-            style={{ padding: "7px 13px", borderRadius: 20, border: `1px solid ${T.line}`, background: T.surface2, color: T.sub, fontWeight: 700, fontSize: 12 }}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 13px 7px 7px", borderRadius: 20, border: `1px solid ${T.line}`, background: T.surface2, color: T.ink, fontWeight: 700, fontSize: 12 }}
           >
+            <MerchantBadge name={m} size={22} />
             {m}
-          </span>
+          </div>
         ))}
       </div>
     </section>

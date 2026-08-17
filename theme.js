@@ -22,3 +22,17 @@ export const T = {
 // BIG_SELLERS côté backend (src/algorithm.js), pour rester cohérent avec
 // le bonus de score qui leur est appliqué.
 export const FEATURED_MERCHANTS = ["Amazon", "Cdiscount", "Boulanger", "Fnac", "Darty", "Carrefour"];
+
+// Catégories de produits — partagées entre la recherche, la grille homepage
+// et le fil d'ariane de la fiche produit.
+export const CATEGORIES = [
+  { id: "tout", label: "Toutes catégories" },
+  { id: "hightech", label: "High-tech / Informatique" },
+  { id: "gaming", label: "Gaming / PC gamer" },
+  { id: "maison", label: "Maison / Électroménager" },
+  { id: "mode", label: "Mode / Vêtements" },
+  { id: "beaute", label: "Beauté / Hygiène" },
+  { id: "alimentaire", label: "Alimentaire / Boissons" },
+  { id: "sport", label: "Sport / Plein air" },
+  { id: "auto", label: "Auto / Moto" },
+];
