@@ -1218,7 +1218,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("hot");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout" });
+  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout", seller: "" });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -1269,8 +1269,9 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
         url: form.url.trim() || undefined,
         price: form.price ? Number(form.price) : undefined,
         category: form.category,
+        seller: form.seller.trim() || undefined,
       });
-      setForm({ title: "", description: "", url: "", price: "", category: "tout" });
+      setForm({ title: "", description: "", url: "", price: "", category: "tout", seller: "" });
       setShowForm(false);
       load(sort);
     } catch (e) {
@@ -1308,6 +1309,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
             style={{ ...inputStyle, resize: "vertical" }}
           />
           <input placeholder="Lien vers le deal (optionnel)" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} style={inputStyle} />
+          <input placeholder="Marchand (optionnel — ex: Amazon)" value={form.seller} onChange={(e) => setForm({ ...form, seller: e.target.value })} style={inputStyle} />
           <div style={{ display: "flex", gap: 10 }}>
             <input placeholder="Prix € (optionnel)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
@@ -1351,7 +1353,10 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{d.title}</h3>
+                <div style={{ minWidth: 0 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{d.title}</h3>
+                  {d.seller && <span style={{ fontSize: 11, color: T.sub }}>chez {d.seller}</span>}
+                </div>
                 {d.price != null && (
                   <span style={{ fontWeight: 900, color: T.emberSolid, whiteSpace: "nowrap" }}>{Number(d.price).toFixed(2)} €</span>
                 )}

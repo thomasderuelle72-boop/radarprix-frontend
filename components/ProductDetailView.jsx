@@ -2,11 +2,12 @@
 // desktop fournie : colonne image + prix à gauche, tuiles "pourquoi" et
 // historique à droite, tableau comparatif et communauté en pleine largeur.
 // N'affiche que des tuiles adossées à une vraie donnée — pas de nombre de
-// vendeurs / stock / fiabilité inventés, ces données n'existent pas encore
-// côté backend.
+// vendeurs/stock inventés. La fiabilité marchand ci-dessous est agrégée
+// depuis de vrais votes communautaires (voir apiMerchantReliability) ;
+// affichée seulement quand la communauté a effectivement voté dessus.
 import { useState, useEffect } from "react";
 import { T, CATEGORIES } from "../theme.js";
-import { fetchDeals, apiGetLatest, apiWatchlistAdd } from "../api.js";
+import { fetchDeals, apiGetLatest, apiWatchlistAdd, apiMerchantReliability } from "../api.js";
 import { relativeTime } from "../utils.js";
 import { PriceHistoryPanel, CommentsPanel } from "./panels.jsx";
 import DealCard from "./DealCard.jsx";
@@ -50,6 +51,19 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
       .catch(() => !cancelled && setSimilar([]));
     return () => { cancelled = true; };
   }, [item.category, item.name]);
+
+  // Fiabilité du marchand vue par la communauté — n'affiche rien tant que
+  // personne n'a encore voté sur un deal mentionnant ce vendeur (pas de
+  // score fabriqué faute de données).
+  const [merchantTrust, setMerchantTrust] = useState(null);
+  useEffect(() => {
+    if (!item.seller) return;
+    let cancelled = false;
+    apiMerchantReliability(item.seller)
+      .then((d) => !cancelled && setMerchantTrust(d))
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [item.seller]);
 
   const follow = async () => {
     if (!authToken) return onNeedAuth();
@@ -163,9 +177,25 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           </div>
 
           {item.seller && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.sub }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.sub, flexWrap: "wrap" }}>
               <MerchantBadge name={item.seller} size={24} />
               <strong style={{ color: T.ink }}>{item.seller}</strong>
+              {merchantTrust?.reliability != null && (
+                <span
+                  title={`${merchantTrust.upvotes} avis positif(s), ${merchantTrust.downvotes} négatif(s) sur ${merchantTrust.dealCount} deal(s) communautaire(s)`}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: merchantTrust.reliability >= 70 ? T.green : merchantTrust.reliability >= 40 ? T.yellow : T.red,
+                    background: T.surface2,
+                    border: `1px solid ${T.line}`,
+                    borderRadius: 6,
+                    padding: "3px 7px",
+                  }}
+                >
+                  👥 {merchantTrust.reliability}% d'avis positifs
+                </span>
+              )}
             </div>
           )}
 

@@ -220,6 +220,17 @@ export async function apiCommunityListDeals(token, category = "tout", sort = "ho
   return data; // { items, total, hasMore, page, pageSize, category, sort }
 }
 
+// Fiabilité d'un marchand vue par la communauté (ratio de votes positifs
+// sur les deals qui le mentionnent) — indicateur distinct du Deal/Confidence
+// Score algorithmique. reliability: null quand jamais mentionné par personne.
+export async function apiMerchantReliability(name) {
+  const params = new URLSearchParams({ name });
+  const res = await fetch(`${BACKEND_URL}/api/merchants/reliability?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Indisponible.");
+  return data; // { seller, dealCount, upvotes, downvotes, reliability }
+}
+
 export async function apiCommunitySubmitDeal(token, payload) {
   const res = await fetch(`${BACKEND_URL}/api/community/deals`, {
     method: "POST",
