@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { T, FEATURED_MERCHANTS, CATEGORIES } from "./theme.js";
+import { T, CATEGORIES } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import ProductDetailView from "./components/ProductDetailView.jsx";
 import Avatar from "./components/Avatar.jsx";
-import MerchantBadge from "./components/MerchantBadge.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -130,9 +129,12 @@ const GlobalStyles = () => (
       .rp-mobile-nav { display: flex; }
       .rp-body { padding-bottom: 60px; }
     }
-    .rp-cat-btn { transition: border-color .15s ease, background .15s ease, transform .1s ease; }
-    .rp-cat-btn:hover { border-color: ${T.emberSolid}; background: rgba(255,106,53,0.08); }
-    .rp-cat-btn:active { transform: scale(0.97); }
+    @media (max-width: 760px) {
+      .rp-footer-grid { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media (max-width: 460px) {
+      .rp-footer-grid { grid-template-columns: 1fr !important; }
+    }
     .rp-deal-card { transition: transform .15s ease, border-color .15s ease; }
     .rp-deal-card:hover { transform: translateY(-3px); border-color: ${T.emberSolid}; }
     .rp-mobile-nav button { transition: color .15s ease; }
@@ -184,7 +186,7 @@ function SearchBar({ onSearch, big, placeholder }) {
           flexShrink: 0,
         }}
       >
-        🔎
+        {big ? "Rechercher" : "🔎"}
       </button>
     </div>
   );
@@ -461,49 +463,6 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
   );
 }
 
-/* ── Bloc "prix en direct" du hero, basé sur une vraie pépite ──── */
-function HeroLiveDeal() {
-  const [deal, setDeal] = useState(undefined); // undefined = chargement, null = aucun deal
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchDeals("tout", 1, 1)
-      .then((data) => { if (!cancelled) setDeal((data.items && data.items[0]) || null); })
-      .catch(() => { if (!cancelled) setDeal(null); });
-    return () => { cancelled = true; };
-  }, []);
-
-  if (deal === null) return null;
-
-  return (
-    <div aria-hidden="true" style={{ margin: "38px auto 0", width: "fit-content", minWidth: 260, background: T.surface, border: `1.5px solid ${T.line}`, borderRadius: 16, padding: "18px 30px", boxShadow: "0 20px 50px rgba(0,0,0,0.45)" }}>
-      {deal === undefined ? (
-        <>
-          <div className="rp-shimmer" style={{ height: 12, width: 140, borderRadius: 6, marginBottom: 10 }} />
-          <div className="rp-shimmer" style={{ height: 44, width: 180, borderRadius: 8 }} />
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize: 12, color: T.sub, fontWeight: 700, marginBottom: 6, textAlign: "left" }}>{deal.name}</div>
-          <div style={{ overflow: "hidden", height: 44 }}>
-            <div style={{ animation: "priceGlitch 4s ease-in-out infinite" }}>
-              <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, textDecoration: "line-through", textDecorationColor: T.red, color: T.sub }}>
-                {Number(deal.refPrice).toFixed(2).replace(".", ",")} €
-              </div>
-              <div className="rp-display" style={{ fontSize: 34, fontWeight: 900, height: 44, color: T.emberSolid }}>
-                {Number(deal.price).toFixed(2).replace(".", ",")} €
-              </div>
-            </div>
-          </div>
-          <div style={{ fontSize: 11.5, color: T.green, fontWeight: 800, textAlign: "left", marginTop: 4 }}>
-            ● Écart détecté vs prix de référence — c'est ça, une erreur de prix
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 /* ── Section "Pépites du moment" de la homepage, alimentée par /api/deals ── */
 function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
@@ -511,8 +470,11 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchDeals("tout", 1, pageSize)
-      .then((data) => { if (!cancelled) setItems(data.items || []); })
+    // On sur-échantillonne (15) puis on filtre les erreurs de prix côté client : la
+    // section "Pépites du moment" ne doit montrer que des deals normaux — les erreurs
+    // ont leur propre section juste en dessous, comme dans la maquette (pas de doublon).
+    fetchDeals("tout", 1, 15)
+      .then((data) => { if (!cancelled) setItems((data.items || []).filter((it) => it.verdict !== "erreur").slice(0, pageSize)); })
       .catch(() => { if (!cancelled) setItems(null); });
     return () => { cancelled = true; };
   }, []);
@@ -520,7 +482,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   if (items === null) return null;
 
   return (
-    <section style={{ maxWidth: 960, margin: "0 auto", padding: "44px 18px 10px" }}>
+    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 18px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔥 Pépites du moment</h2>
         {items && items.length > 0 && (
@@ -533,7 +495,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         )}
       </div>
       {items === undefined && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {[0, 1, 2, 3].map((i) => <SkeletonCard key={`home-skel-${i}`} />)}
         </div>
       )}
@@ -543,7 +505,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         </div>
       )}
       {items && items.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
             <DealCard key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
@@ -563,7 +525,7 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
     fetchDeals("tout", 1, 15)
       .then((data) => {
         if (cancelled) return;
-        setItems((data.items || []).filter((it) => it.verdict === "erreur").slice(0, 4));
+        setItems((data.items || []).filter((it) => it.verdict === "erreur").slice(0, 3));
       })
       .catch(() => { if (!cancelled) setItems(null); });
     return () => { cancelled = true; };
@@ -572,7 +534,7 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   if (items === null || items?.length === 0) return null;
 
   return (
-    <section style={{ maxWidth: 960, margin: "0 auto", padding: "10px 18px 10px" }}>
+    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 18px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔴 Erreurs de prix détectées</h2>
         {items && items.length > 0 && (
@@ -585,12 +547,12 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         )}
       </div>
       {items === undefined && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {[0, 1].map((i) => <SkeletonCard key={`err-skel-${i}`} />)}
         </div>
       )}
       {items && items.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
             <DealCard key={i} item={it} variant="price-error" authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
@@ -625,61 +587,25 @@ function HomeStatsBar() {
   if (stats === null) return null;
 
   const tiles = [
-    { icon: "📡", label: "Deals actifs détectés", value: stats?.total },
-    { icon: "🏬", label: "Marchands identifiés", value: stats?.sellers },
-    { icon: "🔴", label: "Erreurs de prix en cours", value: stats?.errors },
+    { icon: "📡", label: "Deals actifs détectés", value: stats?.total, iconBg: "#1A1330", iconColor: T.purple },
+    { icon: "🏬", label: "Marchands identifiés", value: stats?.sellers, iconBg: "#2E2318", iconColor: T.yellow },
+    { icon: "🔴", label: "Erreurs de prix en cours", value: stats?.errors, iconBg: "#2C1420", iconColor: T.pink },
   ];
 
   return (
-    <section style={{ maxWidth: 960, margin: "0 auto", padding: "0 18px" }}>
+    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 18px" }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
         {tiles.map((t) => (
-          <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 10, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 18px", flex: "1 1 220px", maxWidth: 280 }}>
-            <span style={{ fontSize: 20 }}>{t.icon}</span>
+          <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 12, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 18px", flex: "1 1 220px", maxWidth: 280 }}>
+            <span aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 10, background: t.iconBg, fontSize: 18, flexShrink: 0 }}>
+              {t.icon}
+            </span>
             <div>
               <div className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: T.ink, minHeight: 23 }}>
                 {stats === undefined ? <span className="rp-shimmer" style={{ display: "inline-block", width: 40, height: 16, borderRadius: 4 }} /> : t.value}
               </div>
               <div style={{ fontSize: 11, color: T.sub }}>{t.label}</div>
             </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ── Grille de catégories + marchands populaires (badges texte) ─── */
-function CategoryGrid({ onSelectCategory }) {
-  const iconFor = {
-    hightech: "💻", gaming: "🎮", maison: "🏠", mode: "👟",
-    beaute: "💄", alimentaire: "☕", sport: "🏃", auto: "🚗",
-  };
-  return (
-    <section style={{ maxWidth: 960, margin: "0 auto", padding: "36px 18px 10px" }}>
-      <h2 className="rp-display" style={{ fontSize: 18, fontWeight: 900, marginBottom: 16 }}>Catégories</h2>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 30 }}>
-        {CATEGORIES.filter((c) => c.id !== "tout").map((c) => (
-          <button
-            key={c.id}
-            className="rp-cat-btn"
-            onClick={() => onSelectCategory(c.id)}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "16px 8px", borderRadius: 12, border: `1px solid ${T.line}`, background: T.surface, color: T.ink, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-          >
-            <span style={{ fontSize: 22 }}>{iconFor[c.id] || "🛒"}</span>
-            <span style={{ fontSize: 11.5, fontWeight: 700, textAlign: "center", lineHeight: 1.3 }}>{c.label.split(" / ")[0]}</span>
-          </button>
-        ))}
-      </div>
-      <h3 style={{ fontSize: 12.5, fontWeight: 800, color: T.sub, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Marchands populaires</h3>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {FEATURED_MERCHANTS.map((m) => (
-          <div
-            key={m}
-            style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 13px 7px 7px", borderRadius: 20, border: `1px solid ${T.line}`, background: T.surface2, color: T.ink, fontWeight: 700, fontSize: 12 }}
-          >
-            <MerchantBadge name={m} size={22} />
-            {m}
           </div>
         ))}
       </div>
@@ -759,21 +685,80 @@ function LegalModal({ page, onClose }) {
   );
 }
 
-function Footer({ setLegalPage }) {
+function FooterLink({ children, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: "block", background: "none", border: "none", color: T.sub, cursor: "pointer", padding: "3px 0", fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "left" }}>
+      {children}
+    </button>
+  );
+}
+
+function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNeedAuth, onOpenFavoris }) {
+  const [newsletterNote, setNewsletterNote] = useState(false);
   return (
     <footer style={{ background: "#080A0F", borderTop: `1px solid ${T.line}`, marginTop: 40 }}>
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "36px 18px", display: "flex", flexDirection: "column", gap: 18 }}>
-        <div className="rp-display" style={{ color: T.ink, fontSize: 15, fontWeight: 900 }}>
-          RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 18px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1.3fr", gap: 24 }} className="rp-footer-grid">
+          <div>
+            <div className="rp-display" style={{ color: T.ink, fontSize: 16, fontWeight: 900, marginBottom: 10 }}>
+              RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: T.sub, lineHeight: 1.6, marginBottom: 14, maxWidth: 240 }}>
+              RadarPrix détecte automatiquement les meilleurs deals et les erreurs de prix chez les marchands français.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["🐦", "🎮", "📷", "✉️"].map((ic, i) => (
+                <span key={i} aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "50%", background: T.surface2, fontSize: 13 }}>
+                  {ic}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Navigation</h4>
+            <FooterLink onClick={() => openTab("deals")}>Gros deals</FooterLink>
+            <FooterLink onClick={() => openTab("erreurs")}>Erreurs de prix</FooterLink>
+            <FooterLink onClick={() => (authToken ? onOpenFavoris() : onNeedAuth())}>Favoris</FooterLink>
+            <FooterLink onClick={() => goToCommunity("communaute-picks")}>Communauté</FooterLink>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Légal</h4>
+            <FooterLink onClick={() => setLegalPage("mentions")}>Mentions légales</FooterLink>
+            <FooterLink onClick={() => setLegalPage("cgu")}>CGU</FooterLink>
+            <FooterLink onClick={() => setLegalPage("confidentialite")}>Politique de confidentialité</FooterLink>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>À propos</h4>
+            <FooterLink onClick={() => { goHome(); window.scrollTo({ top: document.body.scrollHeight * 0.55, behavior: "smooth" }); }}>Comment ça marche ?</FooterLink>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Restez dans le radar</h4>
+            <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.6, marginBottom: 10 }}>
+              Recevez les meilleurs deals et erreurs de prix directement par email.
+            </p>
+            <form
+              onSubmit={(e) => { e.preventDefault(); setNewsletterNote(true); }}
+              style={{ display: "flex", gap: 6 }}
+            >
+              <input
+                type="email"
+                required
+                placeholder="Votre email"
+                style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 12.5, fontFamily: "'Inter', sans-serif" }}
+              />
+              <button type="submit" aria-label="S'inscrire" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
+                ➤
+              </button>
+            </form>
+            {newsletterNote && <p style={{ fontSize: 11, color: T.sub, marginTop: 8 }}>Bientôt disponible — cette fonctionnalité n'est pas encore branchée.</p>}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: 13 }}>
-          {[["mentions", "Mentions légales"], ["cgu", "CGU"], ["confidentialite", "Confidentialité"]].map(([id, label]) => (
-            <button key={id} onClick={() => setLegalPage(id)} style={{ background: "none", border: "none", color: T.sub, cursor: "pointer", padding: 0, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div style={{ fontSize: 12, color: "#5A6373" }}>
+
+        <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 28, paddingTop: 18, fontSize: 12, color: "#5A6373", textAlign: "center" }}>
           © 2026 RadarPrix — Scans propulsés par un algorithme maison sur données Google Shopping. RadarPrix n'est affilié à aucun marchand cité.
         </div>
       </div>
@@ -1781,7 +1766,7 @@ export default function RadarPrixSite() {
       <GlobalStyles />
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 16px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, minWidth: 0 }}>
             <button onClick={goHome} className="rp-display" style={{ fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
@@ -1894,23 +1879,11 @@ export default function RadarPrixSite() {
               </p>
 
               <div style={{ maxWidth: 520, margin: "0 auto" }}>
-                <SearchBar big onSearch={(t) => searchProduct(t)} placeholder="Cherchez un produit : PS5, aspirateur, iPhone…" />
+                <SearchBar big onSearch={(t) => searchProduct(t)} placeholder="Rechercher un produit : PS5, aspirateur, iPhone..." />
               </div>
-
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
-                {[["deals", "🔥 Gros deals"], ["erreurs", "🔴 Erreurs de prix"]].map(([m, label]) => (
-                  <button key={m} onClick={() => openTab(m)} style={{ padding: "12px 18px", borderRadius: 12, border: `1.5px solid ${T.line}`, background: T.surface, color: T.ink, fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "'Inter', system-ui, sans-serif" }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <HeroLiveDeal />
             </header>
 
             <HomeStatsBar />
-
-            <CategoryGrid onSelectCategory={(id) => openTab("deals", { category: id })} />
 
             <HomeDealsSection
               authToken={authToken}
@@ -1927,18 +1900,26 @@ export default function RadarPrixSite() {
             />
 
             <section style={{ background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 40 }}>
-              <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 18px" }}>
+              <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 18px" }}>
                 <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, textAlign: "center", marginBottom: 32 }}>Comment ça marche</h2>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 22 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "center", gap: 4 }}>
                   {[
-                    { icon: "📡", title: "Le scan interroge Google Shopping en direct", text: "Une recherche réelle sur les prix actuels, tous marchands confondus (Amazon, Cdiscount, Fnac, LDLC...), à l'instant où vous cliquez." },
-                    { icon: "🧮", title: "Un algorithme compare au prix de référence", text: "Chaque offre est confrontée à la médiane des vendeurs et à l'historique de prix déjà observé pour ce produit. Aucune IA n'intervient dans ce calcul." },
-                    { icon: "💎", title: "Un score Pépite trie le meilleur", text: "Écart de prix, cohérence, fiabilité du marchand : chaque offre reçoit un score sur 100. À 85 et plus, c'est une pépite." },
-                  ].map((s) => (
-                    <div key={s.title} style={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 16, padding: "22px 20px" }}>
-                      <div style={{ fontSize: 30, marginBottom: 12 }}>{s.icon}</div>
-                      <h3 style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 8, color: T.ink }}>{s.title}</h3>
-                      <p style={{ fontSize: 13.5, color: T.sub, lineHeight: 1.6 }}>{s.text}</p>
+                    { n: 1, icon: "📡", iconBg: "#181B39", title: "Scan en continu", text: "Nos robots interrogent en temps réel les prix chez des milliers de marchands français." },
+                    { n: 2, icon: "🧮", iconBg: "#332818", title: "Analyse intelligente", text: "Un algorithme compare chaque prix à l'historique déjà observé et à la médiane du marché." },
+                    { n: 3, icon: "🚨", iconBg: "#2C1420", title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
+                    { n: 4, icon: "🔔", iconBg: "#2E2318", title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
+                  ].map((s, i, arr) => (
+                    <div key={s.title} style={{ display: "flex", alignItems: "flex-start" }}>
+                      <div style={{ width: 210, padding: "0 6px" }}>
+                        <span aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: 12, background: s.iconBg, fontSize: 22, marginBottom: 14 }}>
+                          {s.icon}
+                        </span>
+                        <h3 style={{ fontSize: 14.5, fontWeight: 800, marginBottom: 6, color: T.ink }}>{s.n}. {s.title}</h3>
+                        <p style={{ fontSize: 12.5, color: T.sub, lineHeight: 1.55 }}>{s.text}</p>
+                      </div>
+                      {i < arr.length - 1 && (
+                        <span aria-hidden="true" style={{ color: T.sub, fontSize: 18, padding: "12px 4px 0", flexShrink: 0 }}>→</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2144,7 +2125,15 @@ export default function RadarPrixSite() {
       </div>
 
       <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
-      <Footer setLegalPage={setLegalPage} />
+      <Footer
+        setLegalPage={setLegalPage}
+        goHome={goHome}
+        openTab={openTab}
+        goToCommunity={goToCommunity}
+        authToken={authToken}
+        onNeedAuth={() => setAuthOpen(true)}
+        onOpenFavoris={() => { setView("favoris"); window.scrollTo(0, 0); }}
+      />
       <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
       {authOpen && (
         <AuthModal
