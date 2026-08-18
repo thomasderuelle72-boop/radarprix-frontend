@@ -142,6 +142,9 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
             <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
               <div style={{ fontSize: 9.5, color: T.sub, lineHeight: 1.2 }}>Score RadarPrix</div>
               <div className="rp-display" style={{ fontSize: 13, fontWeight: 800, color: isErr ? T.red : isGem ? T.green : T.ink }}>{item.score}/100</div>
+              {item.confidence != null && item.confidence < 60 && (
+                <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2 }}>⚠ à vérifier</div>
+              )}
             </div>
           </div>
         </div>

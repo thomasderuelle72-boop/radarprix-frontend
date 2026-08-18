@@ -66,11 +66,20 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
   const scoreLabel = item.score >= 85 ? "Excellent deal" : item.score >= 60 ? "Bon deal" : "À vérifier";
   const scoreColor = item.score >= 85 ? T.green : item.score >= 60 ? T.yellow : T.sub;
 
+  // Confidence Score : distinct du Deal Score ci-dessus — pas "à quel point
+  // le prix est intéressant" mais "à quel point on peut faire confiance à
+  // CETTE détection" (pairs cohérents, confirmation par l'historique...).
+  // Une remise énorme et isolée peut avoir un excellent Deal Score et une
+  // confiance faible — c'est justement ce que cette valeur signale.
+  const hasConfidence = item.confidence != null;
+  const confidenceLabel = !hasConfidence ? "Non évaluable" : item.confidence >= 70 ? "Fiable" : item.confidence >= 40 ? "À vérifier" : "Peu fiable";
+  const confidenceColor = !hasConfidence ? T.sub : item.confidence >= 70 ? T.green : item.confidence >= 40 ? T.yellow : T.red;
+
   const whyTiles = [
     item.pct > 0 && { icon: "📉", color: isErr ? T.red : T.green, label: "vs référence marché", value: `−${item.pct}%` },
     item.allTimeLow && { icon: "🏆", color: T.green, label: "Historique", value: "Plus bas prix enregistré" },
     seenAgo && { icon: "🕒", color: T.purple, label: "Fraîcheur", value: `Vu ${seenAgo}` },
-    { icon: "💎", color: scoreColor, label: "Fiabilité du score", value: scoreLabel },
+    hasConfidence && { icon: "💎", color: confidenceColor, label: "Fiabilité de la détection", value: `${confidenceLabel} (${item.confidence}/100)` },
   ].filter(Boolean);
 
   return (
@@ -143,6 +152,18 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
               <div style={{ height: "100%", width: `${item.score}%`, borderRadius: 20, background: scoreColor }} />
             </div>
           </div>
+
+          {hasConfidence && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: T.sub }}>Confiance dans la détection</span>
+                <span style={{ color: confidenceColor, fontWeight: 800 }}>{item.confidence}/100 · {confidenceLabel}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 20, background: T.surface2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${item.confidence}%`, borderRadius: 20, background: confidenceColor }} />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {item.url && (
