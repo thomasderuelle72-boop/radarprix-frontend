@@ -63,6 +63,33 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
     }
   };
 
+  // L'URL courante contient déjà ?produit=... (mise à jour par openDealDetail
+  // dans RadarPrixSite.jsx), donc partager la page courante suffit — le lien
+  // reste valide tant que le deal est actif (relu via apiGetLatest à l'ouverture).
+  const [shareMsg, setShareMsg] = useState(null);
+  const share = async () => {
+    const shareData = {
+      title: `${item.name} — RadarPrix`,
+      text: `${item.name} à ${Number(item.price).toFixed(2).replace(".", ",")} € repéré par RadarPrix`,
+      url: window.location.href,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // Annulation par l'utilisateur (bouton "Annuler" du partage natif) : rien à faire.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      setShareMsg("✓ Lien copié");
+    } catch {
+      setShareMsg("Impossible de copier le lien");
+    }
+    setTimeout(() => setShareMsg(null), 2500);
+  };
+
   const scoreLabel = item.score >= 85 ? "Excellent deal" : item.score >= 60 ? "Bon deal" : "À vérifier";
   const scoreColor = item.score >= 85 ? T.green : item.score >= 60 ? T.yellow : T.sub;
 
@@ -174,8 +201,12 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
             <button onClick={follow} aria-label="Suivre ce produit" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
               ♥
             </button>
+            <button onClick={share} aria-label="Partager ce deal" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+              ⤴
+            </button>
           </div>
           {followMsg && <p className="toast-in" style={{ fontSize: 12, color: followMsg.startsWith("Erreur") ? T.red : T.green, margin: 0 }}>{followMsg}</p>}
+          {shareMsg && <p className="toast-in" style={{ fontSize: 12, color: T.green, margin: 0 }}>{shareMsg}</p>}
         </div>
 
         {/* Colonne droite : pourquoi + historique */}

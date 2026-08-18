@@ -1617,10 +1617,15 @@ export default function RadarPrixSite() {
   };
 
   // Ouvre la fiche produit détaillée d'un deal (cliqué depuis une DealCard).
+  // Met aussi à jour l'URL (?produit=...) pour que la page soit partageable :
+  // voir l'effet de deep-link ci-dessous, qui la relit au chargement.
   const openDealDetail = (item) => {
     setDealDetailItem(item);
     setView("dealDetail");
     window.scrollTo(0, 0);
+    const url = new URL(window.location.href);
+    url.searchParams.set("produit", item.name);
+    window.history.replaceState(null, "", url);
   };
 
   useEffect(() => {
@@ -1632,6 +1637,23 @@ export default function RadarPrixSite() {
         setAuthUser(JSON.parse(u));
       } catch {}
     }
+  }, []);
+
+  // Deep-link : si l'URL contient ?produit=..., (re)ouvre directement cette
+  // fiche produit au chargement — c'est ce qui rend un lien partagé utile.
+  // Relit un scan déjà enregistré (apiGetLatest, gratuit) plutôt que de
+  // relancer un scan SerpApi juste parce qu'un lien a été ouvert.
+  useEffect(() => {
+    const produit = new URLSearchParams(window.location.search).get("produit");
+    if (!produit) return;
+    apiGetLatest(produit)
+      .then((items) => {
+        if (items.length > 0) {
+          openDealDetail(items.find((i) => i.name === produit) || items[0]);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persistUser = (user) => {
@@ -1783,6 +1805,7 @@ export default function RadarPrixSite() {
   const goHome = () => {
     setView("home");
     window.scrollTo(0, 0);
+    window.history.replaceState(null, "", window.location.pathname);
   };
 
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
