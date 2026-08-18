@@ -104,7 +104,12 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
               {isErr ? "ERREUR ?" : isGem ? "PÉPITE DU MOMENT" : "GROS DEAL"}
             </span>
             <h1 className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: T.ink, lineHeight: 1.3 }}>{item.name}</h1>
-            {seenAgo && <div style={{ fontSize: 12, color: T.sub, marginTop: 4 }}>Détecté {seenAgo}</div>}
+            {seenAgo && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.sub, marginTop: 4 }}>
+                <span className="rp-fresh-dot" aria-hidden="true" />
+                Détecté {seenAgo}
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
@@ -141,11 +146,11 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {item.url && (
-              <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: "center", padding: "12px 18px", borderRadius: 10, background: isErr ? T.red : T.ember, color: isErr ? "#fff" : "#0C0E14", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>
+              <a href={item.url} target="_blank" rel="noopener noreferrer" className="rp-cta" style={{ flex: 1, textAlign: "center", padding: "12px 18px", borderRadius: 10, background: isErr ? T.red : T.ember, color: isErr ? "#fff" : "#0C0E14", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>
                 Voir le deal →
               </a>
             )}
-            <button onClick={follow} aria-label="Suivre ce produit" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
+            <button onClick={follow} aria-label="Suivre ce produit" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
               ♥
             </button>
           </div>
@@ -223,7 +228,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 6 }}>
             {similar.map((it, i) => (
               <div key={i} style={{ minWidth: 220, maxWidth: 220, flexShrink: 0 }}>
-                <DealCard item={it} onOpenDetail={onOpenDetail} />
+                <DealCard item={it} index={i} onOpenDetail={onOpenDetail} />
               </div>
             ))}
           </div>

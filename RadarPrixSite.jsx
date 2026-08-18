@@ -62,7 +62,20 @@ const GlobalStyles = () => (
     }
     @keyframes sweep { from { transform: rotate(0); } to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-    .fade-up { animation: fadeUp .5s ease both; }
+    .fade-up { animation: fadeUp 280ms cubic-bezier(.2,.8,.2,1) both; }
+    /* CTA principal : léger décollé + montée de luminosité au survol */
+    .rp-cta { transition: transform 160ms cubic-bezier(.2,.8,.2,1), filter 160ms cubic-bezier(.2,.8,.2,1); }
+    .rp-cta:hover { transform: translateY(-1px) scale(1.01); filter: brightness(1.04); }
+    /* Petit point vert pulsant pour signaler une donnée vérifiée récemment */
+    .rp-fresh-dot { width: 6px; height: 6px; border-radius: 50%; background: ${T.green}; box-shadow: 0 0 8px rgba(53,212,117,.5); position: relative; display: inline-block; flex-shrink: 0; }
+    .rp-fresh-dot::after { content: ''; position: absolute; inset: -4px; border-radius: 999px; background: rgba(53,212,117,.2); animation: rpPulse 1.8s infinite; }
+    @keyframes rpPulse { 0% { transform: scale(.8); opacity: .8; } 70%, 100% { transform: scale(1.8); opacity: 0; } }
+    /* Ouverture des modales : fondu + léger zoom */
+    .rp-modal-in { animation: rpModalIn 320ms cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes rpModalIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+    /* Balayage radar discret, uniquement décoratif derrière le hero */
+    @keyframes rpSweep { to { transform: rotate(360deg); } }
+    .rp-radar-sweep { animation: rpSweep 2700ms linear infinite; }
     /* Badge "tamponné" : léger effet de rebond façon tampon de caisse */
     @keyframes stampIn {
       0% { transform: scale(1.6) rotate(-14deg); opacity: 0; }
@@ -160,8 +173,8 @@ const GlobalStyles = () => (
     @media (max-width: 460px) {
       .rp-footer-grid { grid-template-columns: 1fr !important; }
     }
-    .rp-deal-card { transition: transform .15s ease, border-color .15s ease; }
-    .rp-deal-card:hover { transform: translateY(-3px); border-color: ${T.emberSolid}; }
+    .rp-deal-card { transition: transform 160ms cubic-bezier(.2,.8,.2,1), border-color 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms cubic-bezier(.2,.8,.2,1); }
+    .rp-deal-card:hover { transform: translateY(-4px); border-color: ${T.emberSolid}; box-shadow: ${T.shadowCardHover}; }
     .rp-mobile-nav button { transition: color .15s ease; }
   `}</style>
 );
@@ -198,6 +211,7 @@ function SearchBar({ onSearch, big, placeholder }) {
       <button
         onClick={go}
         aria-label="Lancer la recherche"
+        className="rp-cta"
         style={{
           padding: big ? "0 24px" : "0 18px",
           borderRadius: big ? 14 : 10,
@@ -242,7 +256,7 @@ function AuthModal({ onClose, onSuccess }) {
 
   return (
     <div role="dialog" aria-modal="true" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 }}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 380, width: "100%" }}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} className="rp-modal-in" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 380, width: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{mode === "login" ? "Connexion" : "Créer un compte"}</h3>
           <button type="button" onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
@@ -401,7 +415,7 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
 
   return (
     <div role="dialog" aria-modal="true" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 14, zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "88vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} className="rp-modal-in" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: `1px solid ${T.line}` }}>
           <h3 className="rp-display" style={{ fontSize: 16, color: T.ink }}>⚙️ Paramètres</h3>
           <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
@@ -532,7 +546,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
       {items && items.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
-            <DealCard key={i} item={it} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
+            <DealCard key={i} item={it} index={i} authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
         </div>
       )}
@@ -579,7 +593,7 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
       {items && items.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {items.map((it, i) => (
-            <DealCard key={i} item={it} variant="price-error" authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
+            <DealCard key={i} item={it} index={i} variant="price-error" authToken={authToken} onNeedAuth={onNeedAuth} onOpenDetail={onOpenDetail} />
           ))}
         </div>
       )}
@@ -699,7 +713,7 @@ function LegalModal({ page, onClose }) {
   const { title, body } = LEGAL[page];
   return (
     <div role="dialog" aria-modal="true" aria-label={title} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 560, maxHeight: "80vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} className="rp-modal-in" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 560, maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{title}</h3>
           <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
@@ -1895,6 +1909,21 @@ export default function RadarPrixSite() {
           <>
             <header style={{ maxWidth: 960, margin: "0 auto", padding: "54px 18px 20px", textAlign: "center", position: "relative" }}>
               <div aria-hidden="true" style={{ position: "absolute", top: -80, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(255,106,53,0.14), transparent 65%)", pointerEvents: "none" }} />
+              <div
+                aria-hidden="true"
+                className="rp-radar-sweep"
+                style={{
+                  position: "absolute",
+                  top: -80,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: 600,
+                  height: 400,
+                  background: "conic-gradient(from 0deg, transparent 0deg, rgba(255,161,37,0.10) 18deg, transparent 40deg)",
+                  borderRadius: "50%",
+                  pointerEvents: "none",
+                }}
+              />
               <h1 className="rp-display" style={{ fontSize: "clamp(24px, 6vw, 42px)", fontWeight: 900, lineHeight: 1.15 }}>
                 Quand le marchand se trompe,
                 <br />
@@ -1989,7 +2018,7 @@ export default function RadarPrixSite() {
               </h2>
               <button
                 onClick={followCurrentSearch}
-                className="rp-pressable"
+                className="rp-pressable rp-cta"
                 style={{ flexShrink: 0, background: "none", border: `1.5px solid ${T.emberSolid}`, borderRadius: 8, padding: "7px 12px", color: T.ink, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
               >
                 ★ Suivre
@@ -2071,7 +2100,7 @@ export default function RadarPrixSite() {
                 </div>
               )}
               {visible.map((it, i) => (
-                <DealCard key={i} item={it} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} onOpenDetail={openDealDetail} />
+                <DealCard key={i} item={it} index={i} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} onOpenDetail={openDealDetail} />
               ))}
               {items && items.length > 0 && !loading && !searchTerm && hasMore && (
                 <button

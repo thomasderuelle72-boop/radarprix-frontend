@@ -30,7 +30,7 @@ export function SkeletonCard() {
   );
 }
 
-export default function DealCard({ item, onOpenDetail, variant }) {
+export default function DealCard({ item, onOpenDetail, variant, index }) {
   const resolvedVariant = variant || (item.verdict === "erreur" ? "price-error" : "deal");
   const isErr = resolvedVariant === "price-error";
   const isGem = item.score >= 85;
@@ -53,6 +53,7 @@ export default function DealCard({ item, onOpenDetail, variant }) {
         fontFamily: "'Inter', system-ui, sans-serif",
         position: "relative",
         padding: 0,
+        animationDelay: index != null ? `${Math.min(index * 55, 400)}ms` : undefined,
       }}
     >
       {isErr && (
@@ -130,7 +131,12 @@ export default function DealCard({ item, onOpenDetail, variant }) {
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.seller || "Vendeur inconnu"}
                 </div>
-                {seenAgo && <div style={{ fontSize: 10.5, color: T.sub }}>{seenAgo}</div>}
+                {seenAgo && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: T.sub }}>
+                    <span className="rp-fresh-dot" aria-hidden="true" />
+                    {seenAgo}
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
