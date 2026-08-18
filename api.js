@@ -7,8 +7,12 @@
 export const BACKEND_URL = "https://radarprix-backend-production.up.railway.app";
 
 // Lit les deals déjà repérés en base (cron), instantané et gratuit.
-export async function fetchDeals(category, page, pageSize = 15) {
+// `q` (optionnel) filtre par mot-clé sur des deals déjà validés individuellement
+// — utilisé pour parcourir les anomalies existantes sur une recherche large
+// (ex: "pc") sans lancer de scan en direct sur un terme trop vague pour être comparé.
+export async function fetchDeals(category, page, pageSize = 15, q) {
   const params = new URLSearchParams({ category, page, pageSize });
+  if (q) params.set("q", q);
   const res = await fetch(`${BACKEND_URL}/api/deals?${params}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);

@@ -1733,8 +1733,13 @@ export default function RadarPrixSite() {
     }
   };
 
-  // Recherche libre (barre de recherche) : ici, un vrai scan SerpApi en
-  // direct sur le produit précis demandé — action explicite de l'utilisateur.
+  // Recherche libre (barre de recherche). Deux étapes :
+  // 1) D'abord parcourir les deals déjà détectés par le cron qui matchent ce
+  //    mot-clé (instantané, gratuit, et fiable même sur un terme large comme
+  //    "pc" — chaque deal a déjà été comparé à ses propres pairs/historique,
+  //    jamais à un autre produit).
+  // 2) Si rien ne matche, lancer un vrai scan SerpApi en direct sur ce terme
+  //    précis — pertinent pour un produit spécifique pas encore au catalogue.
   const searchProduct = async (term) => {
     setTab("deals");
     setSearchTerm(term);
@@ -1745,7 +1750,15 @@ export default function RadarPrixSite() {
     setError(null);
     setItems(null);
     setScannedQuery(null);
+    setLastScan(null);
     try {
+      const catalogMatch = await fetchDeals("tout", 1, 30, term);
+      if (catalogMatch.items.length > 0) {
+        setItems(catalogMatch.items);
+        setScannedQuery(term);
+        setHasMore(false);
+        return;
+      }
       const { items: found, scannedQuery: sq } = await scanBackend(term, "tout");
       setItems(found);
       setScannedQuery(sq);
