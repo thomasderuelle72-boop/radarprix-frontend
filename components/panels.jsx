@@ -97,6 +97,7 @@ export function CommentsPanel({ query, authToken, onNeedAuth }) {
         />
         <button
           onClick={send}
+          className="rp-pressable"
           disabled={sending}
           style={{ padding: "0 14px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
         >

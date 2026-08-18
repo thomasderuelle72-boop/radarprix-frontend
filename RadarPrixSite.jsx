@@ -4,6 +4,7 @@ import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import ProductDetailView from "./components/ProductDetailView.jsx";
 import Avatar from "./components/Avatar.jsx";
+import Reveal from "./components/Reveal.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -51,6 +52,7 @@ const GlobalStyles = () => (
     @import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Inter:wght@400;600;800&display=swap');
     * { box-sizing: border-box; margin: 0; }
     body { background: ${T.bg}; }
+    img, svg { max-width: 100%; }
     .rp-display { font-family: 'Unbounded', system-ui, sans-serif; }
     .rp-body { font-family: 'Inter', system-ui, sans-serif; }
     @keyframes priceGlitch {
@@ -61,6 +63,29 @@ const GlobalStyles = () => (
     @keyframes sweep { from { transform: rotate(0); } to { transform: rotate(360deg); } }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
     .fade-up { animation: fadeUp .5s ease both; }
+    /* Badge "tamponné" : léger effet de rebond façon tampon de caisse */
+    @keyframes stampIn {
+      0% { transform: scale(1.6) rotate(-14deg); opacity: 0; }
+      60% { transform: scale(0.95) rotate(-2deg); opacity: 1; }
+      100% { transform: scale(1) rotate(-4deg); opacity: 1; }
+    }
+    .stamp-badge { animation: stampIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; transform-origin: center; }
+    /* Toast de confirmation (ex: "Ajouté aux favoris") */
+    @keyframes toastIn {
+      0% { transform: translateY(-6px) scale(0.9); opacity: 0; }
+      60% { transform: translateY(1px) scale(1.03); opacity: 1; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .toast-in { animation: toastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+    /* Message de chat qui glisse à l'arrivée */
+    @keyframes msgSlideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+    .msg-slide-in { animation: msgSlideIn 0.3s ease both; }
+    /* Retour tactile immédiat sur les boutons d'action */
+    .rp-pressable { transition: transform 0.1s ease; }
+    .rp-pressable:active { transform: scale(0.96); }
+    /* Apparition en fondu au défilement (piloté par IntersectionObserver, voir Reveal.jsx) */
+    .reveal-on-scroll { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .reveal-on-scroll.revealed { opacity: 1; transform: translateY(0); }
     @keyframes rpShimmer { 0% { background-position: -300% 0; } 100% { background-position: 300% 0; } }
     .rp-shimmer { background: linear-gradient(90deg, ${T.surface2} 22%, ${T.line} 42%, ${T.surface2} 62%); background-size: 500% 100%; animation: rpShimmer 1.7s ease-in-out infinite; }
     .rp-ticket-sep {
@@ -114,7 +139,7 @@ const GlobalStyles = () => (
     .rp-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: ${T.ink}; font-weight: 700; font-size: 13px; padding: 10px 11px; border-radius: 8px; cursor: pointer; font-family: 'Inter', system-ui, sans-serif; }
     .rp-dropdown-item:hover { background: ${T.surface2}; color: ${T.emberSolid}; }
     .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 1px; }
-    html, body { overflow-x: hidden; }
+    html, body { overflow-x: hidden; max-width: 100vw; }
     .rp-mobile-nav {
       display: none;
       position: fixed;
@@ -220,7 +245,7 @@ function AuthModal({ onClose, onSuccess }) {
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 380, width: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{mode === "login" ? "Connexion" : "Créer un compte"}</h3>
-          <button type="button" onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
         </div>
 
         <label style={{ display: "block", fontSize: 12, color: T.sub, marginBottom: 4 }}>Email</label>
@@ -379,15 +404,15 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: `1px solid ${T.line}` }}>
           <h3 className="rp-display" style={{ fontSize: 16, color: T.ink }}>⚙️ Paramètres</h3>
-          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub }}>×</button>
+          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "14px 12px", borderBottom: `1px solid ${T.line}`, width: "100%" }}>
-            <button onClick={() => setTab("compte")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "compte" ? T.surface2 : "transparent", color: tab === "compte" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+          <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "14px 12px", borderBottom: `1px solid ${T.line}`, width: "100%", overflowX: "auto" }}>
+            <button onClick={() => setTab("compte")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "compte" ? T.surface2 : "transparent", color: tab === "compte" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
               👤 Compte général
             </button>
-            <button onClick={() => setTab("securite")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "securite" ? T.surface2 : "transparent", color: tab === "securite" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+            <button onClick={() => setTab("securite")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "securite" ? T.surface2 : "transparent", color: tab === "securite" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
               🔒 Confidentialité & sécurité
             </button>
           </div>
@@ -677,7 +702,7 @@ function LegalModal({ page, onClose }) {
       <div onClick={(e) => e.stopPropagation()} style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 560, maxHeight: "80vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{title}</h3>
-          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub }}>×</button>
+          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
         </div>
         <p style={{ whiteSpace: "pre-line", fontSize: 13.5, lineHeight: 1.7, color: T.sub }}>{body}</p>
       </div>
@@ -1055,7 +1080,7 @@ function CommunityView({ token, currentUserId, onBack }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 360, overflowY: "auto", marginBottom: 12 }}>
             {publicMsgs.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun message pour l'instant — lance la discussion.</p>}
             {publicMsgs.map((m) => (
-              <div key={m.id} style={{ display: "flex", gap: 8 }}>
+              <div key={m.id} className="msg-slide-in" style={{ display: "flex", gap: 8 }}>
                 <Avatar email={m.author} avatarUrl={m.avatar_url} size={26} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12 }}>
@@ -1076,7 +1101,7 @@ function CommunityView({ token, currentUserId, onBack }) {
               placeholder="Écris un message au salon…"
               style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
             />
-            <button onClick={sendPublic} style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+            <button onClick={sendPublic} className="rp-pressable" style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
               Envoyer
             </button>
           </div>
@@ -1140,7 +1165,7 @@ function CommunityView({ token, currentUserId, onBack }) {
               placeholder="Ton message…"
               style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
             />
-            <button onClick={sendDm} style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+            <button onClick={sendDm} className="rp-pressable" style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
               Envoyer
             </button>
           </div>
@@ -1910,7 +1935,7 @@ export default function RadarPrixSite() {
                     { n: 3, icon: "🚨", iconBg: "#2C1420", title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
                     { n: 4, icon: "🔔", iconBg: "#2E2318", title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
                   ].map((s, i, arr) => (
-                    <div key={s.title} style={{ display: "flex", alignItems: "flex-start" }}>
+                    <Reveal key={s.title} style={{ display: "flex", alignItems: "flex-start" }}>
                       <div style={{ width: 210, padding: "0 6px" }}>
                         <span aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: 12, background: s.iconBg, fontSize: 22, marginBottom: 14 }}>
                           {s.icon}
@@ -1921,7 +1946,7 @@ export default function RadarPrixSite() {
                       {i < arr.length - 1 && (
                         <span aria-hidden="true" style={{ color: T.sub, fontSize: 18, padding: "12px 4px 0", flexShrink: 0 }}>→</span>
                       )}
-                    </div>
+                    </Reveal>
                   ))}
                 </div>
               </div>
@@ -1929,18 +1954,20 @@ export default function RadarPrixSite() {
 
             <section style={{ maxWidth: 680, margin: "0 auto", padding: "48px 18px 10px" }}>
               <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, textAlign: "center", marginBottom: 20 }}>Questions fréquentes</h2>
-              {[
-                { q: "Une « erreur de prix », c'est quoi exactement ?", a: "Un prix affiché par erreur par le marchand : virgule décalée (449 € qui devient 44,90 €), mauvaise référence, remise mal paramétrée. Ces offres durent souvent quelques heures avant correction." },
-                { q: "Suis-je sûr de recevoir le produit si je commande ?", a: "Non, et c'est important : en droit français, un vendeur peut annuler une commande en cas d'erreur manifeste sur le prix. Plus l'erreur est énorme, plus l'annulation est probable. C'est une loterie — parfois ça passe, surtout si le colis est expédié rapidement." },
-                { q: "Comment le prix de référence est-il calculé ?", a: "Notre algorithme compare chaque offre à la médiane des autres vendeurs pour le même produit, et à l'historique de prix déjà enregistré. Plus l'historique est riche, plus la référence est précise." },
-                { q: "Les offres affichées sont-elles garanties exactes ?", a: "Non. Les prix bougent en permanence et l'algorithme peut se tromper, notamment si un vendeur liste un produit différent sous un titre trompeur. Considérez chaque résultat comme une piste à vérifier immédiatement sur le site marchand." },
-                { q: "RadarPrix touche-t-il une commission sur mes achats ?", a: "Non. Les liens pointent directement vers les fiches produit trouvées lors du scan, sans tracking d'affiliation." },
-              ].map((f) => (
-                <details key={f.q} className="rp-faq">
-                  <summary>{f.q}</summary>
-                  <p>{f.a}</p>
-                </details>
-              ))}
+              <Reveal>
+                {[
+                  { q: "Une « erreur de prix », c'est quoi exactement ?", a: "Un prix affiché par erreur par le marchand : virgule décalée (449 € qui devient 44,90 €), mauvaise référence, remise mal paramétrée. Ces offres durent souvent quelques heures avant correction." },
+                  { q: "Suis-je sûr de recevoir le produit si je commande ?", a: "Non, et c'est important : en droit français, un vendeur peut annuler une commande en cas d'erreur manifeste sur le prix. Plus l'erreur est énorme, plus l'annulation est probable. C'est une loterie — parfois ça passe, surtout si le colis est expédié rapidement." },
+                  { q: "Comment le prix de référence est-il calculé ?", a: "Notre algorithme compare chaque offre à la médiane des autres vendeurs pour le même produit, et à l'historique de prix déjà enregistré. Plus l'historique est riche, plus la référence est précise." },
+                  { q: "Les offres affichées sont-elles garanties exactes ?", a: "Non. Les prix bougent en permanence et l'algorithme peut se tromper, notamment si un vendeur liste un produit différent sous un titre trompeur. Considérez chaque résultat comme une piste à vérifier immédiatement sur le site marchand." },
+                  { q: "RadarPrix touche-t-il une commission sur mes achats ?", a: "Non. Les liens pointent directement vers les fiches produit trouvées lors du scan, sans tracking d'affiliation." },
+                ].map((f) => (
+                  <details key={f.q} className="rp-faq">
+                    <summary>{f.q}</summary>
+                    <p>{f.a}</p>
+                  </details>
+                ))}
+              </Reveal>
             </section>
 
             <section style={{ maxWidth: 680, margin: "0 auto", padding: "24px 18px 0" }}>
@@ -1957,17 +1984,18 @@ export default function RadarPrixSite() {
               ← Accueil
             </button>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
-              <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>
+              <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>
                 {searchTerm ? `🔎 « ${searchTerm} »` : tab === "erreurs" ? "🔴 Erreurs de prix" : "🔥 Gros deals"}
               </h2>
               <button
                 onClick={followCurrentSearch}
+                className="rp-pressable"
                 style={{ flexShrink: 0, background: "none", border: `1.5px solid ${T.emberSolid}`, borderRadius: 8, padding: "7px 12px", color: T.ink, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
               >
                 ★ Suivre
               </button>
             </div>
-            {followMsg && <p style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
+            {followMsg && <p className="toast-in" style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
             {lastScan && !loading && (
               <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>
                 {searchTerm

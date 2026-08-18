@@ -11,6 +11,7 @@ import { relativeTime } from "../utils.js";
 import { PriceHistoryPanel, CommentsPanel } from "./panels.jsx";
 import DealCard from "./DealCard.jsx";
 import MerchantBadge from "./MerchantBadge.jsx";
+import AnimatedPrice from "./AnimatedPrice.jsx";
 
 function panelCardStyle(extra) {
   return { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 18, ...extra };
@@ -99,7 +100,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           </div>
 
           <div>
-            <span style={{ display: "inline-block", background: isErr ? T.red : T.yellow, color: "#0C0E14", fontFamily: "'Unbounded', system-ui, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", padding: "5px 9px", borderRadius: 6, marginBottom: 8 }}>
+            <span className="stamp-badge" style={{ display: "inline-block", background: isErr ? T.red : T.yellow, color: "#0C0E14", fontFamily: "'Unbounded', system-ui, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", padding: "5px 9px", borderRadius: 6, marginBottom: 8 }}>
               {isErr ? "ERREUR ?" : isGem ? "PÉPITE DU MOMENT" : "GROS DEAL"}
             </span>
             <h1 className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: T.ink, lineHeight: 1.3 }}>{item.name}</h1>
@@ -107,9 +108,12 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           </div>
 
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-            <span className="rp-display" style={{ fontSize: 30, fontWeight: 900, color: isErr ? T.red : T.ink }}>
-              {Number(item.price).toFixed(2).replace(".", ",")} €
-            </span>
+            <AnimatedPrice
+              from={item.refPrice > item.price ? item.refPrice : item.price}
+              to={Number(item.price)}
+              className="rp-display"
+              style={{ fontSize: 30, fontWeight: 900, color: isErr ? T.red : T.ink }}
+            />
             {item.refPrice > 0 && (
               <span style={{ color: T.sub, textDecoration: "line-through", fontSize: 15 }}>
                 {Number(item.refPrice).toFixed(0)} €
@@ -145,7 +149,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
               ♥
             </button>
           </div>
-          {followMsg && <p style={{ fontSize: 12, color: followMsg.startsWith("Erreur") ? T.red : T.green, margin: 0 }}>{followMsg}</p>}
+          {followMsg && <p className="toast-in" style={{ fontSize: 12, color: followMsg.startsWith("Erreur") ? T.red : T.green, margin: 0 }}>{followMsg}</p>}
         </div>
 
         {/* Colonne droite : pourquoi + historique */}

@@ -8,6 +8,7 @@
 import { T } from "../theme.js";
 import { relativeTime } from "../utils.js";
 import MerchantBadge from "./MerchantBadge.jsx";
+import AnimatedPrice from "./AnimatedPrice.jsx";
 
 /* ── Squelette de chargement, même gabarit qu'une carte ─────────── */
 export function SkeletonCard() {
@@ -97,7 +98,7 @@ export default function DealCard({ item, onOpenDetail, variant }) {
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
               {isErr && (
-                <span style={{ alignSelf: "flex-start", background: "rgba(255,59,48,0.16)", border: `1px solid ${T.red}`, color: T.red, fontFamily: "'Unbounded', system-ui, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", padding: "5px 9px", borderRadius: 6 }}>
+                <span className="stamp-badge" style={{ alignSelf: "flex-start", background: "rgba(255,59,48,0.16)", border: `1px solid ${T.red}`, color: T.red, fontFamily: "'Unbounded', system-ui, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", padding: "5px 9px", borderRadius: 6 }}>
                   ERREUR
                 </span>
               )}
@@ -105,9 +106,12 @@ export default function DealCard({ item, onOpenDetail, variant }) {
                 {item.name}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                <span className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: isErr ? T.red : T.emberSolid }}>
-                  {Number(item.price).toFixed(2).replace(".", ",")} €
-                </span>
+                <AnimatedPrice
+                  from={item.refPrice > item.price ? item.refPrice : item.price}
+                  to={Number(item.price)}
+                  className="rp-display"
+                  style={{ fontSize: 19, fontWeight: 900, color: isErr ? T.red : T.emberSolid }}
+                />
                 {item.refPrice > 0 && (
                   <span style={{ color: T.sub, textDecoration: "line-through", fontSize: 12.5 }}>
                     {Number(item.refPrice).toFixed(2).replace(".", ",")} €
