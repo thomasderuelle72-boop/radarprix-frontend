@@ -195,13 +195,17 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
               ⚠️ Score calculé automatiquement à partir des prix observés — vérifiez toujours l'offre avant d'acheter.
             </p>
           </div>
-
-          <div style={panelCardStyle({})}>
-            <SectionTitle>Historique des prix</SectionTitle>
-            <PriceHistoryPanel query={item.name} height={180} />
-          </div>
         </div>
       </div>
+
+      {/* Historique des prix — en pleine largeur plutôt que casé dans la
+          colonne étroite, pour lui donner la place qu'il mérite. */}
+      <section style={{ marginTop: 20 }}>
+        <div style={panelCardStyle({})}>
+          <SectionTitle>Historique des prix</SectionTitle>
+          <PriceHistoryPanel query={item.name} height={240} />
+        </div>
+      </section>
 
       {/* Comparer les prix */}
       <section style={{ marginTop: 20 }}>

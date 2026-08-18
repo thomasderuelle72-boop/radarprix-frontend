@@ -8,34 +8,104 @@ import { T } from "../theme.js";
 import { apiGetHistory, apiGetComments, apiPostComment } from "../api.js";
 import Avatar from "./Avatar.jsx";
 
-/* ── Mini-graphique d'historique de prix ──────────────────────── */
+const HISTORY_PERIODS = [
+  { days: 7, label: "7 j" },
+  { days: 30, label: "30 j" },
+  { days: 90, label: "90 j" },
+];
+
+/* ── Graphique d'historique de prix, avec sélecteur de période et
+   statistiques min/max/actuel en un coup d'œil ─────────────────── */
 export function PriceHistoryPanel({ query, height = 140 }) {
+  const [period, setPeriod] = useState(30);
   const [days, setDays] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    apiGetHistory(query)
+    setDays(null);
+    apiGetHistory(query, period)
       .then((d) => !cancelled && setDays(d))
       .catch((e) => !cancelled && setError(e.message));
     return () => { cancelled = true; };
-  }, [query]);
+  }, [query, period]);
 
-  if (error) return <p style={{ fontSize: 12, color: T.sub }}>Historique indisponible.</p>;
-  if (!days) return <p style={{ fontSize: 12, color: T.sub }}>Chargement…</p>;
-  if (days.length < 2) return <p style={{ fontSize: 12, color: T.sub }}>Pas encore assez de données pour un graphique — revenez dans quelques jours.</p>;
+  const periodSelector = (
+    <div style={{ display: "flex", gap: 4 }}>
+      {HISTORY_PERIODS.map((p) => (
+        <button
+          key={p.days}
+          onClick={() => setPeriod(p.days)}
+          className="rp-pressable"
+          style={{
+            padding: "4px 10px",
+            borderRadius: 7,
+            border: `1px solid ${period === p.days ? T.emberSolid : T.line}`,
+            background: period === p.days ? T.ember : "transparent",
+            color: period === p.days ? "#0C0E14" : T.sub,
+            fontWeight: 800,
+            fontSize: 11,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (error) {
+    return (
+      <div>
+        {periodSelector}
+        <p style={{ fontSize: 12, color: T.sub, marginTop: 8 }}>Historique indisponible.</p>
+      </div>
+    );
+  }
+  if (!days) {
+    return (
+      <div>
+        {periodSelector}
+        <p style={{ fontSize: 12, color: T.sub, marginTop: 8 }}>Chargement…</p>
+      </div>
+    );
+  }
+  if (days.length < 2) {
+    return (
+      <div>
+        {periodSelector}
+        <p style={{ fontSize: 12, color: T.sub, marginTop: 8 }}>Pas encore assez de données sur cette période — essaie une période plus longue, ou revenez dans quelques jours.</p>
+      </div>
+    );
+  }
 
   const chartData = days.map((d) => ({ day: d.day.slice(5), prix: Math.round(d.avg_price) }));
+  const prices = chartData.map((d) => d.prix);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const currentPrice = prices[prices.length - 1];
+
   return (
-    <div style={{ height, marginTop: 4 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData}>
-          <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.sub }} axisLine={{ stroke: T.line }} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
-          <YAxis tick={{ fontSize: 10, fill: T.sub }} axisLine={false} tickLine={false} width={40} />
-          <Tooltip contentStyle={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: T.ink }} formatter={(v) => [`${v} €`, "Prix moyen"]} />
-          <Line type="monotone" dataKey="prix" stroke={T.emberSolid} strokeWidth={2} dot={{ r: 3, fill: T.emberSolid }} />
-        </LineChart>
-      </ResponsiveContainer>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        {periodSelector}
+        <div style={{ display: "flex", gap: 14, fontSize: 11.5 }}>
+          <span style={{ color: T.sub }}>Min <strong style={{ color: T.green }}>{minPrice} €</strong></span>
+          <span style={{ color: T.sub }}>Max <strong style={{ color: T.ink }}>{maxPrice} €</strong></span>
+          <span style={{ color: T.sub }}>Actuel <strong style={{ color: T.emberSolid }}>{currentPrice} €</strong></span>
+        </div>
+      </div>
+      <div style={{ height, marginTop: 4 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.sub }} axisLine={{ stroke: T.line }} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+            <YAxis tick={{ fontSize: 10, fill: T.sub }} axisLine={false} tickLine={false} width={40} domain={["dataMin - 5", "dataMax + 5"]} />
+            <Tooltip contentStyle={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: T.ink }} formatter={(v) => [`${v} €`, "Prix moyen"]} />
+            <Line type="monotone" dataKey="prix" stroke={T.emberSolid} strokeWidth={2} dot={{ r: 3, fill: T.emberSolid }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
