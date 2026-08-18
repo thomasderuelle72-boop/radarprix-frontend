@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="255" height="56" viewBox="0 0 255 56" fill="none">
+<defs></defs>
+
+    <rect x="1" y="1" width="253" height="54" rx="27" fill="#0D1422" stroke="#FF6A1A" stroke-opacity=".35" stroke-width="2"/>
+    <path d="M28 40c7 0 12-5 12-11 0-6-3-10-7-14 0 5-2 7-5 9 0-4-2-8-6-11 1 6-5 9-5 16 0 6 4 11 11 11Z" fill="#FF8B45"/>
+    <text x="52" y="34" fill="#F6F7FB" font-size="16" font-family="Arial, sans-serif" font-weight="800">PÉPITE DU MOMENT</text>
+    
+</svg>

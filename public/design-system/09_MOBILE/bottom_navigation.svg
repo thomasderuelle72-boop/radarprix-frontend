@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="78" viewBox="0 0 390 78" fill="none">
+<defs></defs>
+
+<rect x="1" y="1" width="388" height="76" rx="22" fill="#0A1020" stroke="#202A3B" stroke-width="2"/>
+<g font-family="Arial" font-size="9" font-weight="800">
+<circle cx="39" cy="27" r="10" fill="#1A1410"/><text x="39" y="30" text-anchor="middle" fill="#FF8B45">⌂</text><text x="39" y="57" text-anchor="middle" fill="#FF8B45">Accueil</text>
+<circle cx="117" cy="27" r="10" fill="#11182A"/><text x="117" y="30" text-anchor="middle" fill="#98A3B8">🔥</text><text x="117" y="57" text-anchor="middle" fill="#98A3B8">Deals</text>
+<circle cx="195" cy="27" r="10" fill="#11182A"/><text x="195" y="30" text-anchor="middle" fill="#98A3B8">●</text><text x="195" y="57" text-anchor="middle" fill="#98A3B8">Alertes</text>
+<circle cx="273" cy="27" r="10" fill="#11182A"/><text x="273" y="30" text-anchor="middle" fill="#98A3B8">♡</text><text x="273" y="57" text-anchor="middle" fill="#98A3B8">Favoris</text>
+<circle cx="351" cy="27" r="10" fill="#11182A"/><text x="351" y="30" text-anchor="middle" fill="#98A3B8">●</text><text x="351" y="57" text-anchor="middle" fill="#98A3B8">Profil</text>
+</g>
+
+</svg>

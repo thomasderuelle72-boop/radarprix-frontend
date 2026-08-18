@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="64" viewBox="0 0 660 64" fill="none">
+<defs>
+<linearGradient id="deal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF5F2E"/><stop offset="1" stop-color="#FF9E2C"/></linearGradient>
+<linearGradient id="danger" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF315D"/><stop offset="1" stop-color="#E63779"/></linearGradient>
+<linearGradient id="purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+<filter id="glowO" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF6A1A" flood-opacity=".25"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="glowR" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF345D" flood-opacity=".22"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+
+<rect x="1" y="1" width="658" height="62" rx="16" fill="#0D1422" stroke="#26344C" stroke-width="2"/>
+<circle cx="31" cy="32" r="9" stroke="#66738A" stroke-width="2.2"/>
+<path d="M37 38l7 7" stroke="#66738A" stroke-width="2.2" stroke-linecap="round"/>
+<text x="58" y="38" fill="#66738A" font-size="15" font-family="Arial">Rechercher un produit, une marque...</text>
+<rect x="535" y="7" width="118" height="50" rx="12" fill="url(#deal)"/>
+<text x="594" y="37" text-anchor="middle" fill="#0A0D14" font-size="14" font-family="Arial" font-weight="900">RECHERCHER</text>
+
+</svg>

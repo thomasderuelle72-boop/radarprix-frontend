@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="260" viewBox="0 0 720 260" fill="none">
+<defs></defs>
+
+<rect x="1" y="1" width="718" height="258" rx="18" fill="#0D1422" stroke="#202A3B"/>
+<text x="22" y="35" fill="#F6F7FB" font-size="18" font-family="Arial" font-weight="900">Pourquoi RadarPrix a repéré ce prix</text>
+<g font-family="Arial">
+<rect x="20" y="58" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="35" y="87" fill="#FF7932" font-size="23" font-weight="900">−38%</text><text x="35" y="111" fill="#98A3B8" font-size="11">sous la médiane</text>
+<rect x="252" y="58" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="267" y="87" fill="#35D475" font-size="23" font-weight="900">🏆 #1</text><text x="267" y="111" fill="#98A3B8" font-size="11">plus bas enregistré</text>
+<rect x="484" y="58" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="499" y="87" fill="#A78BFA" font-size="23" font-weight="900">7</text><text x="499" y="111" fill="#98A3B8" font-size="11">vendeurs comparés</text>
+<rect x="20" y="151" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="35" y="180" fill="#35D475" font-size="23" font-weight="900">2×</text><text x="35" y="204" fill="#98A3B8" font-size="11">prix revérifié</text>
+<rect x="252" y="151" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="267" y="180" fill="#FFD166" font-size="23" font-weight="900">↓</text><text x="267" y="204" fill="#98A3B8" font-size="11">tendance baissière</text>
+<rect x="484" y="151" width="216" height="78" rx="13" fill="#101827" stroke="#202A3B"/><text x="499" y="180" fill="#00E5FF" font-size="23" font-weight="900">LIVE</text><text x="499" y="204" fill="#98A3B8" font-size="11">signal récent</text>
+</g>
+
+</svg>

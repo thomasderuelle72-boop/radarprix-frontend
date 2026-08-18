@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="190" height="56" viewBox="0 0 190 56" fill="none">
+<defs>
+<linearGradient id="deal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF5F2E"/><stop offset="1" stop-color="#FF9E2C"/></linearGradient>
+<linearGradient id="danger" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF315D"/><stop offset="1" stop-color="#E63779"/></linearGradient>
+<linearGradient id="purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+<filter id="glowO" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF6A1A" flood-opacity=".25"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="glowR" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF345D" flood-opacity=".22"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+
+    <rect x="1" y="1" width="188" height="54" rx="13" fill="url(#danger)" stroke="#FF345D" stroke-opacity=".55" stroke-width="2" filter="url(#glowR)"/>
+    <text x="87.0" y="34" text-anchor="middle" fill="#FFFFFF" font-size="15" font-family="Arial" font-weight="900">SIGNALER</text>
+    <text x="162" y="34" text-anchor="middle" fill="#FFFFFF" font-size="18" font-family="Arial" font-weight="900">!</text>
+    
+</svg>

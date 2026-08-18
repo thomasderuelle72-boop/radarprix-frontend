@@ -2,6 +2,7 @@
 // (pas de vrai logo, images sous droits absentes du projet), même principe
 // que l'avatar utilisateur (couleur déterministe par nom).
 import { colorFor } from "./Avatar.jsx";
+import { T } from "../theme.js";
 
 export default function MerchantBadge({ name, size = 20 }) {
   if (!name) return null;
@@ -16,7 +17,7 @@ export default function MerchantBadge({ name, size = 20 }) {
         width: size,
         height: size,
         borderRadius: size * 0.28,
-        background: "#F2F4F8",
+        background: T.ink,
         color: colorFor(name),
         fontWeight: 900,
         fontSize: size * 0.52,

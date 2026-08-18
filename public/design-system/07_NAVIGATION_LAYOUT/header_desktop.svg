@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="74" viewBox="0 0 1180 74" fill="none">
+<defs></defs>
+
+<rect x="1" y="1" width="1178" height="72" rx="12" fill="#070B14" stroke="#202A3B"/>
+<circle cx="42" cy="37" r="18" fill="#0A1020" stroke="#FF6A1A" stroke-width="2"/>
+<path d="M42 37l12-8a15 15 0 0 1 4 10z" fill="#FF6A1A" opacity=".8"/>
+<text x="72" y="43" fill="#F6F7FB" font-size="18" font-family="Arial" font-weight="900">RADAR<tspan fill="#FF6A1A">PRIX</tspan></text>
+<text x="385" y="43" fill="#FF8B45" font-size="12" font-family="Arial" font-weight="800">🔥 Gros deals</text>
+<text x="500" y="43" fill="#98A3B8" font-size="12" font-family="Arial" font-weight="800">● Erreurs de prix</text>
+<text x="645" y="43" fill="#98A3B8" font-size="12" font-family="Arial" font-weight="800">★ Favoris</text>
+<text x="735" y="43" fill="#98A3B8" font-size="12" font-family="Arial" font-weight="800">👥 Communauté</text>
+<rect x="1030" y="19" width="125" height="36" rx="18" fill="#0D1422" stroke="#2A374F"/>
+<circle cx="1051" cy="37" r="10" fill="#151F31"/><text x="1068" y="41" fill="#DCE2EC" font-size="11" font-family="Arial" font-weight="700">Profil</text>
+
+</svg>

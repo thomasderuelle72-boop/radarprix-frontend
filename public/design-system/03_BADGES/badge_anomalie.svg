@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="265" height="56" viewBox="0 0 265 56" fill="none">
+<defs></defs>
+
+    <rect x="1" y="1" width="263" height="54" rx="27" fill="#0D1422" stroke="#FF345D" stroke-opacity=".35" stroke-width="2"/>
+    <path d="M28 14l11 20H17L28 14Z" fill="#FF345D"/><path d="M28 21v7M28 31h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="52" y="34" fill="#F6F7FB" font-size="16" font-family="Arial, sans-serif" font-weight="800">ANOMALIE DE PRIX</text>
+    
+</svg>

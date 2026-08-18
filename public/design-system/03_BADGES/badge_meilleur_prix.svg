@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="225" height="56" viewBox="0 0 225 56" fill="none">
+<defs></defs>
+
+    <rect x="1" y="1" width="223" height="54" rx="27" fill="#0D1422" stroke="#FFD166" stroke-opacity=".35" stroke-width="2"/>
+    <path d="M28 14l3.6 8.1 8.8.8-6.6 5.8 2 8.6-7.8-4.4-7.8 4.4 2-8.6-6.6-5.8 8.8-.8L28 14Z" fill="#FFD166"/>
+    <text x="52" y="34" fill="#F6F7FB" font-size="16" font-family="Arial, sans-serif" font-weight="800">MEILLEUR PRIX</text>
+    
+</svg>

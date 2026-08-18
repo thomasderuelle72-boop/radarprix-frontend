@@ -3,7 +3,7 @@
 // de fil de commentaires (panels.jsx) sans dupliquer la logique.
 import { useState } from "react";
 
-const AVATAR_COLORS = ["#FF6A35", "#2FD98B", "#1F5EFF", "#FFC53D", "#FF3B30", "#A855F7"];
+const AVATAR_COLORS = ["#FF6A1A", "#35D475", "#1F5EFF", "#FFD166", "#FF345D", "#8B5CF6"];
 
 export function colorFor(str) {
   let hash = 0;

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="340" height="150" viewBox="0 0 340 150" fill="none">
+<defs>
+<linearGradient id="deal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF5F2E"/><stop offset="1" stop-color="#FF9E2C"/></linearGradient>
+<linearGradient id="danger" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF315D"/><stop offset="1" stop-color="#E63779"/></linearGradient>
+<linearGradient id="purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7C3AED"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+<filter id="glowO" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF6A1A" flood-opacity=".25"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="glowR" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feFlood flood-color="#FF345D" flood-opacity=".22"/><feComposite in2="b" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+
+<rect x="1" y="1" width="338" height="148" rx="20" fill="#15101A" stroke="#FF345D" stroke-opacity=".4" stroke-width="2"/>
+<circle cx="38" cy="36" r="18" fill="#26131D" stroke="#FF345D" stroke-opacity=".4"/>
+<path d="M38 24l10 18H28l10-18z" fill="#FF345D"/><text x="38" y="40" text-anchor="middle" fill="#fff" font-size="13" font-family="Arial" font-weight="900">!</text>
+<text x="68" y="31" fill="#FF6383" font-size="10" font-family="Arial" font-weight="900">ANOMALIE DE PRIX</text>
+<text x="68" y="50" fill="#F6F7FB" font-size="14" font-family="Arial" font-weight="800">Produit exemple</text>
+<text x="24" y="92" fill="#FF4A73" font-size="28" font-family="Arial" font-weight="900">199 €</text>
+<text x="122" y="89" fill="#66738A" font-size="12" font-family="Arial" text-decoration="line-through">999 €</text>
+<rect x="245" y="83" width="72" height="36" rx="10" fill="url(#danger)"/><text x="281" y="106" text-anchor="middle" fill="#fff" font-size="11" font-family="Arial" font-weight="900">VOIR ↗</text>
+<circle cx="25" cy="130" r="3" fill="#35D475"/><text x="34" y="134" fill="#758197" font-size="10" font-family="Arial">détecté il y a 1 min</text>
+
+</svg>

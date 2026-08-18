@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="610" height="94" viewBox="0 0 610 94" fill="none">
+<defs></defs>
+
+<rect x="1" y="1" width="608" height="92" rx="15" fill="#0D1422" stroke="#202A3B" stroke-width="2"/>
+<rect x="14" y="14" width="66" height="66" rx="12" fill="#111B2D"/>
+<text x="95" y="36" fill="#EDF1F7" font-size="14" font-family="Arial" font-weight="800">Produit suivi</text>
+<text x="95" y="59" fill="#98A3B8" font-size="11" font-family="Arial">Objectif : sous 400 €</text>
+<text x="95" y="76" fill="#35D475" font-size="11" font-family="Arial" font-weight="800">↓ 8 % cette semaine</text>
+<text x="448" y="50" fill="#FF7932" font-size="24" font-family="Arial" font-weight="900">419 €</text>
+<circle cx="570" cy="47" r="21" fill="#11182A" stroke="#2A374F"/><path d="M570 58S558 51 558 43c0-5 6-7 9-4l3 3 3-3c3-3 9-1 9 4 0 8-12 15-12 15Z" stroke="#FF345D" stroke-width="2"/>
+
+</svg>
