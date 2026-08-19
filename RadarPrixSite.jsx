@@ -8,12 +8,14 @@ import MobileNav from "./components/MobileNav.jsx";
 // page d'accueil, même sans jamais ouvrir une fiche produit.
 const ProductDetailView = lazy(() => import("./components/ProductDetailView.jsx"));
 import Avatar from "./components/Avatar.jsx";
+import AuthorLink from "./components/AuthorLink.jsx";
 import Reveal from "./components/Reveal.jsx";
 import Hero3D from "./components/Hero3D.jsx";
 import Tilt3D from "./components/Tilt3D.jsx";
 import Icon from "./components/Icon.jsx";
 import PageShell, { EmptyState } from "./components/PageShell.jsx";
 const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
+const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 
@@ -54,7 +56,7 @@ import {
   apiForumReply,
   setUnauthorizedHandler,
 } from "./api.js";
-import { stateToPath, pathToState, legacyProductParam } from "./routes.js";
+import { stateToPath, pathToState, legacyProductParam, setProfileNavigator } from "./routes.js";
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
@@ -324,6 +326,18 @@ const GlobalStyles = () => (
     /* Près du bord droit, l'infobulle sortirait de l'écran : on l'aligne à droite. */
     .rp-hint-end::after { left: auto; right: 0; transform: none; }
 
+    /* — Pseudo d'un membre : rien n'indiquait qu'il menait quelque part.
+         Soulignement au survol seulement, pour ne pas transformer chaque
+         fil de commentaires en mur de liens bleus. — */
+    .rp-author-name { transition: color .15s ease; }
+    button:hover > span > .rp-author-name,
+    button:focus-visible > span > .rp-author-name { color: ${T.emberLight}; text-decoration: underline; }
+
+    /* — Barre d'onglets étroite (profil sur mobile) : défilement horizontal
+         sans barre de défilement visible. — */
+    .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
+    .rp-scroll-x::-webkit-scrollbar { display: none; }
+
     /* — Chiffres clés : léger relief au survol — */
     .rp-stat-tile { transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms cubic-bezier(.2,.8,.2,1), border-color 240ms ease; }
     .rp-tilt3d:hover .rp-stat-tile { border-color: rgba(255,106,26,.45); box-shadow: 0 20px 45px rgba(0,0,0,.4); }
@@ -536,7 +550,7 @@ function AuthModal({ onClose, onSuccess }) {
 }
 
 /* ── Menu déroulant de profil ──────────────────────────────── */
-function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin }) {
+function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin, onOpenProfile }) {
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -564,6 +578,9 @@ function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin }) {
       </div>
 
       {[
+        // Le profil public en premier : c'est ce que les autres membres
+        // voient, et jusqu'ici rien ne permettait d'y accéder.
+        { icon: "user", label: "Mon profil public", action: onOpenProfile, color: T.ink },
         { icon: "settings", label: "Paramètres du compte", action: onOpenSettings, color: T.ink },
         ...(role === "admin"
           ? [{ icon: "shield", label: "Tableau de bord admin", action: onOpenAdmin, color: T.yellow }]
@@ -1401,8 +1418,8 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
 }
 
 /* ── Communauté : salon général + messages privés ──────────────── */
-function CommunityView({ token, currentUserId, onBack }) {
-  const [tab, setTab] = useState("public"); // public | dm
+function CommunityView({ token, currentUserId, onBack, correspondant }) {
+  const [tab, setTab] = useState(correspondant ? "dm" : "public"); // public | dm
   const [publicMsgs, setPublicMsgs] = useState([]);
   const [text, setText] = useState("");
   const [error, setError] = useState(null);
@@ -1446,6 +1463,16 @@ function CommunityView({ token, currentUserId, onBack }) {
     apiGetConversations(token).then(setConversations).catch((e) => setError(e.message));
     apiGetMembers(token).then(setMembers).catch(() => {});
   }, [tab, token]);
+
+  // Arrivée depuis un profil de membre ("Envoyer un message") : on ouvre
+  // directement la conversation avec cette personne, sans obliger à la
+  // retrouver dans la liste des membres.
+  useEffect(() => {
+    if (!correspondant || !members) return;
+    const cible = members.find((m) => m.id === Number(correspondant));
+    if (cible) openConvo(cible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correspondant, members]);
 
   const openConvo = async (user) => {
     setActiveConvo(user);
@@ -1493,13 +1520,16 @@ function CommunityView({ token, currentUserId, onBack }) {
             {publicMsgs.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun message pour l'instant — lance la discussion.</p>}
             {publicMsgs.map((m) => (
               <div key={m.id} className="msg-slide-in" style={{ display: "flex", gap: 8 }}>
-                <Avatar email={m.author} avatarUrl={m.avatar_url} size={26} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12 }}>
-                    <strong style={{ color: m.user_id === currentUserId ? T.emberSolid : T.ink }}>{m.author}</strong>{" "}
-                    <span style={{ color: T.sub, fontSize: 10.5 }}>{m.created_at?.slice(11, 16)}</span>
-                  </div>
-                  <div style={{ fontSize: 13.5, color: T.ink }}>{m.body}</div>
+                  <AuthorLink
+                    userId={m.user_id}
+                    nom={m.author}
+                    avatarUrl={m.avatar_url}
+                    taille={26}
+                    couleurNom={m.user_id === currentUserId ? T.emberSolid : T.ink}
+                    meta={m.created_at?.slice(11, 16)}
+                  />
+                  <div style={{ fontSize: 13.5, color: T.ink, paddingLeft: 34, marginTop: 2 }}>{m.body}</div>
                 </div>
               </div>
             ))}
@@ -1595,32 +1625,13 @@ const inputStyle = { padding: "10px 12px", borderRadius: 8, border: `1.5px solid
 function pillTabStyle(active) {
   return { flex: 1, padding: "9px 14px", borderRadius: 7, border: "none", background: active ? T.ember : "transparent", color: active ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
 }
-// Boutons de vote : agrandis à 34px de large et 28 de haut. À leur taille
-// d'origine (28x24 pour une flèche en caractère) ils passaient inaperçus
-// alors que voter est l'action principale de la page communauté.
-function voteBtnStyle(active, isDown) {
-  return {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 34,
-    height: 28,
-    borderRadius: 7,
-    border: "none",
-    cursor: "pointer",
-    background: active ? (isDown ? "rgba(255,59,48,0.18)" : "rgba(47,217,139,0.18)") : "transparent",
-    color: active ? (isDown ? T.red : T.green) : T.sub,
-    transition: "background .15s ease, color .15s ease",
-  };
-}
-
 /* ── Communauté : "Choix de la communauté" — deals soumis + votés par les membres ── */
 function CommunityPicksView({ token, onBack, onNeedAuth }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("hot");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "" });
+  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "", expiresAt: "" });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -1672,9 +1683,10 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
         price: form.price ? Number(form.price) : undefined,
         category: form.category,
         seller: form.seller.trim() || undefined,
+        expiresAt: form.expiresAt || undefined,
         imageUrl: form.imageUrl.trim() || undefined,
       });
-      setForm({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "" });
+      setForm({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "", expiresAt: "" });
       setShowForm(false);
       load(sort);
     } catch (e) {
@@ -1714,6 +1726,18 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
           <input placeholder="Lien vers le deal (optionnel)" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} style={inputStyle} />
           <input placeholder="Marchand (optionnel — ex: Amazon)" value={form.seller} onChange={(e) => setForm({ ...form, seller: e.target.value })} style={inputStyle} />
           <input placeholder="Lien de l'image du produit (optionnel)" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} style={inputStyle} />
+          {/* Fin de l'offre : sans elle, un deal reste en tête de liste des
+              semaines après avoir expiré, et chaque clic déçoit. */}
+          <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, color: T.sub }}>
+            <span style={{ whiteSpace: "nowrap" }}>Fin de l'offre (optionnel)</span>
+            <input
+              type="date"
+              value={form.expiresAt}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+              style={{ ...inputStyle, flex: 1, colorScheme: "dark" }}
+            />
+          </label>
           <div style={{ display: "flex", gap: 10 }}>
             <input placeholder="Prix € (optionnel)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
@@ -1762,67 +1786,14 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {items?.map((d, i) => {
-          const score = (d.upvotes || 0) - (d.downvotes || 0);
-          return (
-          <div key={d.id} className="fade-up" style={{ display: "flex", gap: 14, background: T.gradSurface, border: `1px solid ${T.line}`, borderRadius: T.radiusLg, padding: 16, boxShadow: T.shadowCard, animationDelay: `${i * 60}ms` }}>
-            {/* Colonne de vote : c'est l'interaction principale de cette page,
-                elle faisait quelques pixels de haut et passait inaperçue. */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0, background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: "8px 6px", alignSelf: "flex-start" }}>
-              <button onClick={() => vote(d, 1)} aria-label="Voter pertinent" style={voteBtnStyle(d.myVote === 1)}>
-                <Icon name="chevronUp" size={18} />
-              </button>
-              <span
-                className="rp-display"
-                style={{ fontWeight: 900, fontSize: 15, color: score > 0 ? T.green : score < 0 ? T.red : T.ink, lineHeight: 1 }}
-              >
-                {score > 0 ? `+${score}` : score}
-              </span>
-              <button onClick={() => vote(d, -1)} aria-label="Voter pas pertinent" style={voteBtnStyle(d.myVote === -1, true)}>
-                <Icon name="chevronDown" size={18} />
-              </button>
-            </div>
-
-            {/* Visuel du produit : le champ existait déjà en base mais
-                n'était jamais affiché, ce qui rendait la liste très terne. */}
-            {d.image_url && (
-              <div style={{ width: 78, height: 78, flexShrink: 0, borderRadius: 11, background: T.surface2, border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", alignSelf: "flex-start" }}>
-                <img
-                  src={d.image_url}
-                  alt=""
-                  loading="lazy"
-                  onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }}
-                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
-                />
-              </div>
-            )}
-
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{d.title}</h3>
-                  {d.seller && <span style={{ fontSize: 11, color: T.sub }}>chez {d.seller}</span>}
-                </div>
-                {d.price != null && (
-                  <span style={{ fontWeight: 900, color: T.emberSolid, whiteSpace: "nowrap" }}>{Number(d.price).toFixed(2)} €</span>
-                )}
-              </div>
-              {d.description && <p style={{ fontSize: 13, color: T.sub, marginTop: 4, lineHeight: 1.5 }}>{d.description}</p>}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                <Avatar email={d.author} avatarUrl={d.avatar_url} size={20} />
-                <span style={{ fontSize: 11.5, color: T.sub }}>
-                  {d.author} · {d.created_at?.slice(0, 10)}
-                </span>
-                {d.url && (
-                  <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.emberSolid, fontWeight: 800, marginLeft: "auto" }}>
-                    Voir l'offre →
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-          );
-        })}
+        {items?.map((d, i) => (
+          <CommunityDealCard
+            key={d.id}
+            deal={d}
+            index={i}
+            onVote={vote}
+          />
+        ))}
       </div>
     </PageShell>
   );
@@ -2060,11 +2031,15 @@ function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
       <h2 className="rp-display" style={{ fontSize: 19, fontWeight: 900, marginBottom: 12 }}>{thread.title}</h2>
       <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <Avatar email={thread.author} avatarUrl={thread.avatar_url} size={26} />
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{thread.author}</div>
-            <div style={{ fontSize: 11, color: T.sub }}>{thread.created_at?.slice(0, 16).replace("T", " ")}</div>
-          </div>
+          <AuthorLink
+            userId={thread.user_id}
+            nom={thread.author}
+            avatarUrl={thread.avatar_url}
+            taille={26}
+            tailleNom={13}
+            enColonne
+            meta={relativeTime(thread.created_at)}
+          />
         </div>
         <p style={{ fontSize: 14, color: T.ink, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{thread.body}</p>
       </div>
@@ -2074,15 +2049,16 @@ function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
       </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {replies.map((r) => (
-          <div key={r.id} style={{ display: "flex", gap: 8 }}>
-            <Avatar email={r.author} avatarUrl={r.avatar_url} size={24} />
-            <div style={{ minWidth: 0, background: T.surface2, borderRadius: 10, padding: "8px 12px", flex: 1 }}>
-              <div style={{ fontSize: 12, marginBottom: 2 }}>
-                <strong style={{ color: r.user_id === currentUserId ? T.emberSolid : T.ink }}>{r.author}</strong>{" "}
-                <span style={{ color: T.sub, fontSize: 10.5 }}>{r.created_at?.slice(0, 16).replace("T", " ")}</span>
-              </div>
-              <div style={{ fontSize: 13.5, color: T.ink, whiteSpace: "pre-wrap" }}>{r.body}</div>
-            </div>
+          <div key={r.id} style={{ minWidth: 0, background: T.surface2, borderRadius: 10, padding: "10px 12px" }}>
+            <AuthorLink
+              userId={r.user_id}
+              nom={r.author}
+              avatarUrl={r.avatar_url}
+              taille={24}
+              couleurNom={r.user_id === currentUserId ? T.emberSolid : T.ink}
+              meta={relativeTime(r.created_at)}
+            />
+            <div style={{ fontSize: 13.5, color: T.ink, whiteSpace: "pre-wrap", paddingLeft: 32, marginTop: 3, lineHeight: 1.55 }}>{r.body}</div>
           </div>
         ))}
       </div>
@@ -2126,6 +2102,8 @@ export default function RadarPrixSite() {
   const [followMsg, setFollowMsg] = useState(null);
   const [dealDetailItem, setDealDetailItem] = useState(null);
   const [marchandActif, setMarchandActif] = useState(null); // page marchand ouverte
+  const [membreActif, setMembreActif] = useState(null); // profil de membre ouvert (pseudo ou id)
+  const [chatCible, setChatCible] = useState(null); // membre à qui écrire, depuis son profil
 
   // Ouvre une des trois sous-pages du menu "Communauté" (connexion requise, comme le reste de l'espace membre).
   const goToCommunity = (targetView) => {
@@ -2143,6 +2121,16 @@ export default function RadarPrixSite() {
   const openDealDetail = (item) => {
     setDealDetailItem(item);
     setView("dealDetail");
+    window.scrollTo(0, 0);
+  };
+
+  // Ouvre le profil public d'un membre. Accepte un pseudo (adresse lisible)
+  // ou un identifiant numérique — le backend résout les deux, ce qui évite de
+  // casser un lien partagé quand quelqu'un change de pseudo.
+  const openProfile = (handle) => {
+    if (!handle) return;
+    setMembreActif(String(handle));
+    setView("membre");
     window.scrollTo(0, 0);
   };
 
@@ -2192,6 +2180,14 @@ export default function RadarPrixSite() {
       setView((v) => (["favoris", "admin", ...COMMUNITY_VIEWS].includes(v) ? "home" : v));
     });
     return () => setUnauthorizedHandler(null);
+  }, []);
+
+  // Rend les pseudos cliquables partout : commentaires, salon, forum, deals
+  // communautaires. Voir routes.js pour le détail du procédé.
+  useEffect(() => {
+    setProfileNavigator(openProfile);
+    return () => setProfileNavigator(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const authRole = authUser?.role || null;
@@ -2250,6 +2246,7 @@ export default function RadarPrixSite() {
       return;
     }
     if (etat.view === "marchand") setMarchandActif(etat.marchand);
+    if (etat.view === "membre") setMembreActif(etat.membre);
     if (etat.view === "communaute-forum-thread") setActiveThreadId(etat.threadId);
     if (etat.tab) setTab(etat.tab);
     setSearchTerm(etat.searchTerm || null);
@@ -2273,10 +2270,11 @@ export default function RadarPrixSite() {
       produit: dealDetailItem?.name,
       threadId: activeThreadId,
       marchand: marchandActif,
+      membre: membreActif,
     });
     const actuel = window.location.pathname + window.location.search;
     if (chemin !== actuel) window.history.pushState(null, "", chemin);
-  }, [view, tab, searchTerm, dealDetailItem, activeThreadId, marchandActif]);
+  }, [view, tab, searchTerm, dealDetailItem, activeThreadId, marchandActif, membreActif]);
   const [category, setCategory] = useState("tout");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -2538,6 +2536,7 @@ export default function RadarPrixSite() {
                   <ProfileMenu
                     user={authUser}
                     role={authRole}
+                    onOpenProfile={() => { openProfile(authUser.pseudo || authUser.id); setProfileMenuOpen(false); }}
                     onOpenSettings={() => { setSettingsOpen(true); setProfileMenuOpen(false); }}
                     onLogout={logout}
                     onOpenAdmin={() => { setView("admin"); setProfileMenuOpen(false); }}
@@ -3045,6 +3044,20 @@ export default function RadarPrixSite() {
           </Suspense>
         )}
 
+        {view === "membre" && membreActif && (
+          <Suspense fallback={<ViewLoader />}>
+            <ProfileView
+              handle={membreActif}
+              authToken={authToken}
+              currentUser={authUser}
+              onBack={goHome}
+              onNeedAuth={() => setAuthOpen(true)}
+              onOpenThread={(id) => { setActiveThreadId(id); setView("communaute-forum-thread"); window.scrollTo(0, 0); }}
+              onMessage={(id) => { setChatCible(id); goToCommunity("communaute-chat"); }}
+            />
+          </Suspense>
+        )}
+
         {view === "dealDetail" && dealDetailItem && (
           <Suspense fallback={<ViewLoader />}>
             <ProductDetailView
@@ -3069,7 +3082,7 @@ export default function RadarPrixSite() {
         )}
 
         {view === "communaute-chat" && authToken && (
-          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} />
+          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} correspondant={chatCible} />
         )}
 
         {view === "communaute-picks" && authToken && (

@@ -44,6 +44,10 @@ export default function PageShell({
           </button>
         )}
 
+        {/* Certaines vues portent déjà leur propre titre dans le contenu (le
+            profil d'un membre affiche son nom sous sa photo) : répéter
+            l'en-tête donnerait le nom deux fois de suite. */}
+        {title && (
         <div
           style={{
             display: "flex", justifyContent: "space-between", alignItems: "flex-start",
@@ -74,6 +78,7 @@ export default function PageShell({
           </h2>
           {action}
         </div>
+        )}
 
         {subtitle && (
           <p style={{ color: T.sub, fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 620 }}>

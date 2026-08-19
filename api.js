@@ -3,8 +3,13 @@
 // composants extraits sous components/ (DealCard, ProductDetailView…)
 // puissent tous importer les mêmes fonctions sans les dupliquer.
 
-// ⚠️ Change cette URL si tu redéploies le backend ailleurs.
-export const BACKEND_URL = "https://radarprix-backend-production.up.railway.app";
+// Adresse du backend. Valeur de production par défaut, pour que le site
+// déployé fonctionne sans configuration ; VITE_BACKEND_URL permet de la
+// remplacer (backend lancé en local, environnement de test), ce qui était
+// impossible tant que l'adresse était figée dans le code.
+// ⚠️ Change cette valeur si tu redéploies le backend ailleurs.
+export const BACKEND_URL =
+  import.meta.env?.VITE_BACKEND_URL || "https://radarprix-backend-production.up.railway.app";
 
 /* ── Session expirée (401) ────────────────────────────────────────
    Le jeton JWT a une durée de vie limitée. Sans traitement, une fois
@@ -341,4 +346,60 @@ export async function apiForumReply(token, threadId, body) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Réponse impossible.");
   return data.replies || [];
+}
+
+/* ── Profils publics de membres ──────────────────────────────────
+   Consultables sans être connecté : le jeton n'est transmis que pour
+   savoir si le visiteur suit déjà ce membre. */
+
+export async function apiMemberProfile(handle, token) {
+  const res = await fetch(`${BACKEND_URL}/api/members/${encodeURIComponent(handle)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Membre introuvable.");
+  return data; // { membre, stats, badges, prochainsBadges, jeLeSuis, cestMoi }
+}
+
+export async function apiMemberActivity(handle) {
+  const res = await fetch(`${BACKEND_URL}/api/members/${encodeURIComponent(handle)}/activity`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Activité indisponible.");
+  return data.items || [];
+}
+
+export async function apiMemberDeals(handle, token) {
+  const res = await fetch(`${BACKEND_URL}/api/members/${encodeURIComponent(handle)}/deals`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Deals indisponibles.");
+  return data.items || [];
+}
+
+export async function apiMemberThreads(handle) {
+  const res = await fetch(`${BACKEND_URL}/api/members/${encodeURIComponent(handle)}/threads`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Discussions indisponibles.");
+  return data.items || [];
+}
+
+export async function apiFollowMember(token, handle, suivre) {
+  const res = await fetch(`${BACKEND_URL}/api/members/${encodeURIComponent(handle)}/follow`, {
+    method: suivre ? "POST" : "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Action impossible.");
+  return data; // { jeLeSuis, abonnes }
+}
+
+/** Les deals publiés par les membres qu'on suit. */
+export async function apiFollowingFeed(token) {
+  const res = await fetch(`${BACKEND_URL}/api/feed/following`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Fil indisponible.");
+  return data; // { suivis, items }
 }

@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { T } from "../theme.js";
 import { apiGetHistory, apiGetComments, apiPostComment } from "../api.js";
-import Avatar from "./Avatar.jsx";
+import AuthorLink from "./AuthorLink.jsx";
+import { relativeTime } from "../utils.js";
 
 const HISTORY_PERIODS = [
   { days: 7, label: "7 j" },
@@ -144,15 +145,17 @@ export function CommentsPanel({ query, authToken, onNeedAuth }) {
       {comments?.length === 0 && <p style={{ fontSize: 12, color: T.sub }}>Aucun commentaire pour l'instant — sois le premier.</p>}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
         {comments?.map((c) => (
-          <div key={c.id} style={{ display: "flex", gap: 8 }}>
-            <Avatar email={c.author} avatarUrl={c.avatar_url} size={22} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12 }}>
-                <strong style={{ color: T.ink }}>{c.author}</strong>{" "}
-                <span style={{ color: T.sub, fontSize: 10.5 }}>{c.created_at?.slice(0, 16).replace("T", " ")}</span>
-              </div>
-              <div style={{ fontSize: 13, color: T.ink }}>{c.body}</div>
-            </div>
+          <div key={c.id} style={{ minWidth: 0 }}>
+            <AuthorLink
+              userId={c.user_id}
+              nom={c.author}
+              avatarUrl={c.avatar_url}
+              taille={22}
+              meta={relativeTime(c.created_at)}
+            />
+            {/* Aligné sous le pseudo, pas sous la photo : le texte se lit
+                comme un bloc et non comme une colonne décalée. */}
+            <div style={{ fontSize: 13, color: T.ink, marginTop: 3, paddingLeft: 30, lineHeight: 1.55 }}>{c.body}</div>
           </div>
         ))}
       </div>

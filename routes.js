@@ -13,7 +13,7 @@
 // devient indexable page par page (jusqu'ici, seule l'accueil avait une URL).
 
 /** État de navigation -> chemin d'URL. */
-export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand }) {
+export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand, membre }) {
   switch (view) {
     case "results":
       if (searchTerm) return `/recherche?q=${encodeURIComponent(searchTerm)}`;
@@ -22,6 +22,8 @@ export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand
       return produit ? `/produit/${encodeURIComponent(produit)}` : "/";
     case "marchand":
       return marchand ? `/marchand/${encodeURIComponent(marchand)}` : "/";
+    case "membre":
+      return membre ? `/membre/${encodeURIComponent(membre)}` : "/";
     case "favoris":
       return "/favoris";
     case "admin":
@@ -66,6 +68,10 @@ export function pathToState(pathname, search) {
       return deuxieme ? { view: "dealDetail", produit: decodeURIComponent(deuxieme) } : { view: "home" };
     case "marchand":
       return deuxieme ? { view: "marchand", marchand: decodeURIComponent(deuxieme) } : { view: "home" };
+    case "membre":
+      // Le segment est un pseudo, ou un identifiant numérique pour les
+      // comptes qui n'en ont pas encore choisi.
+      return deuxieme ? { view: "membre", membre: decodeURIComponent(deuxieme) } : { view: "home" };
     case "favoris":
       return { view: "favoris" };
     case "admin":
@@ -89,4 +95,32 @@ export function pathToState(pathname, search) {
  */
 export function legacyProductParam(search) {
   return new URLSearchParams(search || "").get("produit");
+}
+
+/* ── Ouverture d'un profil depuis n'importe où ────────────────────
+   Un pseudo est cliquable dans les commentaires, le salon, le forum et
+   les deals communautaires — soit quatre composants imbriqués à des
+   profondeurs différentes. Faire descendre une fonction `onOpenProfile`
+   en propriété jusqu'à chacun d'eux traverserait des composants qui n'ont
+   rien à voir avec les profils.
+
+   On enregistre donc ici la fonction de navigation une seule fois (au
+   montage de l'application), sur le modèle déjà retenu pour les sessions
+   expirées dans api.js. Un simple lien <a href> ne conviendrait pas : il
+   rechargerait toute la page au lieu de naviguer côté client.
+   ────────────────────────────────────────────────────────────────── */
+let navigateurProfil = null;
+
+export function setProfileNavigator(fn) {
+  navigateurProfil = fn;
+}
+
+/** Ouvre le profil d'un membre (pseudo ou identifiant numérique). */
+export function ouvrirProfil(handle) {
+  if (handle && navigateurProfil) navigateurProfil(String(handle));
+}
+
+/** Y a-t-il quelqu'un pour traiter la navigation ? (sinon : pas de curseur main) */
+export function profilNavigable() {
+  return Boolean(navigateurProfil);
 }
