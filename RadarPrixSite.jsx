@@ -295,6 +295,26 @@ const GlobalStyles = () => (
     @keyframes rpMarquee { to { transform: translateX(-100%); } }
     .rp-marquee:hover .rp-marquee-track { animation-play-state: paused; }
 
+    /* — Infobulle d'explication : "Score 88/100" ne veut rien dire pour un
+         visiteur qui découvre le site. La réponse est dans la FAQ, mais
+         personne ne va la chercher au moment où le chiffre est affiché. — */
+    .rp-hint { position: relative; border-bottom: 1px dotted ${T.muted}; cursor: help; }
+    .rp-hint::after {
+      content: attr(data-hint);
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      width: max-content; max-width: 230px;
+      background: ${T.surface3}; color: ${T.ink};
+      border: 1px solid ${T.line}; border-radius: 9px;
+      padding: 9px 11px; font-size: 11.5px; font-weight: 500; line-height: 1.5;
+      text-align: left; white-space: normal;
+      box-shadow: 0 12px 30px rgba(0,0,0,.45);
+      opacity: 0; visibility: hidden; transition: opacity .16s ease;
+      z-index: 40; pointer-events: none;
+    }
+    .rp-hint:hover::after, .rp-hint:focus-visible::after { opacity: 1; visibility: visible; }
+    /* Près du bord droit, l'infobulle sortirait de l'écran : on l'aligne à droite. */
+    .rp-hint-end::after { left: auto; right: 0; transform: none; }
+
     /* — Chiffres clés : léger relief au survol — */
     .rp-stat-tile { transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms cubic-bezier(.2,.8,.2,1), border-color 240ms ease; }
     .rp-tilt3d:hover .rp-stat-tile { border-color: rgba(255,106,26,.45); box-shadow: 0 20px 45px rgba(0,0,0,.4); }

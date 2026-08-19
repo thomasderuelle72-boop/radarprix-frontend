@@ -213,7 +213,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           {/* Score, en barre de progression plutôt qu'en simple texte */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-              <span style={{ color: T.sub }}>Score RadarPrix</span>
+              <span className="rp-hint" tabIndex={0} data-hint="Note sur 100 mesurant l'écart entre ce prix et le prix habituel du produit chez les autres vendeurs. Plus il est haut, plus la remise est forte." style={{ color: T.sub }}>Score RadarPrix</span>
               <span style={{ color: scoreColor, fontWeight: 800 }}>{item.score}/100 · {scoreLabel}</span>
             </div>
             <div style={{ height: 8, borderRadius: 20, background: T.surface2, overflow: "hidden" }}>
@@ -224,7 +224,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           {hasConfidence && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                <span style={{ color: T.sub }}>Confiance dans la détection</span>
+                <span className="rp-hint" tabIndex={0} data-hint="À quel point cette détection est fiable : nombre de vendeurs comparés, cohérence de leurs prix entre eux, et confirmation par l'historique. Une remise énorme mais isolée obtient une confiance faible." style={{ color: T.sub }}>Confiance dans la détection</span>
                 <span style={{ color: confidenceColor, fontWeight: 800 }}>{item.confidence}/100 · {confidenceLabel}</span>
               </div>
               <div style={{ height: 8, borderRadius: 20, background: T.surface2, overflow: "hidden" }}>
