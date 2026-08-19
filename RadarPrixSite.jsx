@@ -1,8 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
-import ProductDetailView from "./components/ProductDetailView.jsx";
+// Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
+// l'historique de prix), de loin la plus grosse dépendance du projet. En
+// import statique, tout visiteur la téléchargeait au premier chargement de la
+// page d'accueil, même sans jamais ouvrir une fiche produit.
+const ProductDetailView = lazy(() => import("./components/ProductDetailView.jsx"));
 import Avatar from "./components/Avatar.jsx";
 import Reveal from "./components/Reveal.jsx";
 import Hero3D from "./components/Hero3D.jsx";
@@ -45,7 +49,9 @@ import {
   apiForumCreateThread,
   apiForumThread,
   apiForumReply,
+  setUnauthorizedHandler,
 } from "./api.js";
+import { stateToPath, pathToState, legacyProductParam } from "./routes.js";
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
@@ -387,6 +393,24 @@ const GlobalStyles = () => (
     .rp-mobile-nav button { transition: color .15s ease; }
   `}</style>
 );
+
+/* Écran d'attente d'une vue chargée à la demande (voir Suspense/lazy).
+   Reprend le gabarit de la fiche produit pour éviter que la page ne saute
+   quand le vrai contenu arrive. */
+function ViewLoader() {
+  return (
+    <main style={{ maxWidth: 980, margin: "0 auto", padding: "18px 16px 60px" }} aria-busy="true">
+      <div className="rp-shimmer" style={{ height: 14, width: 220, borderRadius: 6, marginBottom: 20 }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16 }}>
+        <div className="rp-shimmer" style={{ height: 420, borderRadius: 14 }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="rp-shimmer" style={{ height: 200, borderRadius: 14 }} />
+          <div className="rp-shimmer" style={{ height: 200, borderRadius: 14 }} />
+        </div>
+      </div>
+    </main>
+  );
+}
 
 /* ── Barre de recherche ─────────────────────────────────────── */
 function SearchBar({ onSearch, big, placeholder }) {
@@ -1960,6 +1984,7 @@ export default function RadarPrixSite() {
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
   const [dealDetailItem, setDealDetailItem] = useState(null);
+  const [marchandActif, setMarchandActif] = useState(null); // page marchand ouverte
 
   // Ouvre une des trois sous-pages du menu "Communauté" (connexion requise, comme le reste de l'espace membre).
   const goToCommunity = (targetView) => {
@@ -1973,15 +1998,11 @@ export default function RadarPrixSite() {
   };
 
   // Ouvre la fiche produit détaillée d'un deal (cliqué depuis une DealCard).
-  // Met aussi à jour l'URL (?produit=...) pour que la page soit partageable :
-  // voir l'effet de deep-link ci-dessous, qui la relit au chargement.
+  // L'URL suit automatiquement (voir la synchronisation plus bas).
   const openDealDetail = (item) => {
     setDealDetailItem(item);
     setView("dealDetail");
     window.scrollTo(0, 0);
-    const url = new URL(window.location.href);
-    url.searchParams.set("produit", item.name);
-    window.history.replaceState(null, "", url);
   };
 
   useEffect(() => {
@@ -1995,22 +2016,6 @@ export default function RadarPrixSite() {
     }
   }, []);
 
-  // Deep-link : si l'URL contient ?produit=..., (re)ouvre directement cette
-  // fiche produit au chargement — c'est ce qui rend un lien partagé utile.
-  // Relit un scan déjà enregistré (apiGetLatest, gratuit) plutôt que de
-  // relancer un scan SerpApi juste parce qu'un lien a été ouvert.
-  useEffect(() => {
-    const produit = new URLSearchParams(window.location.search).get("produit");
-    if (!produit) return;
-    apiGetLatest(produit)
-      .then((items) => {
-        if (items.length > 0) {
-          openDealDetail(items.find((i) => i.name === produit) || items[0]);
-        }
-      })
-      .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const persistUser = (user) => {
     setAuthUser(user);
@@ -2026,6 +2031,19 @@ export default function RadarPrixSite() {
     setAuthUser(null);
     setProfileMenuOpen(false);
   };
+
+  // Session expirée : le jeton JWT a une durée de vie limitée. Sans ça,
+  // l'interface continuait d'afficher le membre comme connecté et chaque
+  // action échouait avec un message technique incompréhensible.
+  const [sessionExpiree, setSessionExpiree] = useState(false);
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+      setSessionExpiree(true);
+      setView((v) => (["favoris", "admin", ...COMMUNITY_VIEWS].includes(v) ? "home" : v));
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const authRole = authUser?.role || null;
 
@@ -2047,6 +2065,69 @@ export default function RadarPrixSite() {
 
   const [tab, setTab] = useState("deals"); // deals | erreurs
   const [searchTerm, setSearchTerm] = useState("");
+
+  /* ── Synchronisation avec l'URL ────────────────────────────────
+     Jusqu'ici seule l'accueil avait une adresse : le bouton retour du
+     navigateur ne faisait rien d'utile, aucune page ne pouvait être mise en
+     favori ou partagée, et rien n'était indexable. La traduction état <->
+     chemin vit dans routes.js. ─────────────────────────────────────── */
+
+  // Recharge la fiche produit désignée par l'URL. Relit un scan déjà
+  // enregistré (apiGetLatest, gratuit) plutôt que d'en relancer un payant
+  // juste parce qu'un lien a été ouvert.
+  const ouvrirProduitDepuisUrl = (nom) => {
+    apiGetLatest(nom)
+      .then((items) => {
+        if (items.length > 0) openDealDetail(items.find((i) => i.name === nom) || items[0]);
+      })
+      .catch(() => {});
+  };
+
+  // Applique l'état décrit par l'URL courante (au chargement et sur "retour").
+  const appliquerUrl = () => {
+    const { search, pathname } = window.location;
+
+    // Ancien format de lien (?produit=Nom) : les liens déjà partagés avant
+    // l'introduction des chemins doivent continuer de fonctionner.
+    const ancien = legacyProductParam(search);
+    if (ancien) {
+      ouvrirProduitDepuisUrl(ancien);
+      return;
+    }
+
+    const etat = pathToState(pathname, search);
+    if (etat.view === "dealDetail") {
+      ouvrirProduitDepuisUrl(etat.produit);
+      return;
+    }
+    if (etat.view === "marchand") setMarchandActif(etat.marchand);
+    if (etat.view === "communaute-forum-thread") setActiveThreadId(etat.threadId);
+    if (etat.tab) setTab(etat.tab);
+    setSearchTerm(etat.searchTerm || null);
+    setView(etat.view);
+  };
+
+  useEffect(() => {
+    appliquerUrl();
+    window.addEventListener("popstate", appliquerUrl);
+    return () => window.removeEventListener("popstate", appliquerUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Écrit l'URL correspondant à l'état courant. pushState (et non replace) :
+  // c'est ce qui donne un vrai historique de navigation au bouton retour.
+  useEffect(() => {
+    const chemin = stateToPath({
+      view,
+      tab,
+      searchTerm,
+      produit: dealDetailItem?.name,
+      threadId: activeThreadId,
+      marchand: marchandActif,
+    });
+    const actuel = window.location.pathname + window.location.search;
+    if (chemin !== actuel) window.history.pushState(null, "", chemin);
+  }, [view, tab, searchTerm, dealDetailItem, activeThreadId, marchandActif]);
   const [category, setCategory] = useState("tout");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -2203,6 +2284,39 @@ export default function RadarPrixSite() {
       style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
       <GlobalStyles />
+
+      {/* Session expirée : message clair et action évidente, au lieu de
+          laisser le membre buter sur des erreurs techniques. */}
+      {sessionExpiree && (
+        <div
+          role="status"
+          className="toast-in"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
+            background: "rgba(255,197,61,.10)", borderBottom: `1px solid ${T.yellow}55`,
+            padding: "11px 16px", fontSize: 13, color: T.ink,
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="lock" size={15} color={T.yellow} />
+            Ta session a expiré — reconnecte-toi pour retrouver tes favoris et alertes.
+          </span>
+          <button
+            onClick={() => { setSessionExpiree(false); setAuthOpen(true); }}
+            className="rp-cta"
+            style={{ background: T.ember, border: "none", borderRadius: 8, padding: "7px 15px", color: "#0C0E14", fontSize: 12.5, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+          >
+            Se reconnecter
+          </button>
+          <button
+            onClick={() => setSessionExpiree(false)}
+            aria-label="Masquer ce message"
+            style={{ background: "none", border: "none", color: T.sub, fontSize: 16, lineHeight: 1, cursor: "pointer", padding: 4 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
@@ -2692,13 +2806,15 @@ export default function RadarPrixSite() {
         )}
 
         {view === "dealDetail" && dealDetailItem && (
-          <ProductDetailView
-            item={dealDetailItem}
-            authToken={authToken}
-            onNeedAuth={() => setAuthOpen(true)}
-            onBack={goHome}
-            onOpenDetail={openDealDetail}
-          />
+          <Suspense fallback={<ViewLoader />}>
+            <ProductDetailView
+              item={dealDetailItem}
+              authToken={authToken}
+              onNeedAuth={() => setAuthOpen(true)}
+              onBack={goHome}
+              onOpenDetail={openDealDetail}
+            />
+          </Suspense>
         )}
 
         {view === "favoris" && authToken && (

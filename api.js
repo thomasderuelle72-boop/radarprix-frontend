@@ -6,6 +6,36 @@
 // ⚠️ Change cette URL si tu redéploies le backend ailleurs.
 export const BACKEND_URL = "https://radarprix-backend-production.up.railway.app";
 
+/* ── Session expirée (401) ────────────────────────────────────────
+   Le jeton JWT a une durée de vie limitée. Sans traitement, une fois
+   expiré, l'interface continuait d'afficher le membre comme connecté et
+   chaque action échouait avec un message technique incompréhensible
+   ("Le serveur a répondu 401").
+
+   Plutôt que d'ajouter ce test dans les 31 appels du fichier, on déclare
+   ici une fonction `fetch` locale : à l'intérieur de ce module, toutes les
+   références à `fetch` désignent celle-ci et non celle du navigateur, donc
+   aucun appel existant n'a besoin d'être modifié.
+   ────────────────────────────────────────────────────────────────── */
+const navigateurFetch = globalThis.fetch.bind(globalThis);
+let surSessionExpiree = null;
+
+/** Branche la réaction à une session expirée (voir RadarPrixSite : déconnexion). */
+export function setUnauthorizedHandler(fn) {
+  surSessionExpiree = fn;
+}
+
+async function fetch(url, options) {
+  const res = await navigateurFetch(url, options);
+  // Seuls les appels authentifiés nous intéressent : un 401 sur une route
+  // publique voudrait dire autre chose qu'une session expirée.
+  const authentifie = Boolean(options?.headers?.Authorization);
+  if (res.status === 401 && authentifie && surSessionExpiree) {
+    surSessionExpiree();
+  }
+  return res;
+}
+
 // Lit les deals déjà repérés en base (cron), instantané et gratuit.
 // `q` (optionnel) filtre par mot-clé sur des deals déjà validés individuellement
 // — utilisé pour parcourir les anomalies existantes sur une recherche large

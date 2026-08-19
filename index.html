@@ -5,7 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070B14" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>RadarPrix — Le détecteur d'erreurs de prix</title>
+
+    <title>RadarPrix — Erreurs de prix et gros deals détectés automatiquement</title>
+    <meta
+      name="description"
+      content="RadarPrix repère les erreurs de prix et les très gros deals chez les marchands français, en comparant les prix en continu. Alertes par email dès qu'une anomalie est détectée."
+    />
+    <link rel="canonical" href="https://radarprix-frontend.vercel.app/" />
+
+    <!--
+      Balises Open Graph / Twitter : ce sont elles qui remplissent l'aperçu
+      quand un lien est collé sur WhatsApp, Discord, X, Slack…
+
+      Elles sont écrites en dur ici, et pas injectées par React, parce que les
+      robots des réseaux sociaux n'exécutent pas le JavaScript : ils ne lisent
+      que le HTML servi tel quel. Toutes les pages de l'application partagent
+      donc le même aperçu. Afficher le vrai produit dans l'aperçu d'un lien
+      ?produit=... demanderait un pré-rendu ou du rendu serveur — non fait
+      pour l'instant, mais c'est déjà mieux qu'un aperçu totalement vide.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RadarPrix" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:url" content="https://radarprix-frontend.vercel.app/" />
+    <meta property="og:title" content="Quand le marchand se trompe, vous gagnez." />
+    <meta
+      property="og:description"
+      content="Erreurs de prix et très gros deals, détectés automatiquement chez les marchands français."
+    />
+    <meta property="og:image" content="https://radarprix-frontend.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="RadarPrix — quand le marchand se trompe, vous gagnez." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Quand le marchand se trompe, vous gagnez." />
+    <meta
+      name="twitter:description"
+      content="Erreurs de prix et très gros deals, détectés automatiquement chez les marchands français."
+    />
+    <meta name="twitter:image" content="https://radarprix-frontend.vercel.app/og-image.png" />
   </head>
   <body>
     <div id="root"></div>
