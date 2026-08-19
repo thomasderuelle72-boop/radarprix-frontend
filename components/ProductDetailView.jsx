@@ -12,6 +12,7 @@ import { relativeTime } from "../utils.js";
 import { PriceHistoryPanel, CommentsPanel } from "./panels.jsx";
 import DealCard from "./DealCard.jsx";
 import MerchantBadge from "./MerchantBadge.jsx";
+import Icon from "./Icon.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
 
 function panelCardStyle(extra) {
@@ -117,10 +118,10 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
   const confidenceColor = !hasConfidence ? T.sub : item.confidence >= 70 ? T.green : item.confidence >= 40 ? T.yellow : T.red;
 
   const whyTiles = [
-    item.pct > 0 && { icon: "📉", color: isErr ? T.red : T.green, label: "vs référence marché", value: `−${item.pct}%` },
-    item.allTimeLow && { icon: "🏆", color: T.green, label: "Historique", value: "Plus bas prix enregistré" },
-    seenAgo && { icon: "🕒", color: T.purple, label: "Fraîcheur", value: `Vu ${seenAgo}` },
-    hasConfidence && { icon: "💎", color: confidenceColor, label: "Fiabilité de la détection", value: `${confidenceLabel} (${item.confidence}/100)` },
+    item.pct > 0 && { icon: "trendingDown", color: isErr ? T.red : T.green, label: "vs référence marché", value: `−${item.pct}%` },
+    item.allTimeLow && { icon: "trophy", color: T.green, label: "Historique", value: "Plus bas prix enregistré" },
+    seenAgo && { icon: "clock", color: T.purple, label: "Fraîcheur", value: `Vu ${seenAgo}` },
+    hasConfidence && { icon: "gem", color: confidenceColor, label: "Fiabilité de la détection", value: `${confidenceLabel} (${item.confidence}/100)` },
   ].filter(Boolean);
 
   return (
@@ -140,7 +141,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
             {item.img ? (
               <img src={item.img} alt={item.name} onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ maxWidth: "72%", maxHeight: "80%", objectFit: "contain" }} />
             ) : (
-              <span style={{ fontSize: 48, opacity: 0.35 }}>📦</span>
+              <Icon name="package" size={52} color={T.muted} style={{ opacity: 0.5 }} />
             )}
             {item.pct > 0 && (
               <span style={{ position: "absolute", top: 12, left: 12, background: isErr ? T.red : T.purple, color: "#fff", fontSize: 12, fontWeight: 800, padding: "5px 10px", borderRadius: 6 }}>
@@ -193,7 +194,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
                     padding: "3px 7px",
                   }}
                 >
-                  👥 {merchantTrust.reliability}% d'avis positifs
+                  <Icon name="users" size={11} /> {merchantTrust.reliability}% d'avis positifs
                 </span>
               )}
             </div>
@@ -228,11 +229,11 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
                 Voir le deal →
               </a>
             )}
-            <button onClick={follow} aria-label="Suivre ce produit" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
-              ♥
+            <button onClick={follow} aria-label="Suivre ce produit" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center" }}>
+              <Icon name="heart" size={17} />
             </button>
-            <button onClick={share} aria-label="Partager ce deal" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 16, cursor: "pointer" }}>
-              ⤴
+            <button onClick={share} aria-label="Partager ce deal" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center" }}>
+              <Icon name="share" size={17} />
             </button>
           </div>
           {followMsg && <p className="toast-in" style={{ fontSize: 12, color: followMsg.startsWith("Erreur") ? T.red : T.green, margin: 0 }}>{followMsg}</p>}
@@ -246,14 +247,14 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
               {whyTiles.map((t) => (
                 <div key={t.label} style={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 12px" }}>
-                  <div style={{ fontSize: 16, marginBottom: 4 }}>{t.icon}</div>
+                  <div style={{ marginBottom: 6 }}><Icon name={t.icon} size={17} color={t.color} /></div>
                   <div className="rp-display" style={{ fontSize: 13.5, fontWeight: 800, color: t.color }}>{t.value}</div>
                   <div style={{ fontSize: 10.5, color: T.sub, marginTop: 2 }}>{t.label}</div>
                 </div>
               ))}
             </div>
             <p style={{ fontSize: 11, color: T.sub, marginTop: 12, lineHeight: 1.5 }}>
-              ⚠️ Score calculé automatiquement à partir des prix observés — vérifiez toujours l'offre avant d'acheter.
+              Score calculé automatiquement à partir des prix observés — vérifiez toujours l'offre avant d'acheter.
             </p>
           </div>
         </div>
@@ -302,7 +303,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
       {/* Communauté */}
       <section style={{ marginTop: 20 }}>
         <div style={panelCardStyle({})}>
-          <SectionTitle>💬 Ce que dit la communauté</SectionTitle>
+          <SectionTitle>Ce que dit la communauté</SectionTitle>
           <CommentsPanel query={item.name} authToken={authToken} onNeedAuth={onNeedAuth} />
         </div>
       </section>

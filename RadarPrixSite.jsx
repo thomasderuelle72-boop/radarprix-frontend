@@ -7,6 +7,7 @@ import Avatar from "./components/Avatar.jsx";
 import Reveal from "./components/Reveal.jsx";
 import Hero3D from "./components/Hero3D.jsx";
 import Tilt3D from "./components/Tilt3D.jsx";
+import Icon from "./components/Icon.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -395,7 +396,7 @@ function SearchBar({ onSearch, big, placeholder }) {
           flexShrink: 0,
         }}
       >
-        {big ? "Rechercher" : "🔎"}
+        {big ? "Rechercher" : <Icon name="search" size={16} />}
       </button>
     </div>
   );
@@ -493,20 +494,23 @@ function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin }) {
           <div style={{ fontWeight: 800, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {user.pseudo || user.email}
           </div>
-          <div style={{ fontSize: 11, color: T.sub }}>{role === "admin" ? "🛡️ Administrateur" : "Membre"}</div>
+          <div style={{ fontSize: 11, color: T.sub }}>{role === "admin" ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="shield" size={12} color={T.yellow} /> Administrateur</span> : "Membre"}</div>
         </div>
       </div>
 
       {[
-        ["⚙️ Paramètres du compte", onOpenSettings, T.ink],
-        ...(role === "admin" ? [["🛡️ Tableau de bord admin", onOpenAdmin, T.yellow]] : []),
-        ["Se déconnecter", onLogout, T.sub],
-      ].map(([label, action, color]) => (
+        { icon: "settings", label: "Paramètres du compte", action: onOpenSettings, color: T.ink },
+        ...(role === "admin"
+          ? [{ icon: "shield", label: "Tableau de bord admin", action: onOpenAdmin, color: T.yellow }]
+          : []),
+        { icon: "refresh", label: "Se déconnecter", action: onLogout, color: T.sub },
+      ].map(({ icon, label, action, color }) => (
         <button
           key={label}
           onClick={action}
-          style={{ width: "100%", textAlign: "left", padding: "10px 8px", borderRadius: 8, border: "none", background: "transparent", color, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+          style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left", padding: "10px 8px", borderRadius: 8, border: "none", background: "transparent", color, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
         >
+          <Icon name={icon} size={15} />
           {label}
         </button>
       ))}
@@ -587,17 +591,17 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
     <div role="dialog" aria-modal="true" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 14, zIndex: 100 }}>
       <div onClick={(e) => e.stopPropagation()} className="rp-modal-in" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, width: "100%", maxWidth: 620, maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: `1px solid ${T.line}` }}>
-          <h3 className="rp-display" style={{ fontSize: 16, color: T.ink }}>⚙️ Paramètres</h3>
+          <h3 className="rp-display" style={{ fontSize: 16, color: T.ink }}><Icon name="settings" size={15} /> Paramètres</h3>
           <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "14px 12px", borderBottom: `1px solid ${T.line}`, width: "100%", overflowX: "auto" }}>
             <button onClick={() => setTab("compte")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "compte" ? T.surface2 : "transparent", color: tab === "compte" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
-              👤 Compte général
+              <Icon name="user" size={15} /> Compte général
             </button>
             <button onClick={() => setTab("securite")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "securite" ? T.surface2 : "transparent", color: tab === "securite" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
-              🔒 Confidentialité & sécurité
+              <Icon name="lock" size={15} /> Confidentialité & sécurité
             </button>
           </div>
 
@@ -693,7 +697,7 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   return (
     <section style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 18px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔥 Pépites du moment</h2>
+        <h2 className="rp-display" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, fontWeight: 900 }}><Icon name="flame" size={22} color={T.emberSolid} /> Pépites du moment</h2>
         {items && items.length > 0 && (
           <button
             onClick={onSeeAll}
@@ -745,7 +749,7 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   return (
     <section style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 18px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900 }}>🔴 Erreurs de prix détectées</h2>
+        <h2 className="rp-display" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, fontWeight: 900 }}><Icon name="alertCircle" size={22} color={T.red} /> Erreurs de prix détectées</h2>
         {items && items.length > 0 && (
           <button
             onClick={onSeeAll}
@@ -796,9 +800,9 @@ function HomeStatsBar() {
   if (stats === null) return null;
 
   const tiles = [
-    { icon: "📡", label: "Deals actifs détectés", value: stats?.total, iconBg: "#1A1330", iconColor: T.purple },
-    { icon: "🏬", label: "Marchands identifiés", value: stats?.sellers, iconBg: "#2E2318", iconColor: T.yellow },
-    { icon: "🔴", label: "Erreurs de prix en cours", value: stats?.errors, iconBg: "#2C1420", iconColor: T.pink },
+    { icon: "radar", label: "Deals actifs détectés", value: stats?.total, iconBg: "#1A1330", iconColor: T.purple },
+    { icon: "store", label: "Marchands identifiés", value: stats?.sellers, iconBg: "#2E2318", iconColor: T.yellow },
+    { icon: "alertCircle", label: "Erreurs de prix en cours", value: stats?.errors, iconBg: "#2C1420", iconColor: T.pink },
   ];
 
   return (
@@ -823,12 +827,13 @@ function HomeStatsBar() {
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center",
                   width: 46, height: 46, borderRadius: 13, background: t.iconBg,
-                  fontSize: 20, flexShrink: 0,
+                  flexShrink: 0,
+                  border: `1px solid ${t.iconColor}2e`,
                   boxShadow: `0 6px 18px ${t.iconColor}26`,
                   transform: "translateZ(28px)",
                 }}
               >
-                {t.icon}
+                <Icon name={t.icon} size={21} color={t.iconColor} />
               </span>
               <div style={{ transform: "translateZ(16px)" }}>
                 <div className="rp-display" style={{ fontSize: 25, fontWeight: 900, color: T.ink, minHeight: 30, lineHeight: 1.15 }}>
@@ -966,9 +971,9 @@ function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNee
               RadarPrix détecte automatiquement les meilleurs deals et les erreurs de prix chez les marchands français.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
-              {["🐦", "🎮", "📷", "✉️"].map((ic, i) => (
-                <span key={i} aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: "50%", background: T.surface2, fontSize: 13 }}>
-                  {ic}
+              {["message", "users", "share", "mail"].map((ic) => (
+                <span key={ic} aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: "50%", background: T.surface2, border: `1px solid ${T.line}`, color: T.sub }}>
+                  <Icon name={ic} size={15} />
                 </span>
               ))}
             </div>
@@ -1072,7 +1077,7 @@ function AdminDashboard({ token, onBack }) {
       <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
         ← Retour au site
       </button>
-      <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, marginBottom: 4, color: T.yellow }}>🛡️ Tableau de bord admin</h2>
+      <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, marginBottom: 4, color: T.yellow, display: "flex", alignItems: "center", gap: 9 }}><Icon name="shield" size={21} /> Tableau de bord admin</h2>
       <p style={{ fontSize: 13, color: T.sub, marginBottom: 24 }}>Visible uniquement par toi.</p>
 
       {error && (
@@ -1135,7 +1140,7 @@ function AdminDashboard({ token, onBack }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <Avatar email={u.email} pseudo={u.pseudo} size={22} />
                   <span style={{ color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.pseudo || u.email}</span>
-                  {u.role === "admin" && <span style={{ fontSize: 10, color: T.yellow }}>🛡️</span>}
+                  {u.role === "admin" && <Icon name="shield" size={11} color={T.yellow} style={{ display: "inline-block" }} />}
                 </div>
                 <span style={{ color: T.sub, fontSize: 11, flexShrink: 0 }}>{u.created_at?.slice(0, 10)}</span>
               </div>
@@ -1179,7 +1184,7 @@ function FavoriteCard({ query, addedAt, authToken, onNeedAuth, onOpenDetail, onO
           onClick={() => onOpenSearch(query)}
           style={{ padding: "8px 14px", borderRadius: 8, border: `1.5px solid ${T.emberSolid}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "'Inter', sans-serif", flexShrink: 0 }}
         >
-          🔄 Relancer
+          <Icon name="refresh" size={15} /> Relancer
         </button>
       </div>
     );
@@ -1202,7 +1207,7 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
       <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
         ← Accueil
       </button>
-      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>⭐ Mes favoris</h2>
+      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="star" size={20} color={T.yellow} /> Mes favoris</h2>
       {error && <p style={{ color: T.red, fontSize: 13 }}>{error}</p>}
       {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — clique sur "★ Suivre" sur une page de résultats pour en ajouter.</p>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1296,14 +1301,14 @@ function CommunityView({ token, currentUserId, onBack }) {
       <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
         ← Accueil
       </button>
-      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>💬 Chat de la communauté</h2>
+      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="message" size={20} color={T.cyan} /> Chat de la communauté</h2>
 
       <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16 }}>
         <button onClick={() => setTab("public")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-          💬 Salon général
+          <Icon name="message" size={14} /> Salon général
         </button>
         <button onClick={() => setTab("dm")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "dm" ? T.ember : "transparent", color: tab === "dm" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-          ✉️ Messages privés
+          <Icon name="mail" size={14} /> Messages privés
         </button>
       </div>
 
@@ -1507,7 +1512,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
         ← Accueil
       </button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
-        <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>🏆 Choix de la communauté</h2>
+        <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, display: "flex", alignItems: "center", gap: 9 }}><Icon name="trophy" size={20} color={T.yellow} /> Choix de la communauté</h2>
         <button onClick={() => (token ? setShowForm((v) => !v) : onNeedAuth())} style={emberButtonStyle}>
           {showForm ? "Annuler" : "+ Proposer un deal"}
         </button>
@@ -1548,10 +1553,10 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
 
       <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16, width: "fit-content" }}>
         <button onClick={() => setSort("hot")} style={pillTabStyle(sort === "hot")}>
-          🔥 Pertinents
+          <Icon name="flame" size={14} /> Pertinents
         </button>
         <button onClick={() => setSort("new")} style={pillTabStyle(sort === "new")}>
-          🆕 Récents
+          <Icon name="sparkle" size={14} /> Récents
         </button>
       </div>
 
@@ -1658,7 +1663,7 @@ function ForumView({ token, onBack, onOpenThread }) {
 
       {!activeCategory && (
         <>
-          <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>🗂️ Forum</h2>
+          <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="folder" size={20} color={T.purple} /> Forum</h2>
           {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
           {categories === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1710,7 +1715,7 @@ function ForumView({ token, onBack, onOpenThread }) {
                     {t.author} · {t.last_activity_at?.slice(0, 10)}
                   </div>
                 </div>
-                <span style={{ fontSize: 12, color: T.sub, fontWeight: 800, flexShrink: 0 }}>{t.reply_count} 💬</span>
+                <span style={{ fontSize: 12, color: T.sub, fontWeight: 800, flexShrink: 0 }}><span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{t.reply_count} <Icon name="message" size={12} /></span></span>
               </button>
             ))}
           </div>
@@ -2112,13 +2117,13 @@ export default function RadarPrixSite() {
               ce qui découperait le menu déroulant "Communauté" qui dépasse verticalement sous la barre. */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
-              🔥 Gros deals
+              <Icon name="flame" size={15} /> Gros deals
             </button>
             <button className={`rp-tab ${view === "results" && tab === "erreurs" ? "active" : ""}`} onClick={() => openTab("erreurs")}>
-              🔴 Erreurs de prix
+              <Icon name="alertCircle" size={15} /> Erreurs de prix
             </button>
             <button className={`rp-tab ${view === "favoris" ? "active" : ""}`} onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}>
-              ⭐ Favoris
+              <Icon name="star" size={15} /> Favoris
             </button>
             <div className="rp-dropdown-wrap" onMouseEnter={() => setCommunityMenuOpen(true)} onMouseLeave={() => setCommunityMenuOpen(false)}>
               <button
@@ -2133,26 +2138,26 @@ export default function RadarPrixSite() {
                   setCommunityMenuOpen(true);
                 }}
               >
-                👥 Communauté <span style={{ fontSize: 9 }}>▾</span>
+                <Icon name="users" size={15} /> Communauté <span style={{ fontSize: 9 }}>▾</span>
               </button>
               {communityMenuOpen && (
                 <div className="rp-dropdown" role="menu" onClick={(e) => e.stopPropagation()}>
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-picks")}>
-                    <span>🏆</span>
+                    <Icon name="trophy" size={16} color={T.yellow} />
                     <span>
                       Choix de la communauté
                       <span className="rp-dropdown-desc">Deals postés et votés par les membres</span>
                     </span>
                   </button>
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-chat")}>
-                    <span>💬</span>
+                    <Icon name="message" size={16} color={T.cyan} />
                     <span>
                       Chat
                       <span className="rp-dropdown-desc">Salon général et messages privés</span>
                     </span>
                   </button>
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-forum")}>
-                    <span>🗂️</span>
+                    <Icon name="folder" size={16} color={T.purple} />
                     <span>
                       Forum
                       <span className="rp-dropdown-desc">Sujets par catégorie, avec réponses</span>
@@ -2273,10 +2278,10 @@ export default function RadarPrixSite() {
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(228px, 1fr))", gap: 18, maxWidth: 1080, margin: "0 auto" }}>
                   {[
-                    { n: 1, icon: "📡", iconBg: "#181B39", accent: T.purple, title: "Scan en continu", text: "Nos robots interrogent en temps réel les prix chez des milliers de marchands français." },
-                    { n: 2, icon: "🧮", iconBg: "#332818", accent: T.yellow, title: "Analyse intelligente", text: "Un algorithme compare chaque prix à l'historique déjà observé et à la médiane du marché." },
-                    { n: 3, icon: "🚨", iconBg: "#2C1420", accent: T.pink, title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
-                    { n: 4, icon: "🔔", iconBg: "#2E2318", accent: T.emberSolid, title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
+                    { n: 1, icon: "radar", iconBg: "#181B39", accent: T.purple, title: "Scan en continu", text: "Nos robots interrogent en temps réel les prix chez des milliers de marchands français." },
+                    { n: 2, icon: "scale", iconBg: "#332818", accent: T.yellow, title: "Analyse intelligente", text: "Un algorithme compare chaque prix à l'historique déjà observé et à la médiane du marché." },
+                    { n: 3, icon: "alertTriangle", iconBg: "#2C1420", accent: T.pink, title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
+                    { n: 4, icon: "bell", iconBg: "#2E2318", accent: T.emberSolid, title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
                   ].map((s, i) => (
                     <Reveal key={s.title} depth delay={i * 90}>
                       <Tilt3D max={12} lift={16} style={{ height: "100%" }}>
@@ -2312,12 +2317,13 @@ export default function RadarPrixSite() {
                             style={{
                               display: "flex", alignItems: "center", justifyContent: "center",
                               width: 52, height: 52, borderRadius: 14, background: s.iconBg,
-                              fontSize: 24, marginBottom: 17,
+                              marginBottom: 17,
+                              border: `1px solid ${s.accent}33`,
                               boxShadow: `0 8px 22px ${s.accent}2e`,
                               transform: "translateZ(34px)",
                             }}
                           >
-                            {s.icon}
+                            <Icon name={s.icon} size={24} color={s.accent} />
                           </span>
                           <h3 style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 8, color: T.ink, transform: "translateZ(20px)" }}>
                             <span style={{ color: s.accent }}>{s.n}.</span> {s.title}
@@ -2351,7 +2357,7 @@ export default function RadarPrixSite() {
 
             <section style={{ maxWidth: 680, margin: "0 auto", padding: "24px 18px 0" }}>
               <div style={{ background: "rgba(255,197,61,0.08)", border: `1px solid ${T.yellow}`, borderRadius: 12, padding: "14px 16px", fontSize: 13, color: T.ink, lineHeight: 1.6 }}>
-                ⚠️ <strong>Transparence :</strong> RadarPrix est un outil d'information. Les offres sont détectées automatiquement et peuvent être inexactes, expirées ou annulées par le vendeur. Vérifiez toujours l'offre et le vendeur avant d'acheter.
+                <Icon name="alertTriangle" size={15} color={T.yellow} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }} /><strong>Transparence :</strong> RadarPrix est un outil d'information. Les offres sont détectées automatiquement et peuvent être inexactes, expirées ou annulées par le vendeur. Vérifiez toujours l'offre et le vendeur avant d'acheter.
               </div>
             </section>
           </>
@@ -2363,8 +2369,20 @@ export default function RadarPrixSite() {
               ← Accueil
             </button>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 4 }}>
-              <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>
-                {searchTerm ? `🔎 « ${searchTerm} »` : tab === "erreurs" ? "🔴 Erreurs de prix" : "🔥 Gros deals"}
+              <h2 className="rp-display" style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 20, fontWeight: 900, flex: 1, minWidth: 0, overflowWrap: "break-word" }}>
+                {searchTerm ? (
+                  <>
+                    <Icon name="search" size={18} color={T.sub} /> {`« ${searchTerm} »`}
+                  </>
+                ) : tab === "erreurs" ? (
+                  <>
+                    <Icon name="alertCircle" size={18} color={T.red} /> Erreurs de prix
+                  </>
+                ) : (
+                  <>
+                    <Icon name="flame" size={18} color={T.emberSolid} /> Gros deals
+                  </>
+                )}
               </h2>
               <button
                 onClick={followCurrentSearch}
@@ -2408,12 +2426,12 @@ export default function RadarPrixSite() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <FilterChip active={verdictFilter === "all"} onClick={() => setVerdictFilter("all")}>Tout</FilterChip>
-                <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}>🔴 Erreurs</FilterChip>
-                <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}>🟡 Deals</FilterChip>
+                <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}><Icon name="alertCircle" size={13} /> Erreurs</FilterChip>
+                <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}><Icon name="flame" size={13} /> Deals</FilterChip>
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                 <span style={{ fontSize: 12, color: T.sub, fontWeight: 700 }}>Trier :</span>
-                <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}>💎 Meilleur score</FilterChip>
+                <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}><Icon name="gem" size={13} /> Meilleur score</FilterChip>
                 <FilterChip active={sortBy === "prix"} onClick={() => setSortBy("prix")}>Prix croissant</FilterChip>
                 <input
                   value={maxPrice}
@@ -2466,7 +2484,7 @@ export default function RadarPrixSite() {
                   onClick={() => searchProduct(searchTerm)}
                   style={{ padding: "13px", borderRadius: 10, border: `1.5px solid ${T.emberSolid}`, background: "transparent", color: T.ink, fontWeight: 800, fontSize: 13.5, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
                 >
-                  🔄 Relancer ce scan (nouveaux prix)
+                  <Icon name="refresh" size={15} /> Relancer ce scan (nouveaux prix)
                 </button>
               )}
               {items && !loading && (

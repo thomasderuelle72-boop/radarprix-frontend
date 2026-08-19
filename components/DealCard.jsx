@@ -10,6 +10,7 @@ import { relativeTime } from "../utils.js";
 import MerchantBadge from "./MerchantBadge.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
 import Tilt3D from "./Tilt3D.jsx";
+import Icon from "./Icon.jsx";
 
 /* ── Squelette de chargement, même gabarit qu'une carte ─────────── */
 export function SkeletonCard() {
@@ -95,7 +96,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   style={{ maxWidth: "100%", maxHeight: 78, objectFit: "contain" }}
                 />
               ) : (
-                <span style={{ fontSize: 30, opacity: 0.3 }}>📦</span>
+                <Icon name="package" size={30} color={T.muted} style={{ opacity: 0.55 }} />
               )}
             </div>
 
@@ -145,7 +146,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
               <div style={{ fontSize: 9.5, color: T.sub, lineHeight: 1.2 }}>Score RadarPrix</div>
               <div className="rp-display" style={{ fontSize: 13, fontWeight: 800, color: isErr ? T.red : isGem ? T.green : T.ink }}>{item.score}/100</div>
               {item.confidence != null && item.confidence < 60 && (
-                <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2 }}>⚠ à vérifier</div>
+                <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}><Icon name="alertTriangle" size={10} /> à vérifier</div>
               )}
             </div>
           </div>
