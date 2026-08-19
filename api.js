@@ -53,11 +53,17 @@ export async function apiAuth(path, body) {
   return data;
 }
 
-export async function apiWatchlistAdd(token, query, category) {
+/**
+ * Suit un produit. `targetPrice` est facultatif : renseigné, le membre est
+ * aussi alerté dès que le prix passe sous ce seuil, en plus des erreurs de
+ * prix détectées par l'algorithme. Re-suivre un produit déjà suivi met le
+ * seuil à jour (le backend fait un ON CONFLICT DO UPDATE).
+ */
+export async function apiWatchlistAdd(token, query, category, targetPrice) {
   const res = await fetch(`${BACKEND_URL}/api/watchlist`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ query, category }),
+    body: JSON.stringify({ query, category, targetPrice: targetPrice || null }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Impossible d'ajouter aux favoris.");

@@ -1256,7 +1256,7 @@ function AdminDashboard({ token, onBack }) {
 // Une ligne de favori : relit le dernier scan enregistré pour cette requête
 // suivie (route existante /api/latest, pas de nouvelle route backend) pour
 // afficher le vrai prix/score courant, plutôt que juste le nom recherché.
-function FavoriteCard({ query, addedAt, authToken, onNeedAuth, onOpenDetail, onOpenSearch }) {
+function FavoriteCard({ query, addedAt, targetPrice, authToken, onNeedAuth, onOpenDetail, onOpenSearch }) {
   const [offers, setOffers] = useState(undefined); // undefined = chargement, null = erreur
 
   useEffect(() => {
@@ -1279,6 +1279,11 @@ function FavoriteCard({ query, addedAt, authToken, onNeedAuth, onOpenDetail, onO
           <div style={{ fontSize: 11.5, color: T.sub, marginTop: 2 }}>
             Suivi depuis le {addedAt?.slice(0, 10)} · aucune anomalie de prix en ce moment
           </div>
+          {targetPrice > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: T.emberSolid, fontWeight: 700, marginTop: 5 }}>
+              <Icon name="bell" size={12} /> Alerte sous {targetPrice} €
+            </div>
+          )}
         </div>
         <button
           onClick={() => onOpenSearch(query)}
@@ -1309,13 +1314,14 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
       </button>
       <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="star" size={20} color={T.yellow} /> Mes favoris</h2>
       {error && <p style={{ color: T.red, fontSize: 13 }}>{error}</p>}
-      {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — clique sur "★ Suivre" sur une page de résultats pour en ajouter.</p>}
+      {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — ouvre une fiche produit et clique sur la cloche pour être alerté.</p>}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items?.map((it) => (
           <FavoriteCard
             key={it.query}
             query={it.query}
             addedAt={it.created_at}
+            targetPrice={it.target_price}
             authToken={token}
             onNeedAuth={onNeedAuth}
             onOpenDetail={onOpenDetail}

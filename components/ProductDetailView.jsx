@@ -66,12 +66,22 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
     return () => { cancelled = true; };
   }, [item.seller]);
 
-  const follow = async () => {
+  // Panneau d'alerte : suivre simplement, ou fixer un prix cible.
+  const [alerteOuverte, setAlerteOuverte] = useState(false);
+  const [seuil, setSeuil] = useState("");
+
+  const follow = async (targetPrice) => {
     if (!authToken) return onNeedAuth();
     try {
-      await apiWatchlistAdd(authToken, item.name, item.category || "tout");
-      setFollowMsg("✓ Ajouté à tes favoris");
-      setTimeout(() => setFollowMsg(null), 2500);
+      await apiWatchlistAdd(authToken, item.name, item.category || "tout", targetPrice);
+      setFollowMsg(
+        targetPrice
+          ? `✓ Alerte posée : on te prévient sous ${targetPrice} €`
+          : "✓ Ajouté à tes favoris"
+      );
+      setAlerteOuverte(false);
+      setSeuil("");
+      setTimeout(() => setFollowMsg(null), 3200);
     } catch (e) {
       setFollowMsg("Erreur : " + e.message);
       setTimeout(() => setFollowMsg(null), 3000);
@@ -229,13 +239,54 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
                 Voir le deal →
               </a>
             )}
-            <button onClick={follow} aria-label="Suivre ce produit" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center" }}>
-              <Icon name="heart" size={17} />
+            <button
+              onClick={() => (authToken ? setAlerteOuverte((v) => !v) : onNeedAuth())}
+              aria-label="Créer une alerte sur ce produit"
+              aria-expanded={alerteOuverte}
+              className="rp-pressable"
+              style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${alerteOuverte ? T.emberSolid : T.line}`, background: "transparent", color: alerteOuverte ? T.emberSolid : T.ink, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center" }}
+            >
+              <Icon name="bell" size={17} />
             </button>
             <button onClick={share} aria-label="Partager ce deal" className="rp-pressable" style={{ padding: "12px 16px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: "transparent", color: T.ink, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center" }}>
               <Icon name="share" size={17} />
             </button>
           </div>
+
+          {/* Alerte prix : suivre tout court, ou fixer soi-même le prix à
+              partir duquel on veut être prévenu par email. */}
+          {alerteOuverte && (
+            <div className="rp-modal-in" style={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: 14 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: T.ink, marginBottom: 4 }}>Me prévenir par email</div>
+              <p style={{ fontSize: 11.5, color: T.sub, lineHeight: 1.5, marginBottom: 11 }}>
+                Tu seras alerté si une erreur de prix est détectée. Ajoute un prix cible pour être aussi prévenu dès qu'il passe en dessous.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ position: "relative", flex: "1 1 130px", minWidth: 0 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="decimal"
+                    value={seuil}
+                    onChange={(e) => setSeuil(e.target.value)}
+                    placeholder={item.price ? Math.floor(item.price * 0.9) : "Prix cible"}
+                    aria-label="Prix cible en euros"
+                    style={{ width: "100%", padding: "11px 30px 11px 12px", borderRadius: 9, border: `1.5px solid ${T.line}`, background: T.surface, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', system-ui, sans-serif" }}
+                  />
+                  <span aria-hidden="true" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: T.sub, fontSize: 13 }}>€</span>
+                </div>
+                <button
+                  onClick={() => follow(Number(seuil) > 0 ? Number(seuil) : undefined)}
+                  className="rp-cta"
+                  style={{ flexShrink: 0, padding: "11px 18px", borderRadius: 9, border: "none", background: T.ember, color: "#0C0E14", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+                >
+                  {Number(seuil) > 0 ? "Créer l'alerte" : "Suivre ce produit"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {followMsg && <p className="toast-in" style={{ fontSize: 12, color: followMsg.startsWith("Erreur") ? T.red : T.green, margin: 0 }}>{followMsg}</p>}
           {shareMsg && <p className="toast-in" style={{ fontSize: 12, color: T.green, margin: 0 }}>{shareMsg}</p>}
         </div>
