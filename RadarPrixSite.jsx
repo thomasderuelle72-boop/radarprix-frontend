@@ -12,6 +12,9 @@ import Reveal from "./components/Reveal.jsx";
 import Hero3D from "./components/Hero3D.jsx";
 import Tilt3D from "./components/Tilt3D.jsx";
 import Icon from "./components/Icon.jsx";
+import PageShell, { EmptyState } from "./components/PageShell.jsx";
+const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
+import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 
 /* ════════════════════════════════════════════════════════════════
@@ -1352,13 +1355,32 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
   }, [token]);
 
   return (
-    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
-        ← Accueil
-      </button>
-      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="star" size={20} color={T.yellow} /> Mes favoris</h2>
-      {error && <p style={{ color: T.red, fontSize: 13 }}>{error}</p>}
-      {items && items.length === 0 && <p style={{ color: T.sub, fontSize: 14 }}>Aucun favori pour l'instant — ouvre une fiche produit et clique sur la cloche pour être alerté.</p>}
+    <PageShell
+      icon="star"
+      iconColor={T.yellow}
+      title="Mes favoris"
+      subtitle="Les produits que tu suis. Tu reçois un email dès qu'une erreur de prix est détectée, ou dès que le prix passe sous le seuil que tu as fixé."
+      onBack={onBack}
+      width={760}
+    >
+      {error && <p style={{ color: T.red, fontSize: 13, marginBottom: 12 }}>{error}</p>}
+      {items && items.length === 0 && (
+        <EmptyState
+          icon="bell"
+          tone={T.yellow}
+          title="Aucun produit suivi pour l'instant"
+          text="Ouvre la fiche d'un produit et clique sur la cloche pour être prévenu par email. Tu peux aussi fixer un prix cible : « préviens-moi si ça passe sous 400 € »."
+          action={
+            <button
+              onClick={onBack}
+              className="rp-cta"
+              style={{ marginTop: 4, background: T.ember, border: "none", borderRadius: 10, padding: "11px 20px", color: "#0C0E14", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+            >
+              Parcourir les deals
+            </button>
+          }
+        />
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {items?.map((it) => (
           <FavoriteCard
@@ -1373,7 +1395,7 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
           />
         ))}
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -1806,27 +1828,84 @@ function ForumView({ token, onBack, onOpenThread }) {
   };
 
   return (
-    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={activeCategory ? () => setActiveCategory(null) : onBack} style={backButtonStyle}>
-        {activeCategory ? "← Catégories" : "← Accueil"}
-      </button>
+    <PageShell
+      icon="folder"
+      iconColor={T.purple}
+      title={activeCategory ? activeCategory.name : "Forum"}
+      subtitle={activeCategory ? undefined : "Questions, conseils et discussions entre membres. Chaque catégorie affiche son dernier sujet actif."}
+      onBack={activeCategory ? () => setActiveCategory(null) : onBack}
+      backLabel={activeCategory ? "Catégories" : "Accueil"}
+      width={820}
+      action={
+        activeCategory && (
+          <button onClick={() => setShowNewThread((v) => !v)} style={emberButtonStyle}>
+            {showNewThread ? "Annuler" : "+ Nouveau sujet"}
+          </button>
+        )
+      }
+    >
 
       {!activeCategory && (
         <>
-          <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="folder" size={20} color={T.purple} /> Forum</h2>
           {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
-          {categories === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {categories?.map((c) => (
-              <button key={c.id} onClick={() => openCategory(c)} style={{ textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, cursor: "pointer" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{c.name}</h3>
-                  <span style={{ fontSize: 12, color: T.sub, fontWeight: 700, flexShrink: 0 }}>
-                    {c.thread_count} sujet{c.thread_count > 1 ? "s" : ""}
-                  </span>
-                </div>
-                {c.description && <p style={{ fontSize: 13, color: T.sub, marginTop: 6, lineHeight: 1.5 }}>{c.description}</p>}
-              </button>
+          {categories === null && !error && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[0, 1, 2].map((i) => <div key={i} className="rp-shimmer" style={{ height: 108, borderRadius: 14 }} />)}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {categories?.map((c, i) => (
+              <Tilt3D key={c.id} max={5} lift={8}>
+                <button
+                  onClick={() => openCategory(c)}
+                  className="fade-up rp-forum-card"
+                  style={{
+                    width: "100%", textAlign: "left", background: T.gradSurface,
+                    border: `1px solid ${T.line}`, borderRadius: T.radiusLg, padding: "18px 20px",
+                    cursor: "pointer", boxShadow: T.shadowCard, animationDelay: `${i * 70}ms`,
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                          background: "rgba(139,92,246,.14)", border: `1px solid ${T.purple}3a`,
+                        }}
+                      >
+                        <Icon name="folder" size={19} color={T.purple} />
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <h3 style={{ fontSize: 15.5, fontWeight: 800, color: T.ink }}>{c.name}</h3>
+                        {c.description && <p style={{ fontSize: 12.5, color: T.sub, marginTop: 3, lineHeight: 1.5 }}>{c.description}</p>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11.5, color: T.sub, fontWeight: 700, lineHeight: 1.6 }}>
+                      <div>{c.thread_count} sujet{c.thread_count > 1 ? "s" : ""}</div>
+                      <div style={{ color: T.muted }}>{c.reply_count || 0} réponse{c.reply_count > 1 ? "s" : ""}</div>
+                    </div>
+                  </div>
+
+                  {/* Dernière activité : sans elle, impossible de savoir si
+                      quelqu'un écrit encore dans cette catégorie. */}
+                  <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 14, paddingTop: 11, fontSize: 11.5, color: T.sub, display: "flex", alignItems: "center", gap: 7 }}>
+                    {c.last_title ? (
+                      <>
+                        <span className="rp-fresh-dot" aria-hidden="true" />
+                        <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <strong style={{ color: T.ink, fontWeight: 700 }}>{c.last_title}</strong>
+                          {" · "}{c.last_author}{" · "}{relativeTime(c.last_activity_at) || c.last_activity_at?.slice(0, 10)}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ color: T.muted }}>Aucun sujet pour l'instant — sois le premier à écrire.</span>
+                    )}
+                  </div>
+                </button>
+              </Tilt3D>
             ))}
           </div>
         </>
@@ -1834,12 +1913,6 @@ function ForumView({ token, onBack, onOpenThread }) {
 
       {activeCategory && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
-            <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900 }}>{activeCategory.name}</h2>
-            <button onClick={() => setShowNewThread((v) => !v)} style={emberButtonStyle}>
-              {showNewThread ? "Annuler" : "+ Nouveau sujet"}
-            </button>
-          </div>
           {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
           {showNewThread && (
             <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1850,8 +1923,26 @@ function ForumView({ token, onBack, onOpenThread }) {
               </button>
             </div>
           )}
-          {threads === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
-          {threads?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun sujet dans cette catégorie — lancez la discussion !</p>}
+          {threads === null && !error && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[0, 1].map((i) => <div key={i} className="rp-shimmer" style={{ height: 62, borderRadius: 12 }} />)}
+            </div>
+          )}
+          {threads?.length === 0 && (
+            <EmptyState
+              icon="message"
+              tone={T.purple}
+              title="Personne n'a encore écrit ici"
+              text="Cette catégorie attend son premier sujet. Une question, un retour d'expérience, un bon plan à détailler — tout est bienvenu."
+              action={
+                !showNewThread && (
+                  <button onClick={() => setShowNewThread(true)} style={{ ...emberButtonStyle, marginTop: 4 }}>
+                    Lancer la discussion
+                  </button>
+                )
+              }
+            />
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {threads?.map((t) => (
               <button
@@ -1871,7 +1962,7 @@ function ForumView({ token, onBack, onOpenThread }) {
           </div>
         </>
       )}
-    </main>
+    </PageShell>
   );
 }
 
@@ -2002,6 +2093,14 @@ export default function RadarPrixSite() {
   const openDealDetail = (item) => {
     setDealDetailItem(item);
     setView("dealDetail");
+    window.scrollTo(0, 0);
+  };
+
+  // Ouvre la page dédiée d'un marchand (nom cliquable sur la fiche produit).
+  const openMerchant = (nom) => {
+    if (!nom) return;
+    setMarchandActif(nom);
+    setView("marchand");
     window.scrollTo(0, 0);
   };
 
@@ -2805,6 +2904,18 @@ export default function RadarPrixSite() {
           <AdminDashboard token={authToken} onBack={goHome} />
         )}
 
+        {view === "marchand" && marchandActif && (
+          <Suspense fallback={<ViewLoader />}>
+            <MerchantView
+              name={marchandActif}
+              authToken={authToken}
+              onNeedAuth={() => setAuthOpen(true)}
+              onBack={goHome}
+              onOpenDetail={openDealDetail}
+            />
+          </Suspense>
+        )}
+
         {view === "dealDetail" && dealDetailItem && (
           <Suspense fallback={<ViewLoader />}>
             <ProductDetailView
@@ -2813,6 +2924,7 @@ export default function RadarPrixSite() {
               onNeedAuth={() => setAuthOpen(true)}
               onBack={goHome}
               onOpenDetail={openDealDetail}
+              onOpenMerchant={openMerchant}
             />
           </Suspense>
         )}

@@ -28,7 +28,7 @@ function SectionTitle({ children, action }) {
   );
 }
 
-export default function ProductDetailView({ item, authToken, onNeedAuth, onBack, onOpenDetail }) {
+export default function ProductDetailView({ item, authToken, onNeedAuth, onBack, onOpenDetail, onOpenMerchant }) {
   const isErr = item.verdict === "erreur";
   const isGem = item.score >= 85;
   const [followMsg, setFollowMsg] = useState(null);
@@ -190,7 +190,23 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
           {item.seller && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.sub, flexWrap: "wrap" }}>
               <MerchantBadge name={item.seller} size={24} />
-              <strong style={{ color: T.ink }}>{item.seller}</strong>
+              {/* Nom cliquable : ouvre la page du marchand (fiabilité vue par
+                  la communauté + tout ce qui est repéré chez lui). */}
+              {onOpenMerchant ? (
+                <button
+                  onClick={() => onOpenMerchant(item.seller)}
+                  style={{
+                    background: "none", border: "none", padding: 0, cursor: "pointer",
+                    color: T.ink, fontWeight: 700, fontSize: 13,
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    borderBottom: `1px solid ${T.line}`,
+                  }}
+                >
+                  {item.seller}
+                </button>
+              ) : (
+                <strong style={{ color: T.ink }}>{item.seller}</strong>
+              )}
               {merchantTrust?.reliability != null && (
                 <span
                   title={`${merchantTrust.upvotes} avis positif(s), ${merchantTrust.downvotes} négatif(s) sur ${merchantTrust.dealCount} deal(s) communautaire(s)`}
