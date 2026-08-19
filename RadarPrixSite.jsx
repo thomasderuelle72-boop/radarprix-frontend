@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { T, CATEGORIES } from "./theme.js";
+import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import ProductDetailView from "./components/ProductDetailView.jsx";
 import Avatar from "./components/Avatar.jsx";
 import Reveal from "./components/Reveal.jsx";
+import Hero3D from "./components/Hero3D.jsx";
+import Tilt3D from "./components/Tilt3D.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -134,8 +136,173 @@ const GlobalStyles = () => (
       background-image: repeating-linear-gradient(-45deg, ${T.red} 0 6px, ${T.pink} 6px 12px);
       opacity: 0.9;
     }
+    /* ══════════════════════════════════════════════════════════════
+       PROFONDEUR 3D — inclinaison des cartes, scène radar du hero,
+       fonds "aurora". Tout en CSS 3D (perspective + preserve-3d) :
+       aucune bibliothèque 3D, aucun canvas, le bundle ne grossit pas.
+       ══════════════════════════════════════════════════════════════ */
+
+    /* — Carte qui s'incline vers le curseur (voir components/Tilt3D.jsx) — */
+    .rp-tilt3d { perspective: 900px; --rx: 0deg; --ry: 0deg; --tz: 0px; --gx: 50%; --gy: 50%; --glare-o: 0; }
+    .rp-tilt3d-inner {
+      position: relative;
+      height: 100%;
+      transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(var(--tz));
+      transform-style: preserve-3d;
+      transition: transform 260ms cubic-bezier(.2,.8,.2,1);
+      will-change: transform;
+    }
+    /* Reflet qui suit le pointeur, posé au-dessus du contenu de la carte. */
+    .rp-tilt3d-glare {
+      position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background: radial-gradient(420px circle at var(--gx) var(--gy), rgba(255,255,255,.10), transparent 42%);
+      opacity: var(--glare-o);
+      transition: opacity 260ms ease;
+      z-index: 3;
+    }
+
+    /* — Scène radar 3D du hero (voir components/Hero3D.jsx) — */
+    .rp-hero3d {
+      position: absolute; top: 50%; left: 50%;
+      /* Large : les étiquettes doivent pouvoir se placer bien à l'écart de la
+         colonne de texte centrale (~560px) sans jamais la recouvrir. */
+      width: 1180px; height: 620px;
+      transform: translate(-50%, -50%);
+      perspective: 1300px;
+      pointer-events: none;
+      z-index: 0;
+      --mx: 0deg; --my: 0deg;
+      /* Estompe les bords pour que la scène se fonde dans la page au lieu
+         de s'arrêter net sur un rectangle. */
+      -webkit-mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 44%, transparent 80%);
+      mask-image: radial-gradient(ellipse 60% 62% at 50% 50%, #000 44%, transparent 80%);
+    }
+    .rp-hero3d-world {
+      position: absolute; inset: 0;
+      transform-style: preserve-3d;
+      transform: rotateX(var(--my)) rotateY(var(--mx));
+      transition: transform 400ms cubic-bezier(.2,.8,.2,1);
+    }
+    .rp-hero3d-disc {
+      position: absolute; top: 50%; left: 50%;
+      width: 470px; height: 470px; margin: -235px 0 0 -235px;
+      transform-style: preserve-3d;
+      /* Couché à plat façon table radar, puis tourné lentement. */
+      transform: rotateX(70deg) rotateZ(0deg);
+      animation: rpDiscSpin 46s linear infinite;
+    }
+    @keyframes rpDiscSpin { to { transform: rotateX(70deg) rotateZ(360deg); } }
+    .rp-hero3d-ring {
+      position: absolute; border-radius: 50%;
+      border: 1px solid rgba(255,106,26,.20);
+    }
+    .rp-hero3d-ring:nth-child(1) { border-color: rgba(255,106,26,.26); }
+    .rp-hero3d-ring:nth-child(3) { border-color: rgba(139,92,246,.20); }
+    .rp-hero3d-grid {
+      position: absolute; inset: 0; border-radius: 50%;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(122,145,184,.10) 0 1px, transparent 1px 58px),
+        repeating-linear-gradient(90deg, rgba(122,145,184,.10) 0 1px, transparent 1px 58px);
+      -webkit-mask-image: radial-gradient(circle, #000 58%, transparent 76%);
+      mask-image: radial-gradient(circle, #000 58%, transparent 76%);
+    }
+    /* Faisceau de balayage : un secteur de cône qui tourne sur le disque. */
+    .rp-hero3d-beam {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(from 0deg, rgba(255,161,37,.32) 0deg, rgba(255,106,26,.10) 26deg, transparent 62deg);
+      animation: rpSweep 4.2s linear infinite;
+    }
+    .rp-hero3d-core {
+      position: absolute; top: 50%; left: 50%;
+      width: 46px; height: 46px; margin: -23px 0 0 -23px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,161,37,.85), rgba(255,106,26,.12) 62%, transparent 72%);
+      filter: blur(1px);
+    }
+    /* Ondes concentriques qui s'élèvent depuis le centre. */
+    .rp-hero3d-pulse {
+      position: absolute; top: 50%; left: 50%;
+      width: 200px; height: 200px; margin: -100px 0 0 -100px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,106,26,.42);
+      transform: rotateX(70deg) scale(.28);
+      animation: rpHeroPulse 4.8s ease-out infinite;
+    }
+    @keyframes rpHeroPulse {
+      0%   { opacity: 0;   transform: rotateX(70deg) scale(.28) translateZ(0); }
+      18%  { opacity: .75; }
+      100% { opacity: 0;   transform: rotateX(70deg) scale(2.5) translateZ(90px); }
+    }
+    /* Étiquettes de prix flottant au-dessus du disque, chacune à sa profondeur. */
+    .rp-hero3d-tag {
+      position: absolute; top: 50%; left: 50%;
+      font-family: 'Unbounded', system-ui, sans-serif;
+      font-size: 12.5px; font-weight: 700; white-space: nowrap;
+      padding: 8px 13px; border-radius: 10px;
+      border: 1px solid currentColor;
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+      transform: translate(-50%, -50%) translate3d(var(--tx), var(--ty), var(--tz)) scale(var(--ts));
+      animation: rpTagFloat 7s ease-in-out infinite;
+    }
+    @keyframes rpTagFloat {
+      0%, 100% { transform: translate(-50%, -50%) translate3d(var(--tx), var(--ty), var(--tz)) scale(var(--ts)); }
+      50%      { transform: translate(-50%, -50%) translate3d(var(--tx), calc(var(--ty) - 16px), calc(var(--tz) + 26px)) scale(var(--ts)); }
+    }
+    @media (max-width: 1100px) {
+      /* Sous cette largeur, l'écart entre la colonne de texte et les bords
+         devient trop faible : les étiquettes finiraient sur le titre. On ne
+         garde que le disque radar, qui lui reste bien derrière le texte. */
+      .rp-hero3d-tag { display: none; }
+      .rp-hero3d { width: 620px; height: 480px; opacity: .7; }
+    }
+    @media (max-width: 640px) {
+      .rp-hero3d { width: 420px; height: 380px; opacity: .5; }
+    }
+
+    /* — Fond "aurora" : nappes de couleur lentes, très diffuses — */
+    .rp-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .rp-aurora span {
+      position: absolute; border-radius: 50%;
+      filter: blur(78px); opacity: .5;
+      animation: rpAurora 19s ease-in-out infinite;
+    }
+    @keyframes rpAurora {
+      0%, 100% { transform: translate3d(0,0,0) scale(1); }
+      33%      { transform: translate3d(4%, -6%, 0) scale(1.14); }
+      66%      { transform: translate3d(-5%, 4%, 0) scale(.92); }
+    }
+
+    /* — Bordure en dégradé (cartes premium) — */
+    .rp-gradient-border { position: relative; }
+    .rp-gradient-border::before {
+      content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+      background: linear-gradient(135deg, rgba(255,106,26,.55), rgba(139,92,246,.35) 48%, transparent 78%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* — Apparition au défilement avec profondeur (voir Reveal.jsx) — */
+    .reveal-3d { opacity: 0; transform: perspective(900px) translateY(26px) rotateX(7deg); transition: opacity .62s cubic-bezier(.2,.8,.2,1), transform .62s cubic-bezier(.2,.8,.2,1); }
+    .reveal-3d.revealed { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0deg); }
+
+    /* — Défilé horizontal continu (bandeau marchands) — */
+    .rp-marquee { display: flex; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+    .rp-marquee-track { display: flex; gap: 12px; flex-shrink: 0; padding-right: 12px; animation: rpMarquee 26s linear infinite; }
+    @keyframes rpMarquee { to { transform: translateX(-100%); } }
+    .rp-marquee:hover .rp-marquee-track { animation-play-state: paused; }
+
+    /* — Chiffres clés : léger relief au survol — */
+    .rp-stat-tile { transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms cubic-bezier(.2,.8,.2,1), border-color 240ms ease; }
+    .rp-tilt3d:hover .rp-stat-tile { border-color: rgba(255,106,26,.45); box-shadow: 0 20px 45px rgba(0,0,0,.4); }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
+      /* Sans animation, la scène radar n'apporte plus rien et resterait
+         figée derrière le titre : on la retire complètement. */
+      .rp-hero3d { display: none; }
+      .reveal-3d { opacity: 1; transform: none; }
     }
     button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid ${T.emberSolid}; outline-offset: 2px; }
     details.rp-faq { border-bottom: 1px solid ${T.line}; padding: 16px 0; }
@@ -173,8 +340,11 @@ const GlobalStyles = () => (
     @media (max-width: 460px) {
       .rp-footer-grid { grid-template-columns: 1fr !important; }
     }
-    .rp-deal-card { transition: transform 160ms cubic-bezier(.2,.8,.2,1), border-color 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms cubic-bezier(.2,.8,.2,1); }
-    .rp-deal-card:hover { transform: translateY(-4px); border-color: ${T.emberSolid}; box-shadow: ${T.shadowCardHover}; }
+    /* Le décollé vertical est désormais assuré par Tilt3D (translateZ) :
+       ici on ne garde que la mise en évidence bordure + ombre, sinon les
+       deux transformations se cumuleraient et la carte sauterait. */
+    .rp-deal-card { transition: border-color 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms cubic-bezier(.2,.8,.2,1); }
+    .rp-tilt3d:hover .rp-deal-card { border-color: ${T.emberSolid}; box-shadow: ${T.shadowCardHover}; }
     .rp-mobile-nav button { transition: color .15s ease; }
   `}</style>
 );
@@ -632,24 +802,74 @@ function HomeStatsBar() {
   ];
 
   return (
-    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 18px" }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-        {tiles.map((t) => (
-          <div key={t.label} style={{ display: "flex", alignItems: "center", gap: 12, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 18px", flex: "1 1 220px", maxWidth: 280 }}>
-            <span aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 40, height: 40, borderRadius: 10, background: t.iconBg, fontSize: 18, flexShrink: 0 }}>
-              {t.icon}
-            </span>
-            <div>
-              <div className="rp-display" style={{ fontSize: 19, fontWeight: 900, color: T.ink, minHeight: 23 }}>
-                {stats === undefined ? <span className="rp-shimmer" style={{ display: "inline-block", width: 40, height: 16, borderRadius: 4 }} /> : t.value}
+    <section style={{ maxWidth: 1200, margin: "-34px auto 0", padding: "0 18px", position: "relative", zIndex: 2 }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+        {tiles.map((t, i) => (
+          <Tilt3D key={t.label} max={11} lift={14} style={{ flex: "1 1 230px", maxWidth: 300 }}>
+            <div
+              className="rp-stat-tile rp-gradient-border fade-up"
+              style={{
+                display: "flex", alignItems: "center", gap: 14,
+                background: T.gradSurface,
+                border: `1px solid ${T.line}`,
+                borderRadius: T.radiusLg,
+                padding: "17px 20px",
+                boxShadow: T.shadowCard,
+                animationDelay: `${i * 90}ms`,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 46, height: 46, borderRadius: 13, background: t.iconBg,
+                  fontSize: 20, flexShrink: 0,
+                  boxShadow: `0 6px 18px ${t.iconColor}26`,
+                  transform: "translateZ(28px)",
+                }}
+              >
+                {t.icon}
+              </span>
+              <div style={{ transform: "translateZ(16px)" }}>
+                <div className="rp-display" style={{ fontSize: 25, fontWeight: 900, color: T.ink, minHeight: 30, lineHeight: 1.15 }}>
+                  {stats === undefined
+                    ? <span className="rp-shimmer" style={{ display: "inline-block", width: 46, height: 19, borderRadius: 5 }} />
+                    : <CountUp to={t.value} />}
+                </div>
+                <div style={{ fontSize: 11.5, color: T.sub, marginTop: 1 }}>{t.label}</div>
               </div>
-              <div style={{ fontSize: 11, color: T.sub }}>{t.label}</div>
             </div>
-          </div>
+          </Tilt3D>
         ))}
       </div>
     </section>
   );
+}
+
+/* Compteur qui monte de 0 à `to` — donne du poids aux chiffres clés sans
+   les inventer : la valeur finale reste exactement celle du backend. */
+function CountUp({ to, duration = 900 }) {
+  const [n, setN] = useState(0);
+
+  useEffect(() => {
+    const target = Number(to) || 0;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || target === 0) {
+      setN(target);
+      return;
+    }
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1);
+      // easeOutCubic : démarrage rapide, arrivée douce sur la valeur exacte.
+      setN(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to, duration]);
+
+  return <>{n}</>;
 }
 
 function FilterChip({ active, onClick, children }) {
@@ -1948,34 +2168,76 @@ export default function RadarPrixSite() {
       <div style={{ flex: 1 }}>
         {view === "home" && (
           <>
-            <header style={{ maxWidth: 960, margin: "0 auto", padding: "54px 18px 20px", textAlign: "center", position: "relative" }}>
-              <div aria-hidden="true" style={{ position: "absolute", top: -80, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(255,106,53,0.14), transparent 65%)", pointerEvents: "none" }} />
-              <div
-                aria-hidden="true"
-                className="rp-radar-sweep"
-                style={{
-                  position: "absolute",
-                  top: -80,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 600,
-                  height: 400,
-                  background: "conic-gradient(from 0deg, transparent 0deg, rgba(255,161,37,0.10) 18deg, transparent 40deg)",
-                  borderRadius: "50%",
-                  pointerEvents: "none",
-                }}
-              />
-              <h1 className="rp-display" style={{ fontSize: "clamp(24px, 6vw, 42px)", fontWeight: 900, lineHeight: 1.15 }}>
-                Quand le marchand se trompe,
-                <br />
-                <span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>vous gagnez.</span>
-              </h1>
-              <p style={{ maxWidth: 500, margin: "16px auto 26px", color: T.sub, fontSize: 15, lineHeight: 1.6 }}>
-                Erreurs de prix et très gros deals, détectés par un algorithme qui compare en continu les prix réels des marchands français.
-              </p>
+            <header style={{ position: "relative", overflow: "hidden", borderBottom: `1px solid ${T.line}` }}>
+              {/* Nappes de couleur diffuses, en fond de scène */}
+              <div className="rp-aurora" aria-hidden="true">
+                <span style={{ top: "-22%", left: "8%", width: 480, height: 420, background: "rgba(255,106,26,.30)" }} />
+                <span style={{ top: "6%", right: "4%", width: 420, height: 380, background: "rgba(139,92,246,.24)", animationDelay: "-7s" }} />
+                <span style={{ bottom: "-28%", left: "34%", width: 520, height: 340, background: "rgba(255,52,93,.16)", animationDelay: "-13s" }} />
+              </div>
 
-              <div style={{ maxWidth: 520, margin: "0 auto" }}>
-                <SearchBar big onSearch={(t) => searchProduct(t)} placeholder="Rechercher un produit : PS5, aspirateur, iPhone..." />
+              <Hero3D />
+
+              <div style={{ position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto", padding: "86px 18px 74px", textAlign: "center" }}>
+                <span
+                  className="fade-up"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    background: "rgba(13,20,34,.72)", backdropFilter: "blur(10px)",
+                    border: `1px solid ${T.line}`, borderRadius: 999,
+                    padding: "7px 15px", fontSize: 12, fontWeight: 700, color: T.sub,
+                    marginBottom: 22,
+                  }}
+                >
+                  <span className="rp-fresh-dot" aria-hidden="true" />
+                  Détection active en continu
+                </span>
+
+                <h1
+                  className="rp-display fade-up"
+                  style={{ fontSize: "clamp(30px, 6.6vw, 58px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.02em", animationDelay: "60ms" }}
+                >
+                  Quand le marchand se trompe,
+                  <br />
+                  <span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>vous gagnez.</span>
+                </h1>
+
+                <p className="fade-up" style={{ maxWidth: 540, margin: "20px auto 32px", color: T.sub, fontSize: "clamp(14px, 1.6vw, 16.5px)", lineHeight: 1.65, animationDelay: "120ms" }}>
+                  Erreurs de prix et très gros deals, détectés par un algorithme qui compare en continu les prix réels des marchands français.
+                </p>
+
+                <div className="fade-up" style={{ maxWidth: 540, margin: "0 auto", animationDelay: "180ms" }}>
+                  <SearchBar big onSearch={(t) => searchProduct(t)} placeholder="Rechercher un produit : PS5, aspirateur, iPhone..." />
+                </div>
+
+                {/* Bandeau marchands défilant */}
+                <div className="fade-up" style={{ marginTop: 40, animationDelay: "240ms" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.14em", color: T.muted, textTransform: "uppercase", marginBottom: 13 }}>
+                    Prix comparés chez
+                  </div>
+                  <div className="rp-marquee" aria-hidden="true">
+                    {[0, 1].map((copy) => (
+                      <div className="rp-marquee-track" key={copy}>
+                        {FEATURED_MERCHANTS.concat(FEATURED_MERCHANTS).map((m, i) => (
+                          <span
+                            key={`${copy}-${m}-${i}`}
+                            style={{
+                              flexShrink: 0,
+                              background: "rgba(13,20,34,.6)", border: `1px solid ${T.line}`,
+                              borderRadius: 10, padding: "9px 17px",
+                              fontSize: 12.5, fontWeight: 800, color: T.sub, whiteSpace: "nowrap",
+                            }}
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>
+                    Marchands suivis : {FEATURED_MERCHANTS.join(", ")}.
+                  </span>
+                </div>
               </div>
             </header>
 
@@ -1995,27 +2257,74 @@ export default function RadarPrixSite() {
               onOpenDetail={openDealDetail}
             />
 
-            <section style={{ background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 40 }}>
-              <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 18px" }}>
-                <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, textAlign: "center", marginBottom: 32 }}>Comment ça marche</h2>
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "center", gap: 4 }}>
+            <section style={{ position: "relative", overflow: "hidden", background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 56 }}>
+              <div className="rp-aurora" aria-hidden="true" style={{ opacity: 0.5 }}>
+                <span style={{ top: "-40%", left: "18%", width: 460, height: 400, background: "rgba(139,92,246,.20)" }} />
+                <span style={{ bottom: "-46%", right: "12%", width: 430, height: 380, background: "rgba(255,106,26,.18)", animationDelay: "-9s" }} />
+              </div>
+
+              <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "68px 18px 72px" }}>
+                <h2 className="rp-display" style={{ fontSize: "clamp(21px, 3.2vw, 30px)", fontWeight: 900, textAlign: "center", letterSpacing: "-0.01em" }}>
+                  Comment ça marche
+                </h2>
+                <p style={{ textAlign: "center", color: T.sub, fontSize: 14.5, maxWidth: 480, margin: "12px auto 44px", lineHeight: 1.6 }}>
+                  Quatre étapes, entièrement automatisées, entre le prix affiché par le marchand et l'alerte que vous recevez.
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(228px, 1fr))", gap: 18, maxWidth: 1080, margin: "0 auto" }}>
                   {[
-                    { n: 1, icon: "📡", iconBg: "#181B39", title: "Scan en continu", text: "Nos robots interrogent en temps réel les prix chez des milliers de marchands français." },
-                    { n: 2, icon: "🧮", iconBg: "#332818", title: "Analyse intelligente", text: "Un algorithme compare chaque prix à l'historique déjà observé et à la médiane du marché." },
-                    { n: 3, icon: "🚨", iconBg: "#2C1420", title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
-                    { n: 4, icon: "🔔", iconBg: "#2E2318", title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
-                  ].map((s, i, arr) => (
-                    <Reveal key={s.title} style={{ display: "flex", alignItems: "flex-start" }}>
-                      <div style={{ width: 210, padding: "0 6px" }}>
-                        <span aria-hidden="true" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: 12, background: s.iconBg, fontSize: 22, marginBottom: 14 }}>
-                          {s.icon}
-                        </span>
-                        <h3 style={{ fontSize: 14.5, fontWeight: 800, marginBottom: 6, color: T.ink }}>{s.n}. {s.title}</h3>
-                        <p style={{ fontSize: 12.5, color: T.sub, lineHeight: 1.55 }}>{s.text}</p>
-                      </div>
-                      {i < arr.length - 1 && (
-                        <span aria-hidden="true" style={{ color: T.sub, fontSize: 18, padding: "12px 4px 0", flexShrink: 0 }}>→</span>
-                      )}
+                    { n: 1, icon: "📡", iconBg: "#181B39", accent: T.purple, title: "Scan en continu", text: "Nos robots interrogent en temps réel les prix chez des milliers de marchands français." },
+                    { n: 2, icon: "🧮", iconBg: "#332818", accent: T.yellow, title: "Analyse intelligente", text: "Un algorithme compare chaque prix à l'historique déjà observé et à la médiane du marché." },
+                    { n: 3, icon: "🚨", iconBg: "#2C1420", accent: T.pink, title: "Détection d'anomalies", text: "Les bons plans et les erreurs de prix sont repérés et notés automatiquement sur 100." },
+                    { n: 4, icon: "🔔", iconBg: "#2E2318", accent: T.emberSolid, title: "Vous en profitez", text: "Consultez les deals et erreurs détectés, suivez vos recherches, foncez avant tout le monde." },
+                  ].map((s, i) => (
+                    <Reveal key={s.title} depth delay={i * 90}>
+                      <Tilt3D max={12} lift={16} style={{ height: "100%" }}>
+                        <div
+                          style={{
+                            position: "relative",
+                            height: "100%",
+                            background: T.gradSurface,
+                            border: `1px solid ${T.line}`,
+                            borderRadius: T.radiusLg,
+                            padding: "24px 20px 22px",
+                            boxShadow: T.shadowCard,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {/* Numéro d'étape en filigrane, très en arrière-plan */}
+                          <span
+                            aria-hidden="true"
+                            className="rp-display"
+                            style={{
+                              position: "absolute", top: -16, right: 6,
+                              fontSize: 92, fontWeight: 900, lineHeight: 1,
+                              color: s.accent, opacity: 0.07, pointerEvents: "none",
+                            }}
+                          >
+                            {s.n}
+                          </span>
+                          {/* Liseré d'accent en haut de carte */}
+                          <span aria-hidden="true" style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${s.accent}, transparent)` }} />
+
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              width: 52, height: 52, borderRadius: 14, background: s.iconBg,
+                              fontSize: 24, marginBottom: 17,
+                              boxShadow: `0 8px 22px ${s.accent}2e`,
+                              transform: "translateZ(34px)",
+                            }}
+                          >
+                            {s.icon}
+                          </span>
+                          <h3 style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 8, color: T.ink, transform: "translateZ(20px)" }}>
+                            <span style={{ color: s.accent }}>{s.n}.</span> {s.title}
+                          </h3>
+                          <p style={{ fontSize: 13, color: T.sub, lineHeight: 1.6, transform: "translateZ(10px)" }}>{s.text}</p>
+                        </div>
+                      </Tilt3D>
                     </Reveal>
                   ))}
                 </div>

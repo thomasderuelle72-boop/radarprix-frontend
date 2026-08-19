@@ -9,6 +9,7 @@ import { T } from "../theme.js";
 import { relativeTime } from "../utils.js";
 import MerchantBadge from "./MerchantBadge.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
+import Tilt3D from "./Tilt3D.jsx";
 
 /* ── Squelette de chargement, même gabarit qu'une carte ─────────── */
 export function SkeletonCard() {
@@ -37,6 +38,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   const seenAgo = relativeTime(item.scraped_at);
 
   return (
+    <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
     <button
       onClick={() => onOpenDetail && onOpenDetail(item)}
       className="fade-up rp-deal-card rp-ticket"
@@ -163,5 +165,6 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
         />
       </div>
     </button>
+    </Tilt3D>
   );
 }
