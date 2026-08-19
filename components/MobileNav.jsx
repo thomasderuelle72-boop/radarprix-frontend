@@ -9,7 +9,10 @@ const ITEMS = [
   { key: "deals", icon: "flame", label: "Deals" },
   { key: "erreurs", icon: "alertCircle", label: "Alertes" },
   { key: "favoris", icon: "star", label: "Favoris" },
-  { key: "profil", icon: "user", label: "Profil" },
+  // Communauté plutôt que Profil : le profil est déjà accessible par l'avatar
+  // en haut à droite, et son menu s'ouvrait tout en haut de l'écran alors
+  // qu'on venait d'appuyer tout en bas.
+  { key: "communaute", icon: "users", label: "Communauté" },
 ];
 
 export default function MobileNav({ active, onNavigate }) {

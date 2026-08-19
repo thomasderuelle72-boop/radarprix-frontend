@@ -8,6 +8,7 @@ import Reveal from "./components/Reveal.jsx";
 import Hero3D from "./components/Hero3D.jsx";
 import Tilt3D from "./components/Tilt3D.jsx";
 import Icon from "./components/Icon.jsx";
+import AvatarPicker from "./components/AvatarPicker.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -333,7 +334,24 @@ const GlobalStyles = () => (
     }
     @media (max-width: 640px) {
       .rp-mobile-nav { display: flex; }
-      .rp-body { padding-bottom: 60px; }
+      .rp-body { padding-bottom: 64px; }
+      /* La rangée d'onglets du haut faisait doublon avec la barre fixe du bas
+         et débordait sur deux lignes, mangeant un tiers de l'écran. */
+      .rp-nav-tabs { display: none !important; }
+      /* Le champ de recherche de la barre du haut se réduisait à une boîte
+         vide de quelques pixels : masqué ici, la recherche pleine largeur
+         sous le titre de page prend le relais. */
+      .rp-nav-search { display: none !important; }
+      .rp-mobile-search { display: block !important; }
+      /* Cibles tactiles : 44px minimum, recommandation d'accessibilité. */
+      .rp-tab { padding: 11px 14px; }
+      /* Les encoches de coupon débordent hors de la carte : sur mobile les
+         cartes touchent presque les bords de l'écran, elles se lisaient donc
+         comme des pastilles noires posées par-dessus la bordure. */
+      .rp-ticket::before, .rp-ticket::after { display: none; }
+      /* Le hero prend moins de hauteur : sur un écran de téléphone, la barre
+         de recherche se retrouvait sous la ligne de flottaison. */
+      .rp-hero-inner { padding-top: 44px !important; padding-bottom: 40px !important; }
     }
     @media (max-width: 760px) {
       .rp-footer-grid { grid-template-columns: 1fr 1fr !important; }
@@ -617,8 +635,7 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
                 <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Pseudo</label>
                 <input value={pseudo} onChange={(e) => setPseudo(e.target.value)} maxLength={30} placeholder="Ton pseudo" style={{ ...inputStyle, marginBottom: 14 }} />
 
-                <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 4 }}>Photo de profil (lien URL)</label>
-                <input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…" style={{ ...inputStyle, marginBottom: 14 }} />
+                <AvatarPicker value={avatarUrl} onChange={setAvatarUrl} email={user.email} pseudo={pseudo} />
 
                 {profileMsg && <p style={{ fontSize: 12, color: profileMsg.startsWith("Erreur") ? T.red : T.green, marginBottom: 10 }}>{profileMsg}</p>}
                 <button onClick={saveProfile} disabled={savingProfile} style={btnStyle(savingProfile)}>
@@ -676,21 +693,68 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
   );
 }
 
-/* ── Section "Pépites du moment" de la homepage, alimentée par /api/deals ── */
-function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
-  const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
-  const pageSize = 4;
+/**
+ * Charge une seule fois le flux de deals de la page d'accueil.
+ * Les trois sections (chiffres clés, erreurs, pépites) partageaient la même
+ * requête /api/deals mais la lançaient chacune de leur côté : trois appels
+ * réseau identiques à chaque chargement. Elles lisent maintenant ce hook.
+ * @returns {{items: Array|null|undefined, total: number}} items undefined =
+ *   chargement en cours, null = backend injoignable.
+ */
+function useHomeFeed() {
+  const [feed, setFeed] = useState({ items: undefined, total: 0 });
 
   useEffect(() => {
     let cancelled = false;
-    // On sur-échantillonne (15) puis on filtre les erreurs de prix côté client : la
-    // section "Pépites du moment" ne doit montrer que des deals normaux — les erreurs
-    // ont leur propre section juste en dessous, comme dans la maquette (pas de doublon).
-    fetchDeals("tout", 1, 15)
-      .then((data) => { if (!cancelled) setItems((data.items || []).filter((it) => it.verdict !== "erreur").slice(0, pageSize)); })
-      .catch(() => { if (!cancelled) setItems(null); });
+    fetchDeals("tout", 1, 50)
+      .then((data) => { if (!cancelled) setFeed({ items: data.items || [], total: data.total || 0 }); })
+      .catch(() => { if (!cancelled) setFeed({ items: null, total: 0 }); });
     return () => { cancelled = true; };
   }, []);
+
+  return feed;
+}
+
+/**
+ * Écran vide travaillé : le catalogue peut rester vide un moment (scan
+ * planifié, quota de l'API de prix épuisé…). Une simple ligne de texte
+ * perdue au milieu du vide donnait l'impression d'un site cassé, juste
+ * sous un titre qui promet une "détection active en continu".
+ */
+function EmptyFeed({ tone = "deal", title, text, action }) {
+  const accent = tone === "erreur" ? T.red : T.emberSolid;
+  return (
+    <div
+      style={{
+        display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+        gap: 12, padding: "44px 24px",
+        background: T.gradSurface, border: `1px dashed ${T.line}`, borderRadius: T.radiusLg,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 56, height: 56, borderRadius: "50%",
+          background: `${accent}14`, border: `1px solid ${accent}3a`,
+        }}
+      >
+        <Icon name="radar" size={26} color={accent} />
+      </span>
+      <h3 className="rp-display" style={{ fontSize: 16, fontWeight: 900, color: T.ink }}>{title}</h3>
+      <p style={{ fontSize: 13, color: T.sub, lineHeight: 1.6, maxWidth: 420 }}>{text}</p>
+      {action}
+    </div>
+  );
+}
+
+/* ── Section "Pépites du moment" de la homepage ── */
+function HomeDealsSection({ feed, authToken, onNeedAuth, onSeeAll, onOpenDetail, onSearch }) {
+  // Les erreurs de prix ont leur propre section : on ne garde ici que les
+  // deals normaux, pour ne pas les afficher deux fois.
+  const items = feed.items === undefined ? undefined
+    : feed.items === null ? null
+    : feed.items.filter((it) => it.verdict !== "erreur").slice(0, 4);
 
   if (items === null) return null;
 
@@ -713,9 +777,19 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         </div>
       )}
       {items && items.length === 0 && (
-        <div style={{ textAlign: "center", color: T.sub, fontSize: 13, padding: 20 }}>
-          Aucune pépite détectée à l'instant — le scan tourne en tâche de fond, revenez bientôt.
-        </div>
+        <EmptyFeed
+          title="Aucune pépite pour le moment"
+          text="Le scan compare les prix par lots, à intervalle régulier. Les bons plans apparaîtront ici dès qu'un écart significatif sera détecté — en attendant, tu peux lancer une recherche sur un produit précis."
+          action={
+            <button
+              onClick={() => onSearch && onSearch()}
+              className="rp-cta"
+              style={{ marginTop: 4, background: T.ember, border: "none", borderRadius: 10, padding: "11px 20px", color: "#0C0E14", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+            >
+              Chercher un produit
+            </button>
+          }
+        />
       )}
       {items && items.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
@@ -728,26 +802,20 @@ function HomeDealsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
   );
 }
 
-/* ── Section "Erreurs de prix détectées" de la homepage — même source que
-   HomeDealsSection (/api/deals), filtrée côté client sur verdict "erreur". ── */
-function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
-  const [items, setItems] = useState(undefined); // undefined = chargement, null = erreur
+/* ── Section "Erreurs de prix détectées" — le cœur du produit, donc placée
+   AVANT les pépites sur la page d'accueil. Même source que HomeDealsSection
+   (useHomeFeed), filtrée sur verdict "erreur". ── */
+function HomeErrorsSection({ feed, authToken, onNeedAuth, onSeeAll, onOpenDetail, onNeedAlert }) {
+  const items = feed.items === undefined ? undefined
+    : feed.items === null ? null
+    : feed.items.filter((it) => it.verdict === "erreur").slice(0, 3);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchDeals("tout", 1, 15)
-      .then((data) => {
-        if (cancelled) return;
-        setItems((data.items || []).filter((it) => it.verdict === "erreur").slice(0, 3));
-      })
-      .catch(() => { if (!cancelled) setItems(null); });
-    return () => { cancelled = true; };
-  }, []);
-
-  if (items === null || items?.length === 0) return null;
+  // Ne disparaît plus quand la liste est vide : c'est la promesse principale
+  // du site, la masquer donnait l'impression que la fonctionnalité n'existe pas.
+  if (items === null) return null;
 
   return (
-    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 18px 10px" }}>
+    <section style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 18px 10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <h2 className="rp-display" style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 22, fontWeight: 900 }}><Icon name="alertCircle" size={22} color={T.red} /> Erreurs de prix détectées</h2>
         {items && items.length > 0 && (
@@ -763,6 +831,22 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
           {[0, 1].map((i) => <SkeletonCard key={`err-skel-${i}`} />)}
         </div>
+      )}
+      {items && items.length === 0 && (
+        <EmptyFeed
+          tone="erreur"
+          title="Aucune erreur de prix en ce moment"
+          text="C'est normal : une vraie erreur de prix est rare et ne dure souvent que quelques heures. Crée une alerte pour être prévenu par email dès qu'on en repère une, au lieu de rafraîchir la page."
+          action={
+            <button
+              onClick={() => onNeedAlert && onNeedAlert()}
+              className="rp-cta"
+              style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, background: T.gradDanger, border: "none", borderRadius: 10, padding: "11px 20px", color: "#fff", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+            >
+              <Icon name="bell" size={15} /> Me prévenir par email
+            </button>
+          }
+        />
       )}
       {items && items.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 14 }}>
@@ -780,24 +864,40 @@ function HomeErrorsSection({ authToken, onNeedAuth, onSeeAll, onOpenDetail }) {
    n'existe pas encore. Pas de framing "aujourd'hui" : on ne connaît pas
    la date de détection ligne à ligne, donc on affiche des totaux vrais
    plutôt que des chiffres quotidiens inventés. ── */
-function HomeStatsBar() {
-  const [stats, setStats] = useState(undefined); // undefined = chargement, null = indisponible
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchDeals("tout", 1, 50)
-      .then((data) => {
-        if (cancelled) return;
-        const items = data.items || [];
-        const sellers = new Set(items.map((it) => it.seller).filter(Boolean));
-        const errors = items.filter((it) => it.verdict === "erreur").length;
-        setStats({ total: data.total, sellers: sellers.size, errors });
-      })
-      .catch(() => { if (!cancelled) setStats(null); });
-    return () => { cancelled = true; };
-  }, []);
+function HomeStatsBar({ feed }) {
+  // undefined = chargement, null = backend injoignable
+  const stats = feed.items === undefined ? undefined
+    : feed.items === null ? null
+    : {
+        total: feed.total,
+        sellers: new Set(feed.items.map((it) => it.seller).filter(Boolean)).size,
+        errors: feed.items.filter((it) => it.verdict === "erreur").length,
+      };
 
   if (stats === null) return null;
+
+  // Catalogue vide : trois gros "0" mis en avant juste sous un titre qui
+  // promet une détection continue, c'est une contradiction frontale. On
+  // affiche à la place ce que le site fait réellement en attendant.
+  if (stats && stats.total === 0) {
+    return (
+      <section style={{ maxWidth: 1200, margin: "-34px auto 0", padding: "0 18px", position: "relative", zIndex: 2 }}>
+        <div
+          className="fade-up rp-gradient-border"
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 12, flexWrap: "wrap",
+            background: T.gradSurface, border: `1px solid ${T.line}`, borderRadius: T.radiusLg,
+            padding: "16px 22px", boxShadow: T.shadowCard, textAlign: "center",
+          }}
+        >
+          <span className="rp-fresh-dot" aria-hidden="true" />
+          <span style={{ fontSize: 13.5, color: T.sub, lineHeight: 1.5 }}>
+            Le prochain lot de produits est en cours d'analyse — les premiers résultats s'afficheront ici.
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   const tiles = [
     { icon: "radar", label: "Deals actifs détectés", value: stats?.total, iconBg: "#1A1330", iconColor: T.purple },
@@ -2038,8 +2138,13 @@ export default function RadarPrixSite() {
     window.history.replaceState(null, "", window.location.pathname);
   };
 
+  // Flux de deals de la page d'accueil, chargé une seule fois et partagé par
+  // les trois sections qui l'utilisent (chiffres clés, erreurs, pépites).
+  const homeFeed = useHomeFeed();
+
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
   const mobileNavActive =
+    COMMUNITY_VIEWS.includes(view) ? "communaute" :
     view === "favoris" ? "favoris" :
     view === "results" && tab === "erreurs" ? "erreurs" :
     view === "results" ? "deals" :
@@ -2056,7 +2161,10 @@ export default function RadarPrixSite() {
       window.scrollTo(0, 0);
       return;
     }
-    if (key === "profil") return authToken ? setProfileMenuOpen(true) : setAuthOpen(true);
+    // La communauté remplace l'ancien onglet "Profil" : le profil est déjà
+    // accessible via l'avatar en haut à droite, et son menu s'ouvrait là-haut
+    // alors qu'on venait d'appuyer en bas de l'écran — geste déroutant.
+    if (key === "communaute") return goToCommunity("communaute-picks");
   };
 
   return (
@@ -2077,8 +2185,11 @@ export default function RadarPrixSite() {
               <img src="/design-system/01_LOGOS/logo_icon_radar.svg" alt="" aria-hidden="true" width={26} height={26} style={{ flexShrink: 0 }} />
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
             </button>
+            {/* Sur mobile cette barre s'écrasait à quelques pixels de large (boîte
+                vide inutilisable) : la recherche y est masquée et reste accessible
+                via le champ pleine largeur affiché sous le titre de la page. */}
             {view === "results" && (
-              <div style={{ flex: "1 1 100px", minWidth: 0, maxWidth: 340, marginLeft: 14 }}>
+              <div className="rp-nav-search" style={{ flex: "1 1 140px", minWidth: 0, maxWidth: 340, marginLeft: 14 }}>
                 <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
             )}
@@ -2115,7 +2226,7 @@ export default function RadarPrixSite() {
           </div>
           {/* overflowX: "visible" (pas "auto") : un axe non-"visible" forcerait l'autre à "auto" en CSS,
               ce qui découperait le menu déroulant "Communauté" qui dépasse verticalement sous la barre. */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
+          <div className="rp-nav-tabs" style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
               <Icon name="flame" size={15} /> Gros deals
             </button>
@@ -2183,7 +2294,7 @@ export default function RadarPrixSite() {
 
               <Hero3D />
 
-              <div style={{ position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto", padding: "86px 18px 74px", textAlign: "center" }}>
+              <div className="rp-hero-inner" style={{ position: "relative", zIndex: 1, maxWidth: 960, margin: "0 auto", padding: "86px 18px 74px", textAlign: "center" }}>
                 <span
                   className="fade-up"
                   style={{
@@ -2246,20 +2357,27 @@ export default function RadarPrixSite() {
               </div>
             </header>
 
-            <HomeStatsBar />
+            <HomeStatsBar feed={homeFeed} />
 
-            <HomeDealsSection
-              authToken={authToken}
-              onNeedAuth={() => setAuthOpen(true)}
-              onSeeAll={() => openTab("deals")}
-              onOpenDetail={openDealDetail}
-            />
-
+            {/* Les erreurs de prix passent AVANT les pépites : c'est la
+                promesse principale du site (et son nom), elle ne peut pas
+                être reléguée sous les deals classiques. */}
             <HomeErrorsSection
+              feed={homeFeed}
               authToken={authToken}
               onNeedAuth={() => setAuthOpen(true)}
               onSeeAll={() => openTab("erreurs")}
               onOpenDetail={openDealDetail}
+              onNeedAlert={() => (authToken ? setView("favoris") : setAuthOpen(true))}
+            />
+
+            <HomeDealsSection
+              feed={homeFeed}
+              authToken={authToken}
+              onNeedAuth={() => setAuthOpen(true)}
+              onSeeAll={() => openTab("deals")}
+              onOpenDetail={openDealDetail}
+              onSearch={() => document.querySelector("header input")?.focus()}
             />
 
             <section style={{ position: "relative", overflow: "hidden", background: T.surface, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}`, marginTop: 56 }}>
@@ -2360,6 +2478,47 @@ export default function RadarPrixSite() {
                 <Icon name="alertTriangle" size={15} color={T.yellow} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6 }} /><strong>Transparence :</strong> RadarPrix est un outil d'information. Les offres sont détectées automatiquement et peuvent être inexactes, expirées ou annulées par le vendeur. Vérifiez toujours l'offre et le vendeur avant d'acheter.
               </div>
             </section>
+
+            {/* Appel à l'action final : la page se terminait sur un avertissement
+                légal puis le pied de page, sans rien proposer au visiteur qui
+                avait tout lu. */}
+            <section style={{ position: "relative", overflow: "hidden", marginTop: 56 }}>
+              <div className="rp-aurora" aria-hidden="true" style={{ opacity: 0.55 }}>
+                <span style={{ top: "-50%", left: "26%", width: 520, height: 420, background: "rgba(255,106,26,.22)" }} />
+                <span style={{ bottom: "-54%", right: "20%", width: 440, height: 380, background: "rgba(139,92,246,.18)", animationDelay: "-8s" }} />
+              </div>
+              <div style={{ position: "relative", zIndex: 1, maxWidth: 720, margin: "0 auto", padding: "62px 18px 68px", textAlign: "center" }}>
+                <Reveal depth>
+                  <h2 className="rp-display" style={{ fontSize: "clamp(21px, 3.4vw, 31px)", fontWeight: 900, letterSpacing: "-0.01em", lineHeight: 1.15 }}>
+                    Une erreur de prix dure<br />
+                    <span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>quelques heures.</span>
+                  </h2>
+                  <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.65, maxWidth: 460, margin: "16px auto 28px" }}>
+                    Le temps de rafraîchir la page, c'est déjà corrigé. Crée un compte et reçois un email dès qu'une anomalie est repérée sur un produit que tu suis.
+                  </p>
+                  <div style={{ display: "flex", gap: 11, justifyContent: "center", flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}
+                      className="rp-cta"
+                      style={{ display: "flex", alignItems: "center", gap: 9, background: T.ember, border: "none", borderRadius: 11, padding: "14px 26px", color: "#0C0E14", fontSize: 14.5, fontWeight: 900, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+                    >
+                      <Icon name="bell" size={17} />
+                      {authToken ? "Gérer mes alertes" : "Créer mon compte gratuit"}
+                    </button>
+                    <button
+                      onClick={() => openTab("erreurs")}
+                      className="rp-cta"
+                      style={{ background: "none", border: `1.5px solid ${T.line}`, borderRadius: 11, padding: "14px 24px", color: T.ink, fontSize: 14.5, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+                    >
+                      Voir les erreurs en cours
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11.5, color: T.muted, marginTop: 18 }}>
+                    Gratuit, sans carte bancaire. Ton email ne sert qu'aux alertes.
+                  </p>
+                </Reveal>
+              </div>
+            </section>
           </>
         )}
 
@@ -2387,10 +2546,16 @@ export default function RadarPrixSite() {
               <button
                 onClick={followCurrentSearch}
                 className="rp-pressable rp-cta"
-                style={{ flexShrink: 0, background: "none", border: `1.5px solid ${T.emberSolid}`, borderRadius: 8, padding: "7px 12px", color: T.ink, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+                style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, background: "none", border: `1.5px solid ${T.emberSolid}`, borderRadius: 8, padding: "7px 12px", color: T.ink, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
               >
-                ★ Suivre
+                <Icon name="star" size={13} /> Suivre
               </button>
+            </div>
+
+            {/* Recherche pleine largeur, mobile uniquement : remplace le champ
+                de la barre du haut, masqué sous 640px (il s'y écrasait). */}
+            <div className="rp-mobile-search" style={{ display: "none", marginBottom: 14 }}>
+              <SearchBar onSearch={(t) => searchProduct(t)} placeholder="Rechercher un produit…" />
             </div>
             {followMsg && <p className="toast-in" style={{ fontSize: 12, color: T.green, marginBottom: 6 }}>{followMsg}</p>}
             {lastScan && !loading && (

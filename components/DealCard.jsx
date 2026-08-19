@@ -81,7 +81,20 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
       <div style={{ display: "flex", flex: 1, minWidth: 0 }}>
         <div style={{ flex: 1, minWidth: 0, padding: "16px 16px 13px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-            <div style={{ position: "relative", width: "34%", minWidth: 64, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 74 }}>
+            {/* Sans image, cette colonne réservait 34% de la carte pour une
+                simple icône : on la réduit et on rend la place au titre et
+                au prix, qui sont l'information utile. */}
+            <div
+              style={{
+                position: "relative",
+                width: item.img ? "34%" : 46,
+                minWidth: item.img ? 64 : 46,
+                flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                minHeight: item.img ? 74 : 46,
+                ...(item.img ? {} : { background: T.surface2, borderRadius: 10, alignSelf: "flex-start" }),
+              }}
+            >
               {!isErr && item.pct > 0 && (
                 <span style={{ position: "absolute", top: -6, left: -6, background: T.purple, color: "#fff", fontSize: 11, fontWeight: 800, padding: "5px 9px", borderRadius: 7, zIndex: 1 }}>
                   −{item.pct}%
@@ -96,7 +109,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   style={{ maxWidth: "100%", maxHeight: 78, objectFit: "contain" }}
                 />
               ) : (
-                <Icon name="package" size={30} color={T.muted} style={{ opacity: 0.55 }} />
+                <Icon name="package" size={22} color={T.muted} style={{ opacity: 0.6 }} />
               )}
             </div>
 
