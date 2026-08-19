@@ -1105,7 +1105,6 @@ function FooterLink({ children, onClick }) {
 }
 
 function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNeedAuth, onOpenFavoris }) {
-  const [newsletterNote, setNewsletterNote] = useState(false);
   return (
     <footer style={{ background: "#080A0F", borderTop: `1px solid ${T.line}`, marginTop: 40 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 18px 24px" }}>
@@ -1147,25 +1146,27 @@ function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNee
           </div>
 
           <div>
+            {/* Ce bloc hébergeait un formulaire d'inscription qui n'envoyait
+                rien et affichait "pas encore branchée" au clic. Les alertes
+                email existent désormais pour de vrai (favoris + prix cible) :
+                on renvoie dessus plutôt que de garder un formulaire mort. */}
             <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Restez dans le radar</h4>
-            <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.6, marginBottom: 10 }}>
-              Recevez les meilleurs deals et erreurs de prix directement par email.
+            <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.6, marginBottom: 12 }}>
+              Suis un produit et reçois un email dès qu'une erreur de prix est repérée, ou dès qu'il passe sous le prix que tu as fixé.
             </p>
-            <form
-              onSubmit={(e) => { e.preventDefault(); setNewsletterNote(true); }}
-              style={{ display: "flex", gap: 6 }}
+            <button
+              onClick={() => (authToken ? onOpenFavoris() : onNeedAuth())}
+              className="rp-cta"
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: T.ember, border: "none", borderRadius: 9,
+                padding: "10px 16px", color: "#0C0E14", fontSize: 12.5, fontWeight: 900,
+                cursor: "pointer", fontFamily: "'Inter', sans-serif",
+              }}
             >
-              <input
-                type="email"
-                required
-                placeholder="Votre email"
-                style={{ flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 12.5, fontFamily: "'Inter', sans-serif" }}
-              />
-              <button type="submit" aria-label="S'inscrire" style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 900, fontSize: 14, cursor: "pointer" }}>
-                ➤
-              </button>
-            </form>
-            {newsletterNote && <p style={{ fontSize: 11, color: T.sub, marginTop: 8 }}>Bientôt disponible — cette fonctionnalité n'est pas encore branchée.</p>}
+              <Icon name="bell" size={14} />
+              {authToken ? "Gérer mes alertes" : "Créer mes alertes"}
+            </button>
           </div>
         </div>
 
@@ -1594,18 +1595,22 @@ const inputStyle = { padding: "10px 12px", borderRadius: 8, border: `1.5px solid
 function pillTabStyle(active) {
   return { flex: 1, padding: "9px 14px", borderRadius: 7, border: "none", background: active ? T.ember : "transparent", color: active ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
 }
+// Boutons de vote : agrandis à 34px de large et 28 de haut. À leur taille
+// d'origine (28x24 pour une flèche en caractère) ils passaient inaperçus
+// alors que voter est l'action principale de la page communauté.
 function voteBtnStyle(active, isDown) {
   return {
-    width: 28,
-    height: 24,
-    borderRadius: 6,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 34,
+    height: 28,
+    borderRadius: 7,
     border: "none",
     cursor: "pointer",
     background: active ? (isDown ? "rgba(255,59,48,0.18)" : "rgba(47,217,139,0.18)") : "transparent",
     color: active ? (isDown ? T.red : T.green) : T.sub,
-    fontWeight: 900,
-    fontSize: 13,
-    fontFamily: "'Inter', sans-serif",
+    transition: "background .15s ease, color .15s ease",
   };
 }
 
@@ -1615,7 +1620,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("hot");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout", seller: "" });
+  const [form, setForm] = useState({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "" });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -1667,8 +1672,9 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
         price: form.price ? Number(form.price) : undefined,
         category: form.category,
         seller: form.seller.trim() || undefined,
+        imageUrl: form.imageUrl.trim() || undefined,
       });
-      setForm({ title: "", description: "", url: "", price: "", category: "tout", seller: "" });
+      setForm({ title: "", description: "", url: "", price: "", category: "tout", seller: "", imageUrl: "" });
       setShowForm(false);
       load(sort);
     } catch (e) {
@@ -1679,19 +1685,19 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
   };
 
   return (
-    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={onBack} style={backButtonStyle}>
-        ← Accueil
-      </button>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
-        <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, display: "flex", alignItems: "center", gap: 9 }}><Icon name="trophy" size={20} color={T.yellow} /> Choix de la communauté</h2>
+    <PageShell
+      icon="trophy"
+      iconColor={T.yellow}
+      title="Choix de la communauté"
+      subtitle="Des deals trouvés et postés par les membres eux-mêmes. Votez pour les plus pertinents : plus un deal reçoit de votes, mieux il est classé."
+      onBack={onBack}
+      width={860}
+      action={
         <button onClick={() => (token ? setShowForm((v) => !v) : onNeedAuth())} style={emberButtonStyle}>
           {showForm ? "Annuler" : "+ Proposer un deal"}
         </button>
-      </div>
-      <p style={{ color: T.sub, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
-        Des deals trouvés et postés par les membres eux-mêmes. Votez pour les plus pertinents : plus un deal reçoit de votes, mieux il est classé.
-      </p>
+      }
+    >
 
       {showForm && (
         <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 20, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1707,6 +1713,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
           />
           <input placeholder="Lien vers le deal (optionnel)" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} style={inputStyle} />
           <input placeholder="Marchand (optionnel — ex: Amazon)" value={form.seller} onChange={(e) => setForm({ ...form, seller: e.target.value })} style={inputStyle} />
+          <input placeholder="Lien de l'image du produit (optionnel)" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} style={inputStyle} />
           <div style={{ display: "flex", gap: 10 }}>
             <input placeholder="Prix € (optionnel)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
@@ -1733,21 +1740,63 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
       </div>
 
       {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
-      {items === null && !error && <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
-      {items?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun deal communautaire pour l'instant — soyez le premier à en proposer un !</p>}
+      {items === null && !error && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {[0, 1, 2].map((i) => <div key={i} className="rp-shimmer" style={{ height: 118, borderRadius: 14 }} />)}
+        </div>
+      )}
+      {items?.length === 0 && (
+        <EmptyState
+          icon="trophy"
+          tone={T.yellow}
+          title="Aucun deal proposé pour l'instant"
+          text="Cette page vit des trouvailles des membres. Tu as repéré une bonne affaire quelque part ? Poste-la, les autres voteront pour la faire remonter."
+          action={
+            !showForm && (
+              <button onClick={() => (token ? setShowForm(true) : onNeedAuth())} style={{ ...emberButtonStyle, marginTop: 4 }}>
+                Proposer le premier deal
+              </button>
+            )
+          }
+        />
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {items?.map((d) => (
-          <div key={d.id} style={{ display: "flex", gap: 12, background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+        {items?.map((d, i) => {
+          const score = (d.upvotes || 0) - (d.downvotes || 0);
+          return (
+          <div key={d.id} className="fade-up" style={{ display: "flex", gap: 14, background: T.gradSurface, border: `1px solid ${T.line}`, borderRadius: T.radiusLg, padding: 16, boxShadow: T.shadowCard, animationDelay: `${i * 60}ms` }}>
+            {/* Colonne de vote : c'est l'interaction principale de cette page,
+                elle faisait quelques pixels de haut et passait inaperçue. */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0, background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: "8px 6px", alignSelf: "flex-start" }}>
               <button onClick={() => vote(d, 1)} aria-label="Voter pertinent" style={voteBtnStyle(d.myVote === 1)}>
-                ▲
+                <Icon name="chevronUp" size={18} />
               </button>
-              <span style={{ fontWeight: 900, fontSize: 13, color: T.ink }}>{(d.upvotes || 0) - (d.downvotes || 0)}</span>
+              <span
+                className="rp-display"
+                style={{ fontWeight: 900, fontSize: 15, color: score > 0 ? T.green : score < 0 ? T.red : T.ink, lineHeight: 1 }}
+              >
+                {score > 0 ? `+${score}` : score}
+              </span>
               <button onClick={() => vote(d, -1)} aria-label="Voter pas pertinent" style={voteBtnStyle(d.myVote === -1, true)}>
-                ▼
+                <Icon name="chevronDown" size={18} />
               </button>
             </div>
+
+            {/* Visuel du produit : le champ existait déjà en base mais
+                n'était jamais affiché, ce qui rendait la liste très terne. */}
+            {d.image_url && (
+              <div style={{ width: 78, height: 78, flexShrink: 0, borderRadius: 11, background: T.surface2, border: `1px solid ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", alignSelf: "flex-start" }}>
+                <img
+                  src={d.image_url}
+                  alt=""
+                  loading="lazy"
+                  onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }}
+                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+                />
+              </div>
+            )}
+
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <div style={{ minWidth: 0 }}>
@@ -1772,9 +1821,10 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
-    </main>
+    </PageShell>
   );
 }
 
@@ -2236,11 +2286,36 @@ export default function RadarPrixSite() {
   const [verdictFilter, setVerdictFilter] = useState("all");
   const [sortBy, setSortBy] = useState("score");
   const [maxPrice, setMaxPrice] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [sellerFilter, setSellerFilter] = useState("tous");
   const [scannedQuery, setScannedQuery] = useState(null);
   const [totalDeals, setTotalDeals] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
+
+  // Arriver sur /deals ou /erreurs par l'URL (lien direct, favori, bouton
+  // retour) ne passe pas par openTab(), qui est ce qui déclenche la requête :
+  // sans cet effet, la liste restait vide.
+  useEffect(() => {
+    if (view !== "results" || searchTerm || items !== null || loading) return;
+    let annule = false;
+    setLoading(true);
+    setError(null);
+    fetchDeals(category, 1, PAGE_SIZE)
+      .then((data) => {
+        if (annule) return;
+        setItems(data.items);
+        setTotalDeals(data.total);
+        setHasMore(data.hasMore);
+        setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+      })
+      .catch((e) => !annule && setError("Impossible de charger les deals : " + e.message))
+      .finally(() => !annule && setLoading(false));
+    return () => { annule = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, searchTerm, items]);
+
 
   useEffect(() => {
     document.title = "RadarPrix — Le détecteur d'erreurs de prix";
@@ -2330,13 +2405,28 @@ export default function RadarPrixSite() {
     }
   };
 
+  // Marchands réellement présents dans les résultats courants : la liste
+  // est construite à partir des données, jamais d'une liste figée qui
+  // proposerait des vendeurs sans aucune offre.
+  const sellersDisponibles = [...new Set((items || []).map((it) => it.seller).filter(Boolean))].sort();
+
   const visible = (items || [])
     .filter((it) => {
       if (verdictFilter !== "all" && it.verdict !== verdictFilter) return false;
+      if (minPrice && Number(it.price) < Number(minPrice)) return false;
       if (maxPrice && Number(it.price) > Number(maxPrice)) return false;
+      if (sellerFilter !== "tous" && it.seller !== sellerFilter) return false;
       return true;
     })
     .sort((a, b) => (sortBy === "prix" ? Number(a.price) - Number(b.price) : b.score - a.score));
+
+  const filtresActifs = (verdictFilter !== "all") + Boolean(minPrice) + Boolean(maxPrice) + (sellerFilter !== "tous");
+  const reinitialiserFiltres = () => {
+    setVerdictFilter("all");
+    setMinPrice("");
+    setMaxPrice("");
+    setSellerFilter("tous");
+  };
 
   const goHome = () => {
     setView("home");
@@ -2837,14 +2927,53 @@ export default function RadarPrixSite() {
                 <span style={{ fontSize: 12, color: T.sub, fontWeight: 700 }}>Trier :</span>
                 <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}><Icon name="gem" size={13} /> Meilleur score</FilterChip>
                 <FilterChip active={sortBy === "prix"} onClick={() => setSortBy("prix")}>Prix croissant</FilterChip>
+              </div>
+
+              {/* Tranche de prix et marchand : les deux premiers réflexes de
+                  quelqu'un qui cherche une affaire. Seul le prix maximum
+                  existait jusqu'ici. */}
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: T.sub, fontWeight: 700 }}>Prix :</span>
+                <input
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="min €"
+                  inputMode="numeric"
+                  aria-label="Prix minimum en euros"
+                  style={{ width: 78, padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif" }}
+                />
+                <span style={{ color: T.muted, fontSize: 12 }}>–</span>
                 <input
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="Prix max €"
+                  placeholder="max €"
                   inputMode="numeric"
                   aria-label="Prix maximum en euros"
-                  style={{ width: 90, padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif" }}
+                  style={{ width: 78, padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif" }}
                 />
+
+                {sellersDisponibles.length > 1 && (
+                  <select
+                    value={sellerFilter}
+                    onChange={(e) => setSellerFilter(e.target.value)}
+                    aria-label="Filtrer par marchand"
+                    style={{ padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif", fontWeight: 700, maxWidth: 160 }}
+                  >
+                    <option value="tous">Tous les marchands</option>
+                    {sellersDisponibles.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                )}
+
+                {filtresActifs > 0 && (
+                  <button
+                    onClick={reinitialiserFiltres}
+                    style={{ background: "none", border: "none", color: T.emberSolid, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: "8px 4px" }}
+                  >
+                    Réinitialiser ({filtresActifs})
+                  </button>
+                )}
               </div>
             </div>
 

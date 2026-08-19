@@ -144,6 +144,8 @@ const P = {
   ),
   sparkle: <path d="M12 3.5 13.7 9l5.5 1.7-5.5 1.7L12 18l-1.7-5.6-5.5-1.7L10.3 9ZM18.8 3.4l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7Z" />,
   check: <path d="m5 12.6 4.6 4.6L19 6.8" />,
+  chevronUp: <path d="m6 14.5 6-6 6 6" />,
+  chevronDown: <path d="m6 9.5 6 6 6-6" />,
 };
 
 export default function Icon({ name, size = 18, color, strokeWidth = 1.75, style, className, ...rest }) {
