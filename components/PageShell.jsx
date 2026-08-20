@@ -18,6 +18,7 @@ export default function PageShell({
   onBack,
   backLabel = "Accueil",
   width = 900,
+  subnav,
   children,
 }) {
   return (
@@ -85,6 +86,10 @@ export default function PageShell({
             {subtitle}
           </p>
         )}
+
+        {/* Sous-navigation éventuelle (espace communauté) : placée sous le
+            titre, elle reste visible quelle que soit la sous-page ouverte. */}
+        {subnav}
 
         {children}
       </main>

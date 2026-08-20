@@ -14,6 +14,8 @@ import Hero3D from "./components/Hero3D.jsx";
 import Tilt3D from "./components/Tilt3D.jsx";
 import Icon from "./components/Icon.jsx";
 import PageShell, { EmptyState } from "./components/PageShell.jsx";
+import CommunityTabs from "./components/CommunityTabs.jsx";
+import CommunityDealCard from "./components/CommunityDealCard.jsx";
 const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 import { relativeTime } from "./utils.js";
@@ -340,6 +342,15 @@ const GlobalStyles = () => (
          sans barre de défilement visible. — */
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
+
+    /* — Sous-navigation de la communauté : intitulés complets sur écran
+         large, abrégés sur téléphone pour que les trois onglets tiennent
+         sans défilement horizontal. — */
+    .rp-tab-short { display: none; }
+    @media (max-width: 560px) {
+      .rp-tab-long { display: none; }
+      .rp-tab-short { display: inline; }
+    }
 
     /* — Badges : relief, reflet balayant, apparition (voir BadgeHex.jsx) — */
 
@@ -1570,7 +1581,7 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
 }
 
 /* ── Communauté : salon général + messages privés ──────────────── */
-function CommunityView({ token, currentUserId, onBack, correspondant }) {
+function CommunityView({ token, currentUserId, onBack, correspondant, onGoTo }) {
   const [tab, setTab] = useState(correspondant ? "dm" : "public"); // public | dm
   const [publicMsgs, setPublicMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -1649,17 +1660,21 @@ function CommunityView({ token, currentUserId, onBack, correspondant }) {
   };
 
   return (
-    <main style={{ maxWidth: 620, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
-        ← Accueil
-      </button>
-      <h2 className="rp-display" style={{ fontSize: 20, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 9 }}><Icon name="message" size={20} color={T.cyan} /> Chat de la communauté</h2>
+    <PageShell
+      icon="message"
+      iconColor={T.cyan}
+      title="Salon & messages"
+      subtitle="Le salon général est ouvert à tous les membres. Les messages privés ne sont lus que par la personne à qui tu écris."
+      onBack={onBack}
+      width={720}
+      subnav={<CommunityTabs courante="communaute-chat" onNavigate={onGoTo} />}
+    >
 
       <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16 }}>
-        <button onClick={() => setTab("public")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+        <button onClick={() => setTab("public")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
           <Icon name="message" size={14} /> Salon général
         </button>
-        <button onClick={() => setTab("dm")} style={{ flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "dm" ? T.ember : "transparent", color: tab === "dm" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+        <button onClick={() => setTab("dm")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "dm" ? T.ember : "transparent", color: tab === "dm" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
           <Icon name="mail" size={14} /> Messages privés
         </button>
       </div>
@@ -1765,7 +1780,7 @@ function CommunityView({ token, currentUserId, onBack, correspondant }) {
           </div>
         </div>
       )}
-    </main>
+    </PageShell>
   );
 }
 
@@ -1778,7 +1793,7 @@ function pillTabStyle(active) {
   return { flex: 1, padding: "9px 14px", borderRadius: 7, border: "none", background: active ? T.ember : "transparent", color: active ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
 }
 /* ── Communauté : "Choix de la communauté" — deals soumis + votés par les membres ── */
-function CommunityPicksView({ token, onBack, onNeedAuth }) {
+function CommunityPicksView({ token, onBack, onNeedAuth, onGoTo }) {
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
   const [sort, setSort] = useState("hot");
@@ -1856,6 +1871,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
       subtitle="Des deals trouvés et postés par les membres eux-mêmes. Votez pour les plus pertinents : plus un deal reçoit de votes, mieux il est classé."
       onBack={onBack}
       width={860}
+      subnav={<CommunityTabs courante="communaute-picks" onNavigate={onGoTo} />}
       action={
         <button onClick={() => (token ? setShowForm((v) => !v) : onNeedAuth())} style={emberButtonStyle}>
           {showForm ? "Annuler" : "+ Proposer un deal"}
@@ -1952,7 +1968,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth }) {
 }
 
 /* ── Communauté : Forum (catégories → sujets) ──────────────────── */
-function ForumView({ token, onBack, onOpenThread }) {
+function ForumView({ token, onBack, onOpenThread, onGoTo }) {
   const [categories, setCategories] = useState(null);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -2009,6 +2025,7 @@ function ForumView({ token, onBack, onOpenThread }) {
       onBack={activeCategory ? () => setActiveCategory(null) : onBack}
       backLabel={activeCategory ? "Catégories" : "Accueil"}
       width={820}
+      subnav={<CommunityTabs courante="communaute-forum" onNavigate={onGoTo} />}
       action={
         activeCategory && (
           <button onClick={() => setShowNewThread((v) => !v)} style={emberButtonStyle}>
@@ -3235,17 +3252,18 @@ export default function RadarPrixSite() {
         )}
 
         {view === "communaute-chat" && authToken && (
-          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} correspondant={chatCible} />
+          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} correspondant={chatCible} onGoTo={goToCommunity} />
         )}
 
         {view === "communaute-picks" && authToken && (
-          <CommunityPicksView token={authToken} onBack={goHome} onNeedAuth={() => setAuthOpen(true)} />
+          <CommunityPicksView token={authToken} onBack={goHome} onNeedAuth={() => setAuthOpen(true)} onGoTo={goToCommunity} />
         )}
 
         {view === "communaute-forum" && authToken && (
           <ForumView
             token={authToken}
             onBack={goHome}
+            onGoTo={goToCommunity}
             onOpenThread={(id) => {
               setActiveThreadId(id);
               setView("communaute-forum-thread");
