@@ -145,7 +145,7 @@ export default function SectionSurveillance({ token, estAdmin }) {
       )}
 
       {amorcage && (
-        <div style={{ ...carte, borderColor: `${T.green}44` }}>
+        <div style={{ ...carte, borderColor: amorcage.ajoutees > 0 ? `${T.green}44` : `${T.yellow}55` }}>
           <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, margin: 0 }}>
             <strong>{amorcage.ajoutees}</strong> fiche(s) mise(s) sous surveillance sur {amorcage.candidats} observée(s).{" "}
             {amorcage.ignorees > 0 && (
@@ -154,6 +154,24 @@ export default function SectionSurveillance({ token, estAdmin }) {
               </span>
             )}
           </p>
+          {/* Le cas « zéro » a besoin d'être expliqué, sinon le bouton donne
+              l'impression de ne rien faire. La cause est presque toujours la
+              même : les scans n'enregistrent que le lien de l'agrégateur, et
+              le vrai lien marchand ne s'obtient qu'en résolvant une offre. */}
+          {amorcage.ajoutees === 0 && (
+            <p style={{ fontSize: 12.5, color: T.sub, lineHeight: 1.65, marginTop: 10, marginBottom: 0 }}>
+              Rien à promouvoir pour l'instant : les scans passés n'ont enregistré que des liens
+              d'agrégateur, qui ne permettent pas de relire le prix chez le marchand. Deux façons
+              d'amorcer&nbsp;:
+              <br />
+              <strong style={{ color: T.ink }}>1.</strong> Lance une recherche sur le site — les liens
+              marchands résolus au passage sont désormais conservés et mis sous surveillance
+              automatiquement.
+              <br />
+              <strong style={{ color: T.ink }}>2.</strong> Colle directement quelques adresses de fiches
+              produits dans le formulaire ci-dessous. C'est immédiat.
+            </p>
+          )}
           {Object.keys(amorcage.parMarchand || {}).length > 0 && (
             <p style={{ fontSize: 12, color: T.sub, marginTop: 8, marginBottom: 0 }}>
               {Object.entries(amorcage.parMarchand)
