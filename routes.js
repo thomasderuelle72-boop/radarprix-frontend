@@ -24,6 +24,10 @@ export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand
       return marchand ? `/marchand/${encodeURIComponent(marchand)}` : "/";
     case "membre":
       return membre ? `/membre/${encodeURIComponent(membre)}` : "/";
+    case "flux":
+      return "/bons-plans";
+    case "occasion":
+      return "/occasion";
     case "favoris":
       return "/favoris";
     case "admin":
@@ -72,6 +76,10 @@ export function pathToState(pathname, search) {
       // Le segment est un pseudo, ou un identifiant numérique pour les
       // comptes qui n'en ont pas encore choisi.
       return deuxieme ? { view: "membre", membre: decodeURIComponent(deuxieme) } : { view: "home" };
+    case "bons-plans":
+      return { view: "flux" };
+    case "occasion":
+      return { view: "occasion" };
     case "favoris":
       return { view: "favoris" };
     case "admin":

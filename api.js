@@ -575,3 +575,86 @@ export async function apiAdminExport(token, quoi) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/* ── Flux unifié des bons plans ───────────────────────────────────
+   Le backend distingue désormais quatre détecteurs et cinq natures de bons
+   plans (erreur de prix, promotion, code promo, gratuit, offre de
+   remboursement). Trois d'entre elles ne laissent aucune trace dans le prix
+   affiché : elles étaient donc invisibles à un site bâti uniquement sur la
+   comparaison de prix.
+   ────────────────────────────────────────────────────────────────── */
+
+/** Flux principal, filtrable par nature et par catégorie. */
+export async function apiFeed({ type, category = "tout", page = 1, pageSize = 20 } = {}) {
+  const params = new URLSearchParams({ category, page, pageSize });
+  if (type && type !== "tout") params.set("type", type);
+  const res = await fetch(`${BACKEND_URL}/api/feed?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
+  return data;
+}
+
+/** Section occasion / reconditionné, volontairement séparée du flux principal. */
+export async function apiFeedOccasion({ etat = "reconditionne", category = "tout", page = 1, pageSize = 20 } = {}) {
+  const params = new URLSearchParams({ etat, category, page, pageSize });
+  const res = await fetch(`${BACKEND_URL}/api/feed/occasion?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Le serveur a répondu ${res.status}`);
+  return data;
+}
+
+/** Natures disponibles, lues côté serveur pour ne pas dupliquer la liste ici. */
+export async function apiFeedTypes() {
+  const res = await fetch(`${BACKEND_URL}/api/feed/types`);
+  if (!res.ok) throw new Error("Types indisponibles.");
+  return (await res.json()).types;
+}
+
+/* ── Administration du flux et de la mesure ───────────────────── */
+
+export const apiAdminIndicateurs = (token, jours = 30) =>
+  adminFetch(`/api/admin/indicateurs?jours=${jours}`, { headers: auth(token) }, "Indicateurs indisponibles.");
+
+export const apiAdminManquees = (token, limit = 50) =>
+  adminFetch(`/api/admin/manquees?limit=${limit}`, { headers: auth(token) }, "Liste indisponible.");
+
+export const apiAdminMarchands = (token, limit = 50) =>
+  adminFetch(`/api/admin/marchands?limit=${limit}`, { headers: auth(token) }, "Marchands indisponibles.");
+
+export const apiAdminFeedStats = (token) =>
+  adminFetch(`/api/admin/feed/stats`, { headers: auth(token) }, "Statistiques indisponibles.");
+
+/** Jugement d'un modérateur : c'est cette étiquette qui alimente la précision. */
+export const apiAdminJugerDeal = (token, id, verdict, motif) =>
+  adminFetch(
+    `/api/admin/feed/${id}/juger`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ verdict, motif }) },
+    "Jugement impossible."
+  );
+
+export const apiAdminCollecte = (token, detecteur) =>
+  adminFetch(
+    `/api/admin/collecte`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ detecteur }) },
+    "Collecte impossible."
+  );
+
+export const apiAdminWatchList = (token) =>
+  adminFetch(`/api/admin/watch`, { headers: auth(token) }, "Fiches surveillées indisponibles.");
+
+export const apiAdminWatchAdd = (token, fiche) =>
+  adminFetch(
+    `/api/admin/watch`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(fiche) },
+    "Ajout impossible."
+  );
+
+export const apiAdminWatchRemove = (token, id) =>
+  adminFetch(`/api/admin/watch/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
+
+export const apiAdminWatchRun = (token, taille) =>
+  adminFetch(
+    `/api/admin/watch/run`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ taille }) },
+    "Surveillance impossible."
+  );

@@ -4,9 +4,12 @@
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
 
+// Cinq entrées au maximum : au-delà, les libellés deviennent illisibles sur
+// un écran étroit. « Bons plans » remplace l'ancien onglet « Deals », qui ne
+// menait qu'aux anomalies de prix — soit une nature de bon plan sur cinq.
 const ITEMS = [
   { key: "home", icon: "home", label: "Accueil" },
-  { key: "deals", icon: "flame", label: "Deals" },
+  { key: "flux", icon: "flame", label: "Bons plans" },
   { key: "erreurs", icon: "alertCircle", label: "Alertes" },
   { key: "favoris", icon: "star", label: "Favoris" },
   // Communauté plutôt que Profil : le profil est déjà accessible par l'avatar

@@ -16,6 +16,7 @@ import Icon from "./components/Icon.jsx";
 import PageShell, { EmptyState } from "./components/PageShell.jsx";
 import CommunityTabs from "./components/CommunityTabs.jsx";
 import CommunityDealCard from "./components/CommunityDealCard.jsx";
+import FeedView from "./components/FeedView.jsx";
 const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 const ChatView = lazy(() => import("./components/ChatView.jsx"));
@@ -2331,13 +2332,21 @@ export default function RadarPrixSite() {
   const mobileNavActive =
     COMMUNITY_VIEWS.includes(view) ? "communaute" :
     view === "favoris" ? "favoris" :
+    view === "flux" || view === "occasion" ? "flux" :
     view === "results" && tab === "erreurs" ? "erreurs" :
     view === "results" ? "deals" :
     view === "home" ? "home" :
     null;
 
+  /** Ouvre le flux unifié ou sa section occasion. */
+  const goToFlux = (vue = "flux") => {
+    setView(vue);
+    window.scrollTo(0, 0);
+  };
+
   const handleMobileNav = (key) => {
     if (key === "home") return goHome();
+    if (key === "flux") return goToFlux();
     if (key === "deals") return openTab("deals");
     if (key === "erreurs") return openTab("erreurs");
     if (key === "favoris") {
@@ -2446,11 +2455,20 @@ export default function RadarPrixSite() {
           {/* overflowX: "visible" (pas "auto") : un axe non-"visible" forcerait l'autre à "auto" en CSS,
               ce qui découperait le menu déroulant "Communauté" qui dépasse verticalement sous la barre. */}
           <div className="rp-nav-tabs" style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
+            {/* Le flux unifié vient en tête : c'est désormais le contenu
+                principal du site. Les deux onglets suivants restent des
+                raccourcis vers les anomalies mesurées par l'algorithme. */}
+            <button className={`rp-tab ${view === "flux" ? "active" : ""}`} onClick={() => goToFlux("flux")}>
+              <Icon name="flame" size={15} /> Bons plans
+            </button>
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
-              <Icon name="flame" size={15} /> Gros deals
+              <Icon name="trendingDown" size={15} /> Gros deals
             </button>
             <button className={`rp-tab ${view === "results" && tab === "erreurs" ? "active" : ""}`} onClick={() => openTab("erreurs")}>
               <Icon name="alertCircle" size={15} /> Erreurs de prix
+            </button>
+            <button className={`rp-tab ${view === "occasion" ? "active" : ""}`} onClick={() => goToFlux("occasion")}>
+              <Icon name="refresh" size={15} /> Occasion
             </button>
             <button className={`rp-tab ${view === "favoris" ? "active" : ""}`} onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}>
               <Icon name="star" size={15} /> Favoris
@@ -3011,6 +3029,17 @@ export default function RadarPrixSite() {
             onBack={() => setView("communaute-forum")}
           />
         )}
+
+        {/* Flux unifié : erreurs de prix, produits offerts, codes promo et
+            promotions au même endroit. Accessible sans compte — c'est le
+            contenu principal du site, pas une fonctionnalité de membre. */}
+        {view === "flux" && <FeedView onBack={goHome} />}
+
+        {/* L'occasion a sa propre section, par choix : une offre
+            reconditionnée est légitimement moins chère qu'un produit neuf, et
+            la mélanger au flux principal afficherait en permanence de
+            fausses bonnes affaires. */}
+        {view === "occasion" && <FeedView onBack={goHome} occasion />}
       </div>
 
       <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
