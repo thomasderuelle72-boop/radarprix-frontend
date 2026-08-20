@@ -1,0 +1,146 @@
+<!doctype html>
+<!--
+  Source de l'image de partage (public/og-image.png, 1200x630).
+
+  Cette image est un PNG : l'accroche y est gravée en dur, elle ne suit donc
+  pas les balises <meta> de index.html. Sans ce gabarit, changer le slogan du
+  site laissait l'ancien affiché dans tous les aperçus WhatsApp / Discord / X
+  — c'est exactement ce qui est arrivé. Le gabarit est donc versionné à côté
+  du PNG pour que les deux puissent être remis d'accord.
+
+  Régénérer après modification :
+    node scripts/og-image.mjs
+
+  Les couleurs reprennent theme.js (T.bg, T.emberSolid, T.sub, T.pink…).
+  Police : Liberation Sans, présente sur les machines de rendu Linux et
+  métriquement compatible Arial — le rendu reste stable d'une machine à
+  l'autre, ce qu'un webfont chargé par le réseau ne garantirait pas.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        background: #070B14;
+        font-family: "Liberation Sans", Arial, system-ui, sans-serif;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Halos colorés : orange en haut à gauche (la marque), violet à droite
+         et magenta en bas (profondeur). Rendus en radial-gradient plutôt
+         qu'en blur d'un bloc, pour éviter les bandes de dégradé visibles
+         que produit le filtre de flou à cette taille. */
+      .glow { position: absolute; border-radius: 50%; }
+      .glow-ember  { width: 900px; height: 700px; left: -260px; top: -360px;
+                     background: radial-gradient(closest-side, rgba(255,106,26,.34), transparent 70%); }
+      .glow-purple { width: 900px; height: 800px; right: -240px; top: -180px;
+                     background: radial-gradient(closest-side, rgba(139,92,246,.26), transparent 70%); }
+      .glow-pink   { width: 900px; height: 620px; left: 190px; bottom: -330px;
+                     background: radial-gradient(closest-side, rgba(255,61,127,.20), transparent 70%); }
+
+      /* Radar décoratif, volontairement discret : il ne doit jamais gêner la
+         lecture du titre qui passe par-dessus. */
+      .radar { position: absolute; left: 695px; top: 325px; transform: translate(-50%, -50%); }
+
+      .content { position: relative; padding: 55px 79px; height: 100%; }
+
+      .logo { display: flex; align-items: center; gap: 15px; }
+      .logo-mark { width: 44px; height: 44px; }
+      .logo-text {
+        font-size: 27px; font-weight: bold; letter-spacing: 1.2px;
+        color: #F6F7FB;
+      }
+      .logo-text span { color: #FF6A1A; margin-left: 9px; }
+
+      .pill {
+        display: inline-flex; align-items: center; gap: 11px;
+        margin-top: 60px; padding: 13px 22px;
+        background: #131A29; border: 1px solid #202A3B; border-radius: 999px;
+        font-size: 15px; font-weight: bold; color: #F6F7FB;
+      }
+      .pill-dot {
+        width: 9px; height: 9px; border-radius: 50%; background: #35D475;
+        box-shadow: 0 0 10px rgba(53,212,117,.9);
+      }
+
+      h1 {
+        margin-top: 38px;
+        font-size: 68px; font-weight: bold; line-height: 1.13;
+        letter-spacing: -1.6px; color: #F6F7FB;
+      }
+      /* Dégradé orange appliqué au texte : même ember que T.ember. */
+      h1 .accent {
+        background: linear-gradient(135deg, #FF5F2E 0%, #FF9E2C 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p.tagline {
+        margin-top: 26px; max-width: 790px;
+        font-size: 21px; line-height: 1.72; color: #98A3B8;
+      }
+
+      /* Deux badges d'ambiance qui montrent le produit sans le décrire :
+         une remise forte et un prix. */
+      .badge {
+        position: absolute; display: flex; align-items: center; justify-content: center;
+        font-weight: bold; border-radius: 12px;
+      }
+      .badge-discount {
+        right: 97px; top: 150px; width: 96px; height: 50px;
+        border: 1.6px solid rgba(255,52,93,.75); background: rgba(255,52,93,.10);
+        color: #FF345D; font-size: 22px;
+      }
+      .badge-price {
+        right: 190px; top: 450px; width: 113px; height: 47px;
+        border: 1.6px solid rgba(255,106,26,.75); background: rgba(255,106,26,.10);
+        color: #FFA125; font-size: 21px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow glow-ember"></div>
+    <div class="glow glow-purple"></div>
+    <div class="glow glow-pink"></div>
+
+    <svg class="radar" width="430" height="430" viewBox="0 0 430 430" fill="none">
+      <defs>
+        <linearGradient id="sweep" x1="0.5" y1="1" x2="1" y2="0">
+          <stop stop-color="#FFB24D" stop-opacity="0" />
+          <stop offset="1" stop-color="#FFC978" stop-opacity=".55" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="215" cy="215" rx="209" ry="103" stroke="#FF6A1A" stroke-opacity=".16" stroke-width="1.5" />
+      <ellipse cx="215" cy="215" rx="146" ry="72"  stroke="#FF6A1A" stroke-opacity=".13" stroke-width="1.5" stroke-dasharray="7 8" />
+      <ellipse cx="215" cy="215" rx="84"  ry="41"  stroke="#FF6A1A" stroke-opacity=".11" stroke-width="1.5" stroke-dasharray="7 8" />
+      <!-- Faisceau de balayage : part du centre vers le haut-droit. -->
+      <path d="M215 215 L404 118 L360 205 Z" fill="url(#sweep)" />
+    </svg>
+
+    <div class="content">
+      <div class="logo">
+        <svg class="logo-mark" viewBox="0 0 44 44" fill="none">
+          <circle cx="22" cy="22" r="19" stroke="#FF6A1A" stroke-width="3.2" />
+          <path d="M22 22 L33 13" stroke="#FF6A1A" stroke-width="3.2" stroke-linecap="round" />
+        </svg>
+        <div class="logo-text">RADAR<span>PRIX</span></div>
+      </div>
+
+      <div class="pill"><span class="pill-dot"></span>Détection active en continu</div>
+
+      <h1>Le bon prix,<br /><span class="accent">avant tout le monde.</span></h1>
+
+      <p class="tagline">
+        Les meilleures offres chez les marchands français,<br />repérées automatiquement.
+      </p>
+    </div>
+
+    <div class="badge badge-discount">&minus;72%</div>
+    <div class="badge badge-price">19,90&nbsp;&euro;</div>
+  </body>
+</html>

@@ -1334,7 +1334,7 @@ function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNee
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
             </div>
             <p style={{ fontSize: 12.5, color: T.sub, lineHeight: 1.6, marginBottom: 14, maxWidth: 240 }}>
-              RadarPrix détecte automatiquement les meilleurs deals et les erreurs de prix chez les marchands français.
+              RadarPrix repère automatiquement les meilleures offres chez les marchands français.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               {["message", "users", "share", "mail"].map((ic) => (
@@ -2208,7 +2208,7 @@ export default function RadarPrixSite() {
 
 
   useEffect(() => {
-    document.title = "RadarPrix — Le détecteur d'erreurs de prix";
+    document.title = "RadarPrix — Le détecteur de bonnes affaires";
   }, []);
 
   // Onglets "Gros deals" / "Erreurs de prix" : lecture instantanée du pool
@@ -2550,13 +2550,13 @@ export default function RadarPrixSite() {
                   className="rp-display fade-up"
                   style={{ fontSize: "clamp(30px, 6.6vw, 58px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.02em", animationDelay: "60ms" }}
                 >
-                  Quand le marchand se trompe,
+                  Le bon prix,
                   <br />
-                  <span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>vous gagnez.</span>
+                  <span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>avant tout le monde.</span>
                 </h1>
 
                 <p className="fade-up" style={{ maxWidth: 540, margin: "20px auto 32px", color: T.sub, fontSize: "clamp(14px, 1.6vw, 16.5px)", lineHeight: 1.65, animationDelay: "120ms" }}>
-                  Erreurs de prix et très gros deals, détectés par un algorithme qui compare en continu les prix réels des marchands français.
+                  Un algorithme compare en continu les prix réels des marchands français et fait remonter les offres qui sortent vraiment de l'ordinaire.
                 </p>
 
                 <div className="fade-up" style={{ maxWidth: 540, margin: "0 auto", animationDelay: "180ms" }}>
