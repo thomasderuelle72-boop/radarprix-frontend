@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { T, CATEGORIES } from "../../theme.js";
 import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun } from "../../api.js";
 import Icon from "../Icon.jsx";
-import { carte, boutonPrimaire, boutonSecondaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
+import { carte, boutonPrimaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
 
 /** Le domaine seul : une URL de fiche complète est illisible dans un tableau. */
 function domaine(url) {

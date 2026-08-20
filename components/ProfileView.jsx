@@ -142,7 +142,7 @@ const ACTIVITE = {
   reply: { verbe: "a répondu dans", icone: "message", couleur: T.green },
 };
 
-export default function ProfileView({ handle, authToken, currentUser, onBack, onNeedAuth, onOpenThread, onMessage }) {
+export default function ProfileView({ handle, authToken, onBack, onNeedAuth, onOpenThread, onMessage }) {
   const [data, setData] = useState(undefined); // undefined = chargement, null = introuvable
   const [erreur, setErreur] = useState(null);
   const [onglet, setOnglet] = useState("activite");

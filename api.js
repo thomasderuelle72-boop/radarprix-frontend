@@ -154,12 +154,6 @@ export async function apiAdminStats(token) {
   return data;
 }
 
-export async function apiAdminUsers(token) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/users`, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Accès refusé.");
-  return data.users || [];
-}
 
 export async function apiAdminTriggerScan(token, size) {
   const res = await fetch(`${BACKEND_URL}/api/admin/trigger-scan`, {
@@ -603,12 +597,6 @@ export async function apiFeedOccasion({ etat = "reconditionne", category = "tout
   return data;
 }
 
-/** Natures disponibles, lues côté serveur pour ne pas dupliquer la liste ici. */
-export async function apiFeedTypes() {
-  const res = await fetch(`${BACKEND_URL}/api/feed/types`);
-  if (!res.ok) throw new Error("Types indisponibles.");
-  return (await res.json()).types;
-}
 
 /* ── Administration du flux et de la mesure ───────────────────── */
 

@@ -11,7 +11,7 @@ import Avatar from "../Avatar.jsx";
 import { apiAdminMembers, apiAdminMemberSheet, apiModSuspendre, apiAdminRole } from "../../api.js";
 import { relativeTime, anciennete, dateLongue } from "../../utils.js";
 import { ouvrirProfil } from "../../routes.js";
-import { carte, Titre, Tableau, cellule, Rien, Puce, champ, boutonPrimaire, boutonSecondaire, boutonDanger, confirmer } from "./ui.jsx";
+import { carte, Titre, Tableau, cellule, Rien, Puce, champ, boutonSecondaire, boutonDanger, confirmer } from "./ui.jsx";
 
 const FILTRES = [
   ["tous", "Tous"],

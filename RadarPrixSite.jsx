@@ -2112,7 +2112,11 @@ export default function RadarPrixSite() {
       setAuthToken(t);
       try {
         setAuthUser(JSON.parse(u));
-      } catch {}
+      } catch {
+        // Profil illisible dans le stockage local (format d'une ancienne
+        // version, écriture interrompue) : on garde le jeton et on laissera
+        // /api/auth/me renvoyer le profil à jour.
+      }
     }
   }, []);
 
@@ -2157,7 +2161,6 @@ export default function RadarPrixSite() {
   useEffect(() => {
     setProfileNavigator(openProfile);
     return () => setProfileNavigator(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const authRole = authUser?.role || null;
@@ -2256,7 +2259,6 @@ export default function RadarPrixSite() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [sellerFilter, setSellerFilter] = useState("tous");
-  const [scannedQuery, setScannedQuery] = useState(null);
   const [totalDeals, setTotalDeals] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -2350,19 +2352,16 @@ export default function RadarPrixSite() {
     setLoading(true);
     setError(null);
     setItems(null);
-    setScannedQuery(null);
     setLastScan(null);
     try {
       const catalogMatch = await fetchDeals("tout", 1, 30, term);
       if (catalogMatch.items.length > 0) {
         setItems(catalogMatch.items);
-        setScannedQuery(term);
         setHasMore(false);
         return;
       }
-      const { items: found, scannedQuery: sq } = await scanBackend(term, "tout");
+      const { items: found } = await scanBackend(term, "tout");
       setItems(found);
-      setScannedQuery(sq);
       setHasMore(false);
       setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {

@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { T } from "../../theme.js";
 import Icon from "../Icon.jsx";
 import { apiModReports, apiModSupprimer, apiModRejeterSignalement, apiModJournal } from "../../api.js";
-import { relativeTime, dateLongue } from "../../utils.js";
+import { relativeTime } from "../../utils.js";
 import { carte, Titre, Tableau, cellule, Rien, Puce, boutonDanger, boutonSecondaire, confirmer } from "./ui.jsx";
 
 const LIBELLES = {

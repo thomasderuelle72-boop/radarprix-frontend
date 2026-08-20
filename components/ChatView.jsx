@@ -45,7 +45,7 @@ function Vide({ icone, tone, titre, texte }) {
   );
 }
 
-export default function ChatView({ token, currentUserId, onBack, onGoTo, correspondant, subnav }) {
+export default function ChatView({ token, currentUserId, onBack, correspondant, subnav }) {
   const [onglet, setOnglet] = useState(correspondant ? "prives" : "salon");
   const [erreur, setErreur] = useState(null);
 
@@ -123,15 +123,10 @@ export default function ChatView({ token, currentUserId, onBack, onGoTo, corresp
     return () => { arrete = true; clearInterval(t); };
   }, [actif, token]);
 
-  // Arrivée depuis un profil ("Envoyer un message") : on ouvre directement
-  // la bonne conversation au lieu d'obliger à la retrouver dans la liste.
-  useEffect(() => {
-    if (!correspondant || !membres) return;
-    const cible = membres.find((m) => m.id === Number(correspondant));
-    if (cible) ouvrir({ user_id: cible.id, display_name: cible.display_name, avatar_url: cible.avatar_url });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [correspondant, membres]);
-
+  // Déclarée avant l'effet qui s'en sert. L'ordre inverse fonctionnait — le
+  // corps d'un effet s'exécute après le rendu, donc après l'affectation —
+  // mais il se lit comme une erreur et l'analyse statique le signale comme
+  // telle. Mieux vaut un ordre qui n'a pas besoin d'être expliqué.
   const ouvrir = (personne) => {
     setActif(personne);
     setFil([]);
@@ -141,6 +136,15 @@ export default function ChatView({ token, currentUserId, onBack, onGoTo, corresp
     // rafraîchit la liste pour que la pastille disparaisse tout de suite.
     setTimeout(chargerConversations, 400);
   };
+
+  // Arrivée depuis un profil ("Envoyer un message") : on ouvre directement
+  // la bonne conversation au lieu d'obliger à la retrouver dans la liste.
+  useEffect(() => {
+    if (!correspondant || !membres) return;
+    const cible = membres.find((m) => m.id === Number(correspondant));
+    if (cible) ouvrir({ user_id: cible.id, display_name: cible.display_name, avatar_url: cible.avatar_url });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correspondant, membres]);
 
   const envoyerPrive = async (texte) => {
     if (!actif) return;
