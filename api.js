@@ -646,3 +646,11 @@ export const apiAdminWatchRun = (token, taille) =>
     { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ taille }) },
     "Surveillance impossible."
   );
+
+/** Amorce la surveillance à partir des fiches déjà observées par les scans passés. */
+export const apiAdminWatchAmorcer = (token, options = {}) =>
+  adminFetch(
+    `/api/admin/watch/amorcer`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
+    "Amorçage impossible."
+  );

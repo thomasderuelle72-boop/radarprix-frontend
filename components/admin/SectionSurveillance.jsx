@@ -9,7 +9,7 @@
 // donner des URLs. C'est ce que cette section apporte.
 import { useEffect, useState } from "react";
 import { T, CATEGORIES } from "../../theme.js";
-import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun } from "../../api.js";
+import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun, apiAdminWatchAmorcer } from "../../api.js";
 import Icon from "../Icon.jsx";
 import { carte, boutonPrimaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
 
@@ -33,6 +33,7 @@ export default function SectionSurveillance({ token, estAdmin }) {
   const [erreur, setErreur] = useState(null);
   const [encours, setEncours] = useState(false);
   const [rapport, setRapport] = useState(null);
+  const [amorcage, setAmorcage] = useState(null);
 
   // Formulaire d'ajout
   const [url, setUrl] = useState("");
@@ -72,6 +73,25 @@ export default function SectionSurveillance({ token, estAdmin }) {
     }
   }
 
+  // Amorçage : promeut en fiches surveillées les adresses marchandes que les
+  // scans passés ont déjà observées. C'est ce qui met le détecteur en route
+  // sans avoir à coller quarante adresses à la main — et sans inventer des
+  // URL qui n'existeraient pas.
+  async function amorcer() {
+    setEncours(true);
+    setErreur(null);
+    setRapport(null);
+    try {
+      const r = await apiAdminWatchAmorcer(token, { limite: 40 });
+      setAmorcage(r);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEncours(false);
+    }
+  }
+
   async function verifierMaintenant() {
     setEncours(true);
     setErreur(null);
@@ -108,6 +128,41 @@ export default function SectionSurveillance({ token, estAdmin }) {
       </Titre>
 
       {erreur && <div style={{ ...carte, borderColor: `${T.red}55`, color: T.red, fontSize: 12.5 }}>{erreur}</div>}
+
+      {/* Tant que rien n'est surveillé, le moteur d'erreur de prix ne peut
+          rien trouver. On met donc l'amorçage en avant plutôt que de laisser
+          un tableau vide sans explication. */}
+      {estAdmin && urls && urls.length === 0 && (
+        <div style={{ ...carte, borderColor: `${T.ember}44` }}>
+          <Titre aide="Les scans passés ont enregistré l'adresse réelle de chaque offre chez son marchand. On les promeut en fiches surveillées plutôt que d'en saisir quarante à la main — ce sont des pages qui ont réellement existé, pas des adresses supposées.">
+            Mettre le moteur en route
+          </Titre>
+          <button onClick={amorcer} disabled={encours} style={{ ...boutonPrimaire, opacity: encours ? 0.6 : 1 }}>
+            <Icon name="sparkle" size={15} />
+            {encours ? "Amorçage…" : "Amorcer depuis les scans passés"}
+          </button>
+        </div>
+      )}
+
+      {amorcage && (
+        <div style={{ ...carte, borderColor: `${T.green}44` }}>
+          <p style={{ fontSize: 13, color: T.ink, lineHeight: 1.6, margin: 0 }}>
+            <strong>{amorcage.ajoutees}</strong> fiche(s) mise(s) sous surveillance sur {amorcage.candidats} observée(s).{" "}
+            {amorcage.ignorees > 0 && (
+              <span style={{ color: T.sub }}>
+                {amorcage.ignorees} écartée(s) : liens d'agrégateur, adresses invalides ou enseignes non retenues.
+              </span>
+            )}
+          </p>
+          {Object.keys(amorcage.parMarchand || {}).length > 0 && (
+            <p style={{ fontSize: 12, color: T.sub, marginTop: 8, marginBottom: 0 }}>
+              {Object.entries(amorcage.parMarchand)
+                .map(([m, n]) => `${m} (${n})`)
+                .join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
         <Chiffre valeur={total} libelle="fiches suivies" icone="search" />
