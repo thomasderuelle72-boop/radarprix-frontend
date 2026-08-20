@@ -406,3 +406,172 @@ export async function apiFollowingFeed(token) {
   if (!res.ok) throw new Error(data.error || "Fil indisponible.");
   return data; // { suivis, items }
 }
+
+/* ── Administration et modération ─────────────────────────────────
+   Toutes ces routes exigent le rôle administrateur ou modérateur ; le
+   backend refuse par un 403 si le jeton ne le porte pas. */
+
+const auth = (token) => ({ Authorization: `Bearer ${token}` });
+const authJson = (token) => ({ "Content-Type": "application/json", ...auth(token) });
+
+/** Enveloppe commune : un seul endroit pour lire l'erreur renvoyée. */
+async function adminFetch(url, options, messageDefaut) {
+  const res = await fetch(`${BACKEND_URL}${url}`, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || messageDefaut);
+  return data;
+}
+
+// ── Signalement (côté membre) ──
+export function apiSignaler(token, type, id, reason, note) {
+  return adminFetch(
+    "/api/reports",
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ type, id, reason, note }) },
+    "Signalement impossible."
+  );
+}
+
+// ── Modération ──
+export const apiModReports = (token, status = "ouvert") =>
+  adminFetch(`/api/moderation/reports?status=${status}`, { headers: auth(token) }, "File indisponible.");
+
+export const apiModSupprimer = (token, type, id, motif) =>
+  adminFetch(
+    `/api/moderation/content/${type}/${id}`,
+    { method: "DELETE", headers: authJson(token), body: JSON.stringify({ motif }) },
+    "Suppression impossible."
+  );
+
+export const apiModRejeterSignalement = (token, id) =>
+  adminFetch(`/api/moderation/reports/${id}/reject`, { method: "POST", headers: auth(token) }, "Action impossible.");
+
+export const apiModSuspendre = (token, userId, jours, motif) =>
+  adminFetch(
+    `/api/moderation/users/${userId}/suspend`,
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ jours, motif }) },
+    "Suspension impossible."
+  );
+
+export const apiModEpingler = (token, dealId, epingle) =>
+  adminFetch(
+    `/api/moderation/deals/${dealId}/pin`,
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ epingle }) },
+    "Action impossible."
+  );
+
+export const apiModJournal = (token) =>
+  adminFetch("/api/moderation/log", { headers: auth(token) }, "Journal indisponible.");
+
+export const apiAdminRole = (token, userId, role) =>
+  adminFetch(
+    `/api/admin/users/${userId}/role`,
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ role }) },
+    "Changement de rôle impossible."
+  );
+
+// ── Santé du site ──
+export const apiAdminHealth = (token) =>
+  adminFetch("/api/admin/health", { headers: auth(token) }, "État indisponible.");
+
+export const apiAdminScans = (token) =>
+  adminFetch("/api/admin/scans", { headers: auth(token) }, "Historique indisponible.");
+
+export const apiAdminEmails = (token) =>
+  adminFetch("/api/admin/emails", { headers: auth(token) }, "Journal indisponible.");
+
+export const apiAdminDiagnostic = (token, query) =>
+  adminFetch(
+    "/api/admin/diagnose",
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ query }) },
+    "Diagnostic impossible."
+  );
+
+// ── Qualité de détection ──
+export const apiAdminSettings = (token) =>
+  adminFetch("/api/admin/settings", { headers: auth(token) }, "Réglages indisponibles.");
+
+export const apiAdminSetSetting = (token, cle, valeur) =>
+  adminFetch(
+    "/api/admin/settings",
+    { method: "PATCH", headers: authJson(token), body: JSON.stringify({ cle, valeur }) },
+    "Réglage refusé."
+  );
+
+export const apiAdminBlacklist = (token) =>
+  adminFetch("/api/admin/blacklist", { headers: auth(token) }, "Liste noire indisponible.");
+
+export const apiAdminBlacklistAdd = (token, type, valeur, note) =>
+  adminFetch(
+    "/api/admin/blacklist",
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ type, valeur, note }) },
+    "Ajout impossible."
+  );
+
+export const apiAdminBlacklistDel = (token, id) =>
+  adminFetch(`/api/admin/blacklist/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
+
+export const apiAdminRejets = (token) =>
+  adminFetch("/api/admin/rejects", { headers: auth(token) }, "Rejets indisponibles.");
+
+export const apiAdminRejeter = (token, offre) =>
+  adminFetch(
+    "/api/admin/rejects",
+    { method: "POST", headers: authJson(token), body: JSON.stringify(offre) },
+    "Rejet impossible."
+  );
+
+export const apiAdminAnnulerRejet = (token, id) =>
+  adminFetch(`/api/admin/rejects/${id}`, { method: "DELETE", headers: auth(token) }, "Annulation impossible.");
+
+// ── Catalogue ──
+export const apiAdminCatalog = (token) =>
+  adminFetch("/api/admin/catalog", { headers: auth(token) }, "Catalogue indisponible.");
+
+export const apiAdminCatalogAdd = (token, name, category) =>
+  adminFetch(
+    "/api/admin/catalog",
+    { method: "POST", headers: authJson(token), body: JSON.stringify({ name, category }) },
+    "Ajout impossible."
+  );
+
+export const apiAdminCatalogToggle = (token, id, actif) =>
+  adminFetch(
+    `/api/admin/catalog/${id}`,
+    { method: "PATCH", headers: authJson(token), body: JSON.stringify({ actif }) },
+    "Action impossible."
+  );
+
+export const apiAdminCatalogDel = (token, id) =>
+  adminFetch(`/api/admin/catalog/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
+
+// ── Membres ──
+export const apiAdminMembers = (token, params = {}) =>
+  adminFetch(
+    `/api/admin/members?${new URLSearchParams(params)}`,
+    { headers: auth(token) },
+    "Liste indisponible."
+  );
+
+export const apiAdminMemberSheet = (token, id) =>
+  adminFetch(`/api/admin/members/${id}`, { headers: auth(token) }, "Fiche indisponible.");
+
+export const apiAdminActivity = (token, jours = 30) =>
+  adminFetch(`/api/admin/activity?jours=${jours}`, { headers: auth(token) }, "Activité indisponible.");
+
+/**
+ * Télécharge un export CSV. Passe par un blob plutôt que par un simple lien :
+ * la route exige un en-tête d'autorisation, qu'un <a href> ne peut pas porter.
+ */
+export async function apiAdminExport(token, quoi) {
+  const res = await fetch(`${BACKEND_URL}/api/admin/export/${quoi}.csv`, { headers: auth(token) });
+  if (!res.ok) throw new Error("Export impossible.");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `radarprix-${quoi}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

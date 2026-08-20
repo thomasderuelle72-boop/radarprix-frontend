@@ -8,6 +8,7 @@ import { T } from "../theme.js";
 import { apiGetHistory, apiGetComments, apiPostComment } from "../api.js";
 import AuthorLink from "./AuthorLink.jsx";
 import { relativeTime } from "../utils.js";
+import ReportButton from "./ReportButton.jsx";
 
 const HISTORY_PERIODS = [
   { days: 7, label: "7 j" },
@@ -156,6 +157,11 @@ export function CommentsPanel({ query, authToken, onNeedAuth }) {
             {/* Aligné sous le pseudo, pas sous la photo : le texte se lit
                 comme un bloc et non comme une colonne décalée. */}
             <div style={{ fontSize: 13, color: T.ink, marginTop: 3, paddingLeft: 30, lineHeight: 1.55 }}>{c.body}</div>
+            {authToken && (
+              <div style={{ paddingLeft: 30, marginTop: 3 }}>
+                <ReportButton type="comment" id={c.id} token={authToken} taille={10.5} />
+              </div>
+            )}
           </div>
         ))}
       </div>

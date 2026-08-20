@@ -19,6 +19,7 @@ import CommunityDealCard from "./components/CommunityDealCard.jsx";
 const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 const ChatView = lazy(() => import("./components/ChatView.jsx"));
+const AdminView = lazy(() => import("./components/AdminView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
@@ -40,9 +41,6 @@ import {
   apiUpdateProfile,
   apiChangePassword,
   apiDeleteAccount,
-  apiAdminStats,
-  apiAdminUsers,
-  apiAdminTriggerScan,
   apiCommunityListDeals,
   apiCommunitySubmitDeal,
   apiCommunityVote,
@@ -57,6 +55,7 @@ import {
   apiFollowMember,
 } from "./api.js";
 import { stateToPath, pathToState, legacyProductParam, setProfileNavigator, ouvrirProfil } from "./routes.js";
+import { setSession } from "./session.js";
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
@@ -670,7 +669,14 @@ function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin, onOpen
           <div style={{ fontWeight: 800, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {user.pseudo || user.email}
           </div>
-          <div style={{ fontSize: 11, color: T.sub }}>{role === "admin" ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="shield" size={12} color={T.yellow} /> Administrateur</span> : "Membre"}</div>
+          <div style={{ fontSize: 11, color: T.sub }}>
+            {role === "admin" || role === "moderator" ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Icon name="shield" size={12} color={role === "admin" ? T.yellow : T.purple} />
+                {role === "admin" ? "Administrateur" : "Modérateur"}
+              </span>
+            ) : "Membre"}
+          </div>
         </div>
       </div>
 
@@ -679,8 +685,13 @@ function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin, onOpen
         // voient, et jusqu'ici rien ne permettait d'y accéder.
         { icon: "user", label: "Mon profil public", action: onOpenProfile, color: T.ink },
         { icon: "settings", label: "Paramètres du compte", action: onOpenSettings, color: T.ink },
-        ...(role === "admin"
-          ? [{ icon: "shield", label: "Tableau de bord admin", action: onOpenAdmin, color: T.yellow }]
+        ...(role === "admin" || role === "moderator"
+          ? [{
+              icon: "shield",
+              label: role === "admin" ? "Administration" : "Modération",
+              action: onOpenAdmin,
+              color: T.yellow,
+            }]
           : []),
         { icon: "refresh", label: "Se déconnecter", action: onLogout, color: T.sub },
       ].map(({ icon, label, action, color }) => (
@@ -1387,127 +1398,6 @@ function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNee
 }
 
 /* ── App ────────────────────────────────────────────────────── */
-/* ── Tableau de bord admin ─────────────────────────────────── */
-function AdminDashboard({ token, onBack }) {
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState(null);
-  const [error, setError] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
-
-  const load = async () => {
-    setError(null);
-    try {
-      const [s, u] = await Promise.all([apiAdminStats(token), apiAdminUsers(token)]);
-      setStats(s);
-      setUsers(u);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const triggerScan = async () => {
-    setScanning(true);
-    setScanResult(null);
-    setError(null);
-    try {
-      const res = await apiAdminTriggerScan(token, 10);
-      setScanResult(res);
-      await load(); // rafraîchit les stats après le scan
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const cardStyle = { background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: "18px 20px" };
-
-  return (
-    <main style={{ maxWidth: 780, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" }}>
-        ← Retour au site
-      </button>
-      <h2 className="rp-display" style={{ fontSize: 22, fontWeight: 900, marginBottom: 4, color: T.yellow, display: "flex", alignItems: "center", gap: 9 }}><Icon name="shield" size={21} /> Tableau de bord admin</h2>
-      <p style={{ fontSize: 13, color: T.sub, marginBottom: 24 }}>Visible uniquement par toi.</p>
-
-      {error && (
-        <div style={{ background: "rgba(255,59,48,0.12)", border: `1.5px solid ${T.red}`, borderRadius: 10, padding: 12, fontSize: 14, color: T.ink, marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
-
-      {!stats && !error && <div style={{ color: T.sub, fontSize: 14 }}>Chargement…</div>}
-
-      {stats && (
-        <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
-            <div style={cardStyle}>
-              <div className="rp-display" style={{ fontSize: 28, fontWeight: 900, color: T.ink }}>{stats.totalUsers}</div>
-              <div style={{ fontSize: 12, color: T.sub, marginTop: 4 }}>Utilisateurs inscrits</div>
-            </div>
-            <div style={cardStyle}>
-              <div className="rp-display" style={{ fontSize: 28, fontWeight: 900, color: T.ink }}>{stats.totalScans}</div>
-              <div style={{ fontSize: 12, color: T.sub, marginTop: 4 }}>Scans enregistrés</div>
-            </div>
-          </div>
-
-          <div style={{ ...cardStyle, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink }}>Scan manuel</h3>
-              <button
-                onClick={triggerScan}
-                disabled={scanning}
-                style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: scanning ? T.surface2 : T.ember, color: scanning ? T.sub : "#0C0E14", fontWeight: 800, fontSize: 12.5, cursor: scanning ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}
-              >
-                {scanning ? "Scan en cours…" : "Lancer un scan (10 produits)"}
-              </button>
-            </div>
-            <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.5 }}>
-              Consomme du quota SerpApi à chaque clic — à utiliser avec modération, le cron tourne déjà en tâche de fond.
-            </p>
-            {scanResult && (
-              <div style={{ marginTop: 10, fontSize: 12, color: T.green }}>
-                ✓ {scanResult.scanned} produit(s) scanné(s) à l'instant.
-              </div>
-            )}
-          </div>
-
-          <div style={{ ...cardStyle, marginBottom: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink, marginBottom: 12 }}>Produits les plus scannés</h3>
-            {stats.topProducts.length === 0 && <p style={{ fontSize: 13, color: T.sub }}>Aucune donnée pour l'instant.</p>}
-            {stats.topProducts.map((p) => (
-              <div key={p.query} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${T.line}`, fontSize: 13 }}>
-                <span style={{ color: T.ink, textTransform: "capitalize" }}>{p.query}</span>
-                <span style={{ color: T.sub }}>{p.times_seen}×</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={cardStyle}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: T.ink, marginBottom: 12 }}>Utilisateurs ({users?.length || 0})</h3>
-            {users?.map((u) => (
-              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.line}`, fontSize: 13 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <Avatar email={u.email} pseudo={u.pseudo} size={22} />
-                  <span style={{ color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.pseudo || u.email}</span>
-                  {u.role === "admin" && <Icon name="shield" size={11} color={T.yellow} style={{ display: "inline-block" }} />}
-                </div>
-                <span style={{ color: T.sub, fontSize: 11, flexShrink: 0 }}>{u.created_at?.slice(0, 10)}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </main>
-  );
-}
-
 /* ── Favoris ────────────────────────────────────────────────── */
 // Une ligne de favori : relit le dernier scan enregistré pour cette requête
 // suivie (route existante /api/latest, pas de nouvelle route backend) pour
@@ -1783,6 +1673,7 @@ function CommunityPicksView({ token, onBack, onNeedAuth, onGoTo }) {
             deal={d}
             index={i}
             onVote={vote}
+            onModere={() => load(sort)}
           />
         ))}
       </div>
@@ -2174,6 +2065,13 @@ export default function RadarPrixSite() {
     });
     return () => setUnauthorizedHandler(null);
   }, []);
+
+  // Les composants feuilles (carte de deal, commentaire) ont besoin du rôle
+  // pour afficher leurs actions de modération : on le publie ici plutôt que
+  // de le faire descendre en propriété à travers dix composants.
+  useEffect(() => {
+    setSession({ token: authToken, role: authUser?.role || null, userId: authUser?.id || null });
+  }, [authToken, authUser]);
 
   // Rend les pseudos cliquables partout : commentaires, salon, forum, deals
   // communautaires. Voir routes.js pour le détail du procédé.
@@ -3021,8 +2919,10 @@ export default function RadarPrixSite() {
           </main>
         )}
 
-        {view === "admin" && authRole === "admin" && (
-          <AdminDashboard token={authToken} onBack={goHome} />
+        {view === "admin" && (authRole === "admin" || authRole === "moderator") && (
+          <Suspense fallback={<ViewLoader />}>
+            <AdminView token={authToken} role={authRole} moiId={authUser?.id} onBack={goHome} />
+          </Suspense>
         )}
 
         {view === "marchand" && marchandActif && (

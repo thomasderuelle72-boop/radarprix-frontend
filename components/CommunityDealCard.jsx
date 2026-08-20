@@ -13,6 +13,9 @@ import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
 import AuthorLink from "./AuthorLink.jsx";
 import { dateLongue, estExpire, relativeTime } from "../utils.js";
+import ReportButton from "./ReportButton.jsx";
+import { getSession, peutModerer } from "../session.js";
+import { apiModEpingler } from "../api.js";
 
 /** Bouton de vote : discret au repos, coloré une fois le vote exprimé. */
 export function voteBtnStyle(active, isDown) {
@@ -31,7 +34,9 @@ export function voteBtnStyle(active, isDown) {
   };
 }
 
-export default function CommunityDealCard({ deal: d, index = 0, onVote, showAuthor = true }) {
+export default function CommunityDealCard({ deal: d, index = 0, onVote, showAuthor = true, onModere }) {
+  const { token } = getSession();
+  const modere = peutModerer();
   const score = (d.upvotes || 0) - (d.downvotes || 0);
   const expire = estExpire(d.expires_at);
 
@@ -93,6 +98,11 @@ export default function CommunityDealCard({ deal: d, index = 0, onVote, showAuth
       )}
 
       <div style={{ minWidth: 0, flex: 1 }}>
+        {d.pinned_at && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: T.yellow, marginBottom: 5 }}>
+            <Icon name="star" size={12} /> MIS EN AVANT
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
           <div style={{ minWidth: 0 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: T.ink }}>{d.title}</h3>
@@ -150,6 +160,28 @@ export default function CommunityDealCard({ deal: d, index = 0, onVote, showAuth
             >
               Voir l'offre →
             </a>
+          )}
+        </div>
+
+        {/* Signaler d'un côté, épingler de l'autre : discrets, sous la ligne
+            d'auteur, pour ne pas concurrencer le vote et le lien vers l'offre. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 9, flexWrap: "wrap" }}>
+          {token && <ReportButton type="deal" id={d.id} token={token} />}
+          {modere && (
+            <button
+              onClick={async () => {
+                await apiModEpingler(token, d.id, !d.pinned_at);
+                onModere?.();
+              }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                background: "none", border: "none", padding: 0, cursor: "pointer",
+                color: d.pinned_at ? T.yellow : T.muted, fontSize: 11.5, fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              <Icon name="star" size={12} />
+              {d.pinned_at ? "Ne plus épingler" : "Épingler"}
+            </button>
           )}
         </div>
       </div>
