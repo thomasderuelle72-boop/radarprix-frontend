@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
@@ -335,6 +335,14 @@ const GlobalStyles = () => (
 
     /* — Barre d'onglets étroite (profil sur mobile) : défilement horizontal
          sans barre de défilement visible. — */
+    /* — Barre de filtres — Sur écran large, l'intitulé et ses commandes
+       partagent une ligne ; sous 560 px la colonne d'intitulés mange la
+       moitié de la largeur, alors l'intitulé passe au-dessus. — */
+    @media (max-width: 560px) {
+      .rp-filtres-grille { grid-template-columns: 1fr !important; row-gap: 4px !important; }
+      .rp-filtres-grille > span { padding-top: 6px; }
+    }
+
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
 
@@ -457,10 +465,18 @@ const GlobalStyles = () => (
     .rp-tab:hover { color: ${T.ink}; background: rgba(255,106,53,0.1); }
     .rp-tab.active { color: #0C0E14; background: ${T.ember}; box-shadow: 0 2px 10px rgba(255,106,53,0.35); }
     .rp-dropdown-wrap { position: relative; }
-    .rp-dropdown { position: absolute; top: calc(100% + 6px); left: 0; background: ${T.surface}; border: 1px solid ${T.line}; border-radius: 12px; padding: 6px; min-width: 220px; box-shadow: 0 16px 32px rgba(0,0,0,0.5); z-index: 60; animation: fadeUp .15s ease both; }
+    /* Le ::before comble les 6 px entre l'onglet et le menu. Sans lui, le
+       curseur sort du sous-arbre survolé en descendant, et mouseleave part
+       au beau milieu du trajet. */
+    .rp-dropdown::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; }
+    .rp-dropdown { position: absolute; top: calc(100% + 6px); left: 0; background: ${T.surface}; border: 1px solid ${T.line}; border-radius: 12px; padding: 6px; min-width: 278px; box-shadow: 0 16px 32px rgba(0,0,0,0.5); z-index: 60; animation: fadeUp .15s ease both; }
     .rp-dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: none; color: ${T.ink}; font-weight: 700; font-size: 13px; padding: 10px 11px; border-radius: 8px; cursor: pointer; font-family: 'Inter', system-ui, sans-serif; }
     .rp-dropdown-item:hover { background: ${T.surface2}; color: ${T.emberSolid}; }
-    .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 1px; }
+    .rp-dropdown-item > span { min-width: 0; }
+    /* Le titre tient sur une ligne : à 220 px, « Choix de la communauté »
+       se coupait en deux et le menu partait en escalier. */
+    .rp-dropdown-item > span > :first-child, .rp-dropdown-item > span { white-space: nowrap; }
+    .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 2px; white-space: nowrap; }
     html, body { overflow-x: hidden; max-width: 100vw; }
     .rp-mobile-nav {
       display: none;
@@ -1244,18 +1260,41 @@ function CountUp({ to, duration = 900 }) {
   return <>{n}</>;
 }
 
+/* Champs de la barre de filtres : même hauteur et même rayon que les
+   puces, sans quoi la ligne « Prix » se décale d'un ou deux pixels par
+   rapport aux lignes du dessus. */
+const champFiltre = (largeur) => ({
+  width: largeur,
+  padding: "7px 11px",
+  borderRadius: 20,
+  border: `1.5px solid ${T.line}`,
+  fontSize: 12,
+  lineHeight: 1.2,
+  background: T.surface2,
+  color: T.ink,
+  fontFamily: "'Inter', sans-serif",
+});
+
 function FilterChip({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       style={{
-        padding: "8px 13px",
+        // Sans inline-flex, l'icône — un SVG en display:block — passait à
+        // la ligne et le libellé se retrouvait dessous : chaque puce
+        // faisait deux étages et la barre de filtres partait en morceaux.
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "7px 13px",
         borderRadius: 20,
         border: `1.5px solid ${active ? T.emberSolid : T.line}`,
         background: active ? "rgba(255,106,53,0.15)" : "transparent",
         color: active ? T.ink : T.sub,
         fontWeight: 700,
         fontSize: 12,
+        lineHeight: 1,
         cursor: "pointer",
         whiteSpace: "nowrap",
         fontFamily: "'Inter', system-ui, sans-serif",
@@ -1263,6 +1302,29 @@ function FilterChip({ active, onClick, children }) {
     >
       {children}
     </button>
+  );
+}
+
+/* Une ligne de la barre de filtres : un intitulé à gauche, ses commandes
+   à droite. Les intitulés partagent la même colonne d'une ligne à
+   l'autre, ce qui aligne les puces verticalement au lieu de les faire
+   commencer à trois abscisses différentes. */
+function LigneFiltre({ libelle, children }) {
+  return (
+    <div style={{ display: "contents" }}>
+      <span
+        style={{
+          fontSize: 11.5, color: T.muted, fontWeight: 800,
+          textTransform: "uppercase", letterSpacing: 0.5,
+          alignSelf: "center", whiteSpace: "nowrap", paddingTop: 1,
+        }}
+      >
+        {libelle}
+      </span>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -1979,6 +2041,22 @@ export default function RadarPrixSite() {
   const [authOpen, setAuthOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [communityMenuOpen, setCommunityMenuOpen] = useState(false);
+  // Le menu se refermait à l'instant précis où le curseur quittait l'onglet,
+  // c'est-à-dire avant d'avoir atteint le premier élément : il fallait s'y
+  // reprendre à plusieurs fois pour réussir à cliquer. On laisse un court
+  // délai, annulé dès que le curseur revient sur l'onglet ou entre dans le
+  // menu — le temps de traverser, et de rattraper une trajectoire qui
+  // déborde un peu sur le côté.
+  const minuteurMenu = useRef(null);
+  const ouvrirMenuCommunaute = () => {
+    clearTimeout(minuteurMenu.current);
+    setCommunityMenuOpen(true);
+  };
+  const fermerMenuCommunaute = () => {
+    clearTimeout(minuteurMenu.current);
+    minuteurMenu.current = setTimeout(() => setCommunityMenuOpen(false), 280);
+  };
+  useEffect(() => () => clearTimeout(minuteurMenu.current), []);
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authToken, setAuthToken] = useState(null);
@@ -2366,7 +2444,9 @@ export default function RadarPrixSite() {
       className="rp-body"
       onClick={() => {
         if (profileMenuOpen) setProfileMenuOpen(false);
-        if (communityMenuOpen) setCommunityMenuOpen(false);
+        // Un clic à l'extérieur ferme tout de suite : c'est une intention
+        // explicite, elle n'a pas à attendre le délai de tolérance.
+        if (communityMenuOpen) { clearTimeout(minuteurMenu.current); setCommunityMenuOpen(false); }
       }}
       style={{ background: T.bg, color: T.ink, minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
@@ -2473,7 +2553,7 @@ export default function RadarPrixSite() {
             <button className={`rp-tab ${view === "favoris" ? "active" : ""}`} onClick={() => (authToken ? setView("favoris") : setAuthOpen(true))}>
               <Icon name="star" size={15} /> Favoris
             </button>
-            <div className="rp-dropdown-wrap" onMouseEnter={() => setCommunityMenuOpen(true)} onMouseLeave={() => setCommunityMenuOpen(false)}>
+            <div className="rp-dropdown-wrap" onMouseEnter={ouvrirMenuCommunaute} onMouseLeave={fermerMenuCommunaute}>
               <button
                 className={`rp-tab ${COMMUNITY_VIEWS.includes(view) ? "active" : ""}`}
                 aria-haspopup="true"
@@ -2483,13 +2563,19 @@ export default function RadarPrixSite() {
                   // menu ouvert, pas le refermer aussitôt. Un clic répété (tactile) le rouvre simplement ;
                   // il se referme via onMouseLeave ou un clic à l'extérieur (voir le onClick racine).
                   e.stopPropagation();
-                  setCommunityMenuOpen(true);
+                  ouvrirMenuCommunaute();
                 }}
               >
                 <Icon name="users" size={15} /> Communauté <span style={{ fontSize: 9 }}>▾</span>
               </button>
               {communityMenuOpen && (
-                <div className="rp-dropdown" role="menu" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="rp-dropdown"
+                  role="menu"
+                  onMouseEnter={ouvrirMenuCommunaute}
+                  onMouseLeave={fermerMenuCommunaute}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-picks")}>
                     <Icon name="trophy" size={16} color={T.yellow} />
                     <span>
@@ -2803,84 +2889,118 @@ export default function RadarPrixSite() {
               </p>
             )}
 
-            {!searchTerm && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 8 }}>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  aria-label="Catégorie de produits"
-                  style={{ flex: 1, padding: "12px", borderRadius: 10, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 14, fontWeight: 700, fontFamily: "'Inter', system-ui, sans-serif" }}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => openTab(tab)}
-                  disabled={loading}
-                  style={{ padding: "0 18px", borderRadius: 10, border: "none", background: loading ? T.surface2 : T.ember, color: loading ? T.sub : "#0C0E14", fontWeight: 900, fontSize: 13, cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}
-                >
-                  Relancer
-                </button>
-              </div>
-            )}
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <FilterChip active={verdictFilter === "all"} onClick={() => setVerdictFilter("all")}>Tout</FilterChip>
-                <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}><Icon name="alertCircle" size={13} /> Erreurs</FilterChip>
-                <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}><Icon name="flame" size={13} /> Deals</FilterChip>
-              </div>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: T.sub, fontWeight: 700 }}>Trier :</span>
-                <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}><Icon name="gem" size={13} /> Meilleur score</FilterChip>
-                <FilterChip active={sortBy === "prix"} onClick={() => setSortBy("prix")}>Prix croissant</FilterChip>
-              </div>
-
-              {/* Tranche de prix et marchand : les deux premiers réflexes de
-                  quelqu'un qui cherche une affaire. Seul le prix maximum
-                  existait jusqu'ici. */}
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: T.sub, fontWeight: 700 }}>Prix :</span>
-                <input
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="min €"
-                  inputMode="numeric"
-                  aria-label="Prix minimum en euros"
-                  style={{ width: 78, padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif" }}
-                />
-                <span style={{ color: T.muted, fontSize: 12 }}>–</span>
-                <input
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="max €"
-                  inputMode="numeric"
-                  aria-label="Prix maximum en euros"
-                  style={{ width: 78, padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif" }}
-                />
-
-                {sellersDisponibles.length > 1 && (
-                  <select
-                    value={sellerFilter}
-                    onChange={(e) => setSellerFilter(e.target.value)}
-                    aria-label="Filtrer par marchand"
-                    style={{ padding: "8px 10px", borderRadius: 20, border: `1.5px solid ${T.line}`, fontSize: 12, background: T.surface2, color: T.ink, fontFamily: "'Inter', sans-serif", fontWeight: 700, maxWidth: 160 }}
-                  >
-                    <option value="tous">Tous les marchands</option>
-                    {sellersDisponibles.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                )}
-
+            {/* Les filtres formaient trois rangées flottantes, sans cadre ni
+                alignement commun : on ne voyait pas qu'elles allaient
+                ensemble. Elles tiennent maintenant dans un panneau unique,
+                intitulés alignés sur une même colonne. */}
+            <div
+              style={{
+                background: T.gradSurface,
+                border: `1px solid ${T.line}`,
+                borderRadius: T.radiusLg,
+                padding: "12px 14px",
+                marginBottom: 14,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.ink }}>
+                  <Icon name="filter" size={14} /> Filtres
+                </span>
                 {filtresActifs > 0 && (
                   <button
                     onClick={reinitialiserFiltres}
-                    style={{ background: "none", border: "none", color: T.emberSolid, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: "8px 4px" }}
+                    className="rp-pressable"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.emberSolid, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: 0 }}
                   >
-                    Réinitialiser ({filtresActifs})
+                    <Icon name="x" size={12} /> Réinitialiser ({filtresActifs})
                   </button>
+                )}
+              </div>
+
+              <div
+                className="rp-filtres-grille"
+                style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 9, alignItems: "center" }}
+              >
+                {/* La catégorie est un filtre comme les autres ; elle flottait
+                    au-dessus du panneau, seule sur sa ligne. */}
+                {!searchTerm && (
+                  <LigneFiltre libelle="Catégorie">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      aria-label="Catégorie de produits"
+                      style={{ ...champFiltre(), fontWeight: 700, minWidth: 190, cursor: "pointer" }}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>{c.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => openTab(tab)}
+                      disabled={loading}
+                      className="rp-pressable"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "7px 14px", borderRadius: 20, border: "none",
+                        background: loading ? T.surface2 : T.ember,
+                        color: loading ? T.sub : "#0C0E14",
+                        fontWeight: 800, fontSize: 12, lineHeight: 1,
+                        cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif",
+                      }}
+                    >
+                      <Icon name="refresh" size={13} /> Relancer
+                    </button>
+                  </LigneFiltre>
+                )}
+
+                <LigneFiltre libelle="Afficher">
+                  <FilterChip active={verdictFilter === "all"} onClick={() => setVerdictFilter("all")}>Tout</FilterChip>
+                  <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}><Icon name="alertCircle" size={13} /> Erreurs</FilterChip>
+                  <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}><Icon name="flame" size={13} /> Deals</FilterChip>
+                </LigneFiltre>
+
+                <LigneFiltre libelle="Trier">
+                  <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}><Icon name="gem" size={13} /> Meilleur score</FilterChip>
+                  <FilterChip active={sortBy === "prix"} onClick={() => setSortBy("prix")}>Prix croissant</FilterChip>
+                </LigneFiltre>
+
+                {/* Tranche de prix et marchand : les deux premiers réflexes de
+                    quelqu'un qui cherche une affaire. Seul le prix maximum
+                    existait jusqu'ici. */}
+                <LigneFiltre libelle="Prix">
+                  <input
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="min €"
+                    inputMode="numeric"
+                    aria-label="Prix minimum en euros"
+                    style={champFiltre(78)}
+                  />
+                  <span style={{ color: T.muted, fontSize: 12 }}>–</span>
+                  <input
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="max €"
+                    inputMode="numeric"
+                    aria-label="Prix maximum en euros"
+                    style={champFiltre(78)}
+                  />
+                </LigneFiltre>
+
+                {sellersDisponibles.length > 1 && (
+                  <LigneFiltre libelle="Marchand">
+                    <select
+                      value={sellerFilter}
+                      onChange={(e) => setSellerFilter(e.target.value)}
+                      aria-label="Filtrer par marchand"
+                      style={{ ...champFiltre(), fontWeight: 700, maxWidth: 200, cursor: "pointer" }}
+                    >
+                      <option value="tous">Tous les marchands</option>
+                      {sellersDisponibles.map((v) => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
+                  </LigneFiltre>
                 )}
               </div>
             </div>
