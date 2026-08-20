@@ -98,6 +98,8 @@ export default function SectionSante({ token, estAdmin }) {
         )}
       </div>
 
+      {sante?.persistance && <Persistance etat={sante.persistance} />}
+
       {estAdmin && <Diagnostic token={token} />}
 
       <div style={carte}>
@@ -169,6 +171,67 @@ export default function SectionSante({ token, estAdmin }) {
  * existant lançait le travail sans jamais rien montrer : impossible de
  * comprendre pourquoi un résultat était mauvais.
  */
+/* ── Persistance des données ────────────────────────────────────
+   Les comptes disparaissaient à chaque déploiement, et rien ne le signalait :
+   le serveur repartait sur une base vide et répondait normalement. Ce bloc
+   rend l'invisible visible — où la base est écrite, ce qu'elle contient, et
+   quelles copies existent pour la remettre d'aplomb. */
+const ko = (o) => `${(o / 1024).toFixed(o < 102400 ? 1 : 0)} ko`;
+
+function Persistance({ etat }) {
+  const sauvegardes = etat.sauvegardes || [];
+  return (
+    <div style={carte}>
+      <Titre aide="La base est un simple fichier. Tant qu'il est écrit dans le volume persistant de l'hébergeur, il survit aux mises à jour ; sinon il meurt avec le conteneur.">
+        Persistance des données
+      </Titre>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+        <Puce ton={etat.comptes > 0 ? T.green : T.yellow}>
+          {etat.comptes} compte(s) en base
+        </Puce>
+        <Puce ton={etat.cheminExplicite ? T.green : T.yellow}>
+          {etat.cheminExplicite ? "chemin fixé explicitement" : "chemin déduit du code"}
+        </Puce>
+        <Puce ton={sauvegardes.length > 0 ? T.green : T.yellow}>
+          {sauvegardes.length > 0 ? `${sauvegardes.length} sauvegarde(s)` : "aucune sauvegarde"}
+        </Puce>
+      </div>
+
+      <p style={{ fontSize: 12.5, color: T.sub, marginBottom: 4 }}>
+        Fichier : <span style={{ fontFamily: "ui-monospace, monospace", color: T.ink }}>{etat.chemin}</span> · {ko(etat.tailleOctets)}
+      </p>
+      <p style={{ fontSize: 12, color: T.muted, marginBottom: 14 }}>
+        {etat.comptesAuDemarrage === etat.comptes
+          ? "Aucun compte perdu depuis le dernier démarrage."
+          : `${etat.comptes - etat.comptesAuDemarrage} compte(s) créé(s) depuis le dernier démarrage.`}
+      </p>
+
+      {sauvegardes.length === 0 ? (
+        <Rien>
+          Aucune copie pour l'instant — la première est prise au prochain démarrage,
+          dès qu'il y a au moins un compte.
+        </Rien>
+      ) : (
+        <Tableau colonnes={["Sauvegarde", "Taille", "Prise le"]}>
+          {sauvegardes.slice(0, 6).map((s) => (
+            <tr key={s.fichier}>
+              <td style={{ ...cellule, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>{s.fichier}</td>
+              <td style={{ ...cellule, color: T.sub, whiteSpace: "nowrap" }}>{ko(s.taille)}</td>
+              <td style={{ ...cellule, color: T.muted, whiteSpace: "nowrap" }}>{relativeTime(s.date) || s.date.slice(0, 16).replace("T", " ")}</td>
+            </tr>
+          ))}
+        </Tableau>
+      )}
+
+      <p style={{ fontSize: 11.5, color: T.muted, marginTop: 10 }}>
+        Une copie est prise à chaque démarrage. Si la base venait à disparaître
+        ou à repartir vide, la plus récente est remise en place automatiquement.
+      </p>
+    </div>
+  );
+}
+
 function Diagnostic({ token }) {
   const [query, setQuery] = useState("");
   const [res, setRes] = useState(null);
