@@ -18,6 +18,7 @@ const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
+import OnboardingModal from "./components/OnboardingModal.jsx";
 
 /* ════════════════════════════════════════════════════════════════
    RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
@@ -55,8 +56,10 @@ import {
   apiForumThread,
   apiForumReply,
   setUnauthorizedHandler,
+  apiFollowingFeed,
+  apiFollowMember,
 } from "./api.js";
-import { stateToPath, pathToState, legacyProductParam, setProfileNavigator } from "./routes.js";
+import { stateToPath, pathToState, legacyProductParam, setProfileNavigator, ouvrirProfil } from "./routes.js";
 
 // Toutes les vues liées au menu "Communauté", utilisées pour surligner l'onglet dans la nav.
 const COMMUNITY_VIEWS = ["communaute-picks", "communaute-chat", "communaute-forum", "communaute-forum-thread"];
@@ -496,7 +499,7 @@ function AuthModal({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const data = await apiAuth(mode === "login" ? "login" : "register", { email, password });
-      onSuccess(data.token, data.user);
+      onSuccess(data.token, data.user, mode === "register");
     } catch (e2) {
       setError(e2.message);
     } finally {
@@ -601,8 +604,97 @@ function ProfileMenu({ user, role, onOpenSettings, onLogout, onOpenAdmin, onOpen
 }
 
 /* ── Paramètres du compte : modale à onglets (Compte / Sécurité) ─ */
+/* ── Paramètres : les membres que l'on suit ──────────────────────
+   Sans cette liste, on ne pouvait se désabonner qu'en retrouvant chaque
+   profil un par un — et rien ne permettait de savoir qui l'on suivait. */
+function FollowedMembersPanel({ token, onOpenProfile }) {
+  const [suivis, setSuivis] = useState(null);
+  const [erreur, setErreur] = useState(null);
+  const [enCours, setEnCours] = useState(null); // id en cours de désabonnement
+
+  useEffect(() => {
+    apiFollowingFeed(token)
+      .then((d) => setSuivis(d.suivis || []))
+      .catch((e) => { setErreur(e.message); setSuivis([]); });
+  }, [token]);
+
+  const seDesabonner = async (id) => {
+    setEnCours(id);
+    setErreur(null);
+    try {
+      await apiFollowMember(token, String(id), false);
+      setSuivis((p) => p.filter((m) => m.id !== id));
+    } catch (e) {
+      setErreur(e.message);
+    } finally {
+      setEnCours(null);
+    }
+  };
+
+  const carte = { background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: 16, marginBottom: 14 };
+
+  return (
+    <div style={carte}>
+      <h4 style={{ fontSize: 13.5, fontWeight: 800, color: T.ink, marginBottom: 4 }}>Membres suivis</h4>
+      <p style={{ fontSize: 12, color: T.sub, marginBottom: 14 }}>
+        Leurs nouveaux deals apparaissent dans ton fil. Suivre quelqu'un est public de ton côté :
+        le membre voit son nombre d'abonnés, jamais qui ils sont.
+      </p>
+
+      {erreur && <p style={{ fontSize: 12, color: T.red, marginBottom: 10 }}>{erreur}</p>}
+
+      {suivis === null && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[0, 1].map((i) => <div key={i} className="rp-shimmer" style={{ height: 46, borderRadius: 10 }} />)}
+        </div>
+      )}
+
+      {suivis?.length === 0 && (
+        <p style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.6 }}>
+          Tu ne suis personne pour l'instant. Sur le profil d'un membre dont les trouvailles te
+          plaisent, le bouton « Suivre » le fait apparaître ici.
+        </p>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {suivis?.map((m) => (
+          <div
+            key={m.id}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: T.surface, border: `1px solid ${T.line}`,
+              borderRadius: 10, padding: "9px 12px",
+            }}
+          >
+            <button
+              onClick={() => onOpenProfile(m.id)}
+              style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+            >
+              <Avatar email={m.display_name} avatarUrl={m.avatar_url} size={28} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {m.display_name}
+              </span>
+            </button>
+            <button
+              onClick={() => seDesabonner(m.id)}
+              disabled={enCours === m.id}
+              style={{
+                padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`,
+                background: "transparent", color: T.sub, fontWeight: 800, fontSize: 12,
+                cursor: enCours === m.id ? "wait" : "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap",
+              }}
+            >
+              {enCours === m.id ? "…" : "Ne plus suivre"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
-  const [tab, setTab] = useState("compte"); // compte | securite
+  const [tab, setTab] = useState("compte"); // compte | abonnements | securite
 
   // Onglet Compte
   const [pseudo, setPseudo] = useState(user.pseudo || "");
@@ -682,6 +774,9 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
             <button onClick={() => setTab("compte")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "compte" ? T.surface2 : "transparent", color: tab === "compte" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
               <Icon name="user" size={15} /> Compte général
             </button>
+            <button onClick={() => setTab("abonnements")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "abonnements" ? T.surface2 : "transparent", color: tab === "abonnements" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <Icon name="users" size={15} /> Membres suivis
+            </button>
             <button onClick={() => setTab("securite")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: tab === "securite" ? T.surface2 : "transparent", color: tab === "securite" ? T.ink : T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
               <Icon name="lock" size={15} /> Confidentialité & sécurité
             </button>
@@ -707,6 +802,8 @@ function SettingsModal({ user, token, onClose, onUpdated, onAccountDeleted }) {
                 </button>
               </div>
             )}
+
+            {tab === "abonnements" && <FollowedMembersPanel token={token} onOpenProfile={(h) => { onClose(); ouvrirProfil(h); }} />}
 
             {tab === "securite" && (
               <>
@@ -2104,6 +2201,7 @@ export default function RadarPrixSite() {
   const [marchandActif, setMarchandActif] = useState(null); // page marchand ouverte
   const [membreActif, setMembreActif] = useState(null); // profil de membre ouvert (pseudo ou id)
   const [chatCible, setChatCible] = useState(null); // membre à qui écrire, depuis son profil
+  const [onboarding, setOnboarding] = useState(false); // réglages à faire juste après l'inscription
 
   // Ouvre une des trois sous-pages du menu "Communauté" (connexion requise, comme le reste de l'espace membre).
   const goToCommunity = (targetView) => {
@@ -3125,12 +3223,23 @@ export default function RadarPrixSite() {
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
-          onSuccess={(token, user) => {
+          onSuccess={(token, user, estUneInscription) => {
             setAuthToken(token);
             localStorage.setItem("radarprix_token", token);
             persistUser(user);
             setAuthOpen(false);
+            // Un compte tout neuf n'a pas de pseudo : il s'afficherait
+            // "Membre #7" partout, y compris comme adresse de son profil.
+            if (estUneInscription && !user.pseudo) setOnboarding(true);
           }}
+        />
+      )}
+      {onboarding && authUser && authToken && (
+        <OnboardingModal
+          user={authUser}
+          token={authToken}
+          onUpdated={(u) => persistUser(u)}
+          onDone={() => setOnboarding(false)}
         />
       )}
       {settingsOpen && authUser && (
