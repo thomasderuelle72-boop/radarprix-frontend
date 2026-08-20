@@ -11,7 +11,7 @@
 //
 // Usage : <Icon name="flame" size={18} />  ou  <Icon name="star" color={T.yellow} />
 
-const P = {
+export const P = {
   // Navigation / sections
   // Flamme : silhouette extérieure + petite flamme intérieure. Sans le
   // second tracé, la forme se lit comme une goutte d'eau.
@@ -146,6 +146,70 @@ const P = {
   check: <path d="m5 12.6 4.6 4.6L19 6.8" />,
   chevronUp: <path d="m6 14.5 6-6 6 6" />,
   chevronDown: <path d="m6 9.5 6 6 6-6" />,
+
+  // ── Icônes propres aux badges ────────────────────────────────
+  // Elles ne servent qu'aux distinctions du profil, et sont dessinées
+  // exprès pour ça. Auparavant chaque badge réutilisait une icône
+  // d'interface : la flamme de "Gros deals" servait aussi de badge
+  // "Flair reconnu", le bouclier du rôle administrateur servait de badge
+  // "Pilier". Deux badges voisins se ressemblaient, et une même icône
+  // voulait dire deux choses selon l'endroit du site.
+  //
+  // Même grille 24 et même trait que le reste du jeu : elles restent
+  // cohérentes avec les icônes d'interface tout en étant reconnaissables
+  // une à une, y compris à 32 px dans la rangée sous la photo de profil.
+
+  // Chasseur — étiquette de prix, dont le trou fait office de réticule.
+  badgeTag: (
+    <>
+      <path d="M12.9 3.2h5.5A2 2 0 0 1 20.4 5.2v5.5a2 2 0 0 1-.6 1.4l-7.7 7.7a2 2 0 0 1-2.8 0l-5.5-5.5a2 2 0 0 1 0-2.8l7.7-7.7a2 2 0 0 1 1.4-.6Z" />
+      <circle cx="16.4" cy="7.6" r="1.5" />
+      <path d="M16.4 4.9v1M16.4 10.3v1M13.7 7.6h1M18.1 7.6h1" />
+    </>
+  ),
+  // Éclaireur — jumelles. Une première version aux fûts ouverts se lisait
+  // comme deux gélules : d'où les objectifs ronds.
+  badgeBinoculars: (
+    <>
+      <circle cx="6.7" cy="15.2" r="4.5" />
+      <circle cx="17.3" cy="15.2" r="4.5" />
+      <path d="M4.4 12.2V6a1.6 1.6 0 0 1 1.6-1.6h1.4A1.6 1.6 0 0 1 9 6v6.2" />
+      <path d="M19.6 12.2V6A1.6 1.6 0 0 0 18 4.4h-1.4A1.6 1.6 0 0 0 15 6v6.2" />
+      <path d="M9 7.6h6M11.3 14.6h1.4" />
+    </>
+  ),
+  // Voix de la communauté — une bulle qui porte : elle émet des ondes,
+  // là où l'icône "message" du site est une bulle muette.
+  badgeVoice: (
+    <>
+      <path d="M2.8 6.4A1.9 1.9 0 0 1 4.7 4.5h7.9a1.9 1.9 0 0 1 1.9 1.9v5.2a1.9 1.9 0 0 1-1.9 1.9H8.2l-3.8 2.9v-2.9a1.9 1.9 0 0 1-1.6-1.9Z" />
+      <path d="M17.3 7.9a5.1 5.1 0 0 1 0 6.8M20.1 5.4a8.6 8.6 0 0 1 0 11.8" />
+    </>
+  ),
+  // Animateur — micro. Deux bulles de discussion avaient été essayées
+  // d'abord, mais se lisaient comme deux boutons.
+  badgeMic: (
+    <>
+      <rect x="8.9" y="2.7" width="6.2" height="11.2" rx="3.1" />
+      <path d="M5.5 11.3a6.5 6.5 0 0 0 13 0" />
+      <path d="M12 17.8v3.5M8.3 21.3h7.4" />
+    </>
+  ),
+  // Flair reconnu — pouce levé : c'est littéralement ce que le badge compte.
+  badgeThumb: (
+    <>
+      <rect x="2.6" y="10.2" width="4.3" height="9.6" rx="1.4" />
+      <path d="M6.9 11.4h1.6a2 2 0 0 0 1.8-1.1l2.3-4.7a1.9 1.9 0 0 1 3.6.8v3.7h3.7a2 2 0 0 1 2 2.4l-1.2 5.8a2 2 0 0 1-2 1.6H8.9a2 2 0 0 1-2-2Z" />
+    </>
+  ),
+  // Pilier — colonne cannelée. L'ancienneté, pas la protection.
+  badgeColumn: (
+    <>
+      <rect x="3.6" y="3.6" width="16.8" height="2.9" rx=".9" />
+      <rect x="3.6" y="17.5" width="16.8" height="2.9" rx=".9" />
+      <path d="M6.4 6.7v10.6M9.9 6.7v10.6M14.1 6.7v10.6M17.6 6.7v10.6" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 18, color, strokeWidth = 1.75, style, className, ...rest }) {

@@ -20,6 +20,7 @@ import PageShell, { EmptyState } from "./PageShell.jsx";
 import Avatar from "./Avatar.jsx";
 import Icon from "./Icon.jsx";
 import Tilt3D from "./Tilt3D.jsx";
+import BadgeHex, { couleurNiveau } from "./BadgeHex.jsx";
 import CommunityDealCard from "./CommunityDealCard.jsx";
 import { anciennete, dateLongue, relativeTime, nombreLisible } from "../utils.js";
 
@@ -44,25 +45,15 @@ function Compteur({ valeur, libelle, pluriel }) {
   );
 }
 
-/** Une distinction obtenue : hexagone coloré, intitulé, date réelle. */
+/** Une distinction obtenue : hexagone gravé, intitulé, date réelle. */
 function Badge({ badge, compact = false }) {
-  // Trois niveaux, trois intensités — on lit le niveau à la couleur avant
-  // même de lire le texte.
-  const teinte = [T.purple, T.emberSolid, T.yellow, T.green][Math.min(badge.niveau, 4) - 1];
   const pastille = (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "flex", alignItems: "center", justifyContent: "center",
-        width: compact ? 34 : 52, height: compact ? 34 : 52, flexShrink: 0,
-        background: `${teinte}1c`, border: `1px solid ${teinte}55`,
-        // Hexagone : la forme distingue immédiatement une distinction d'une
-        // simple icône d'interface.
-        clipPath: "polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)",
-      }}
-    >
-      <Icon name={badge.icone} size={compact ? 16 : 24} color={teinte} />
-    </span>
+    <BadgeHex
+      icone={badge.icone}
+      niveau={badge.niveau}
+      taille={compact ? 34 : 56}
+      titre={`${badge.nom} — niveau ${badge.niveau}`}
+    />
   );
 
   if (compact) return <span title={`${badge.nom} — niveau ${badge.niveau}`}>{pastille}</span>;
@@ -80,7 +71,8 @@ function Badge({ badge, compact = false }) {
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <h4 className="rp-display" style={{ fontSize: 15, fontWeight: 900, color: T.ink }}>
-            {badge.nom} — niveau {badge.niveau}
+            {badge.nom}{" "}
+            <span style={{ color: couleurNiveau(badge.niveau) }}>— niveau {badge.niveau}</span>
           </h4>
           <span style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap" }}>{dateLongue(badge.obtenuLe)}</span>
         </div>
@@ -226,6 +218,17 @@ export default function ProfileView({ handle, authToken, currentUser, onBack, on
   const { membre, stats, badges, prochainsBadges, jeLeSuis, cestMoi } = data;
   const items = contenu[onglet];
 
+  // Un membre conserve chaque échelon franchi, et l'onglet Badges les liste
+  // tous avec leur date. Mais dans la rangée de résumé sous la photo, montrer
+  // Chasseur niveaux 1, 2 et 3 occuperait trois emplacements sur six pour
+  // une seule distinction : on n'y garde que le plus haut de chaque famille.
+  const resume = Object.values(
+    badges.reduce((acc, b) => {
+      if (!acc[b.famille] || b.niveau > acc[b.famille].niveau) acc[b.famille] = b;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.niveau - a.niveau);
+
   return (
     <PageShell onBack={onBack} width={1000} iconColor={T.purple}>
       {/* ── En-tête : qui est ce membre ───────────────────────── */}
@@ -266,10 +269,10 @@ export default function ProfileView({ handle, authToken, currentUser, onBack, on
           <Compteur valeur={stats.abonnes} libelle="abonné" />
         </div>
 
-        {badges.length > 0 && (
+        {resume.length > 0 && (
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
-            {badges.slice(0, 6).map((b) => <Badge key={b.cle} badge={b} compact />)}
-            {badges.length > 6 && (
+            {resume.slice(0, 6).map((b) => <Badge key={b.cle} badge={b} compact />)}
+            {resume.length > 6 && (
               <button
                 onClick={() => setOnglet("badges")}
                 style={{ background: "none", border: "none", color: T.sub, fontSize: 16, cursor: "pointer", padding: "0 4px" }}
@@ -523,8 +526,10 @@ export default function ProfileView({ handle, authToken, currentUser, onBack, on
                         borderRadius: T.radiusMd, padding: "14px 16px",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 9 }}>
-                        <Icon name={p.icone} size={15} color={T.muted} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <span style={{ opacity: 0.4, filter: "grayscale(1)" }}>
+                          <BadgeHex icone={p.icone} niveau={p.niveau} taille={30} />
+                        </span>
                         <span style={{ fontSize: 13, fontWeight: 800, color: T.sub }}>
                           {p.nom} — niveau {p.niveau}
                         </span>

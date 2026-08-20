@@ -21,6 +21,10 @@ export const T = {
   green: "#35D475",
   yellow: "#FFD166",
   purple: "#8B5CF6",
+  // Premier échelon des badges : un gris-bleu neutre, qui doit se lire
+  // comme "obtenu, mais tout début" — ni terne au point de passer pour
+  // désactivé, ni assez vif pour concurrencer les échelons suivants.
+  steel: "#7C8AA5",
   cyan: "#00E5FF",
   line: "#202A3B",
   lineSoft: "rgba(122,145,184,.16)",
