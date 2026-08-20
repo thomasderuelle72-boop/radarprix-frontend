@@ -341,6 +341,61 @@ const GlobalStyles = () => (
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
 
+    /* — Badges : relief, reflet balayant, apparition (voir BadgeHex.jsx) — */
+
+    /* Apparition : le badge pivote légèrement pour se mettre face au lecteur,
+       plutôt qu'un simple fondu. Les cartes sont décalées l'une après l'autre
+       (animationDelay posé côté React). */
+    @keyframes rp-badge-in {
+      from { opacity: 0; transform: translateY(16px) rotateY(-34deg) scale(.93); }
+      to   { opacity: 1; transform: none; }
+    }
+    .rp-badge-in { animation: rp-badge-in 540ms cubic-bezier(.2,.8,.2,1) both; }
+
+    /* L'hexagone flotte au-dessus de sa carte : c'est ce qui creuse la
+       profondeur quand la carte s'incline vers le curseur. Sans le
+       preserve-3d posé sur la carte elle-même, ce translateZ serait aplati. */
+    .rp-badge-hex {
+      transform-style: preserve-3d;
+      transition: transform 320ms cubic-bezier(.2,.8,.2,1), filter 320ms ease;
+    }
+    .rp-tilt3d:hover .rp-badge-hex {
+      transform: translateZ(38px) scale(1.07);
+      filter: drop-shadow(0 10px 18px var(--badge-glow));
+    }
+
+    /* Reflet qui balaie l'hexagone au survol : une lumière qui passe sur du
+       métal gravé. Rejoué à chaque entrée du curseur. */
+    .rp-badge-shine { transform-box: view-box; transform-origin: 0 0; transform: translateX(-60px); }
+    .rp-tilt3d:hover .rp-badge-shine,
+    .rp-badge-mini:hover .rp-badge-shine { animation: rp-badge-shine 780ms cubic-bezier(.3,.7,.4,1); }
+    @keyframes rp-badge-shine {
+      from { transform: translateX(-60px); }
+      to   { transform: translateX(175px); }
+    }
+
+    /* Pastilles de niveau : elles se posent l'une après l'autre, ce qui fait
+       littéralement compter le niveau à l'œil. */
+    @keyframes rp-pip-in { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+    .rp-badge-pip { transform-box: fill-box; transform-origin: center; animation: rp-pip-in 420ms cubic-bezier(.2,1.5,.4,1) both; }
+
+    /* Halo qui respire — réservé au dernier échelon, celui qui porte
+       l'orange de la marque. Sur tous les niveaux, la page clignoterait. */
+    @keyframes rp-badge-aura { 0%,100% { opacity:.22 } 50% { opacity:.62 } }
+    .rp-badge-aura { animation: rp-badge-aura 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+    /* Petits hexagones de la rangée de résumé : ils ne sont pas dans une
+       carte inclinable, ils ont donc leur propre relief au survol. */
+    .rp-badge-mini { display: inline-flex; transition: transform 260ms cubic-bezier(.2,.8,.2,1), filter 260ms ease; }
+    .rp-badge-mini:hover { transform: translateY(-4px) scale(1.12); filter: drop-shadow(0 6px 12px var(--badge-glow)); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rp-badge-in { animation: none; opacity: 1; transform: none; }
+      .rp-badge-pip, .rp-badge-aura { animation: none; }
+      .rp-tilt3d:hover .rp-badge-shine, .rp-badge-mini:hover .rp-badge-shine { animation: none; }
+      .rp-tilt3d:hover .rp-badge-hex, .rp-badge-mini:hover { transform: none; }
+    }
+
     /* — Chiffres clés : léger relief au survol — */
     .rp-stat-tile { transition: transform 240ms cubic-bezier(.2,.8,.2,1), box-shadow 240ms cubic-bezier(.2,.8,.2,1), border-color 240ms ease; }
     .rp-tilt3d:hover .rp-stat-tile { border-color: rgba(255,106,26,.45); box-shadow: 0 20px 45px rgba(0,0,0,.4); }

@@ -46,39 +46,43 @@ function Compteur({ valeur, libelle, pluriel }) {
 }
 
 /** Une distinction obtenue : hexagone gravé, intitulé, date réelle. */
-function Badge({ badge, compact = false }) {
+function Badge({ badge, compact = false, index = 0 }) {
+  const titre = `${badge.nom} — niveau ${badge.niveau}`;
   const pastille = (
-    <BadgeHex
-      icone={badge.icone}
-      niveau={badge.niveau}
-      taille={compact ? 34 : 56}
-      titre={`${badge.nom} — niveau ${badge.niveau}`}
-    />
+    <BadgeHex icone={badge.icone} niveau={badge.niveau} taille={compact ? 34 : 56} titre={titre} />
   );
 
-  if (compact) return <span title={`${badge.nom} — niveau ${badge.niveau}`}>{pastille}</span>;
+  // Dans la rangée de résumé, les hexagones ne sont pas dans une carte
+  // inclinable : ils portent leur propre relief au survol.
+  if (compact) return <span className="rp-badge-mini" title={titre}>{pastille}</span>;
 
   return (
-    <div
-      className="fade-up"
-      style={{
-        display: "flex", gap: 16, alignItems: "flex-start",
-        background: T.gradSurface, border: `1px solid ${T.line}`,
-        borderRadius: T.radiusLg, padding: "16px 18px",
-      }}
-    >
-      {pastille}
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <h4 className="rp-display" style={{ fontSize: 15, fontWeight: 900, color: T.ink }}>
-            {badge.nom}{" "}
-            <span style={{ color: couleurNiveau(badge.niveau) }}>— niveau {badge.niveau}</span>
-          </h4>
-          <span style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap" }}>{dateLongue(badge.obtenuLe)}</span>
+    <Tilt3D max={6} lift={6} glare={false}>
+      <div
+        className="rp-badge-in"
+        style={{
+          display: "flex", gap: 16, alignItems: "flex-start",
+          background: T.gradSurface, border: `1px solid ${T.line}`,
+          borderRadius: T.radiusLg, padding: "16px 18px",
+          // Sans preserve-3d ici, le translateZ de l'hexagone serait aplati
+          // et l'effet se réduirait à un simple agrandissement.
+          transformStyle: "preserve-3d",
+          animationDelay: `${Math.min(index, 10) * 55}ms`,
+        }}
+      >
+        {pastille}
+        <div style={{ minWidth: 0, flex: 1, transform: "translateZ(14px)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <h4 className="rp-display" style={{ fontSize: 15, fontWeight: 900, color: T.ink }}>
+              {badge.nom}{" "}
+              <span style={{ color: couleurNiveau(badge.niveau) }}>— niveau {badge.niveau}</span>
+            </h4>
+            <span style={{ fontSize: 12, color: T.muted, whiteSpace: "nowrap" }}>{dateLongue(badge.obtenuLe)}</span>
+          </div>
+          <p style={{ fontSize: 13, color: T.sub, lineHeight: 1.55, marginTop: 5 }}>{badge.description}</p>
         </div>
-        <p style={{ fontSize: 13, color: T.sub, lineHeight: 1.55, marginTop: 5 }}>{badge.description}</p>
       </div>
-    </div>
+    </Tilt3D>
   );
 }
 
@@ -504,7 +508,7 @@ export default function ProfileView({ handle, authToken, currentUser, onBack, on
             />
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {badges.map((b) => <Badge key={b.cle} badge={b} />)}
+              {badges.map((b, i) => <Badge key={b.cle} badge={b} index={i} />)}
             </div>
           )}
 
