@@ -60,6 +60,19 @@ export const P = {
       <circle cx="16.4" cy="15.8" r="1.1" fill="currentColor" stroke="none" />
     </>
   ),
+  // Entonnoir : la barre de filtres se repérait uniquement à son intitulé.
+  // Trois traits décroissants suffisent à la reconnaître de loin.
+  filter: (
+    <>
+      <path d="M4 5.5h16l-6.2 7.3v5.4l-3.6 2.1v-7.5Z" />
+    </>
+  ),
+  // Croix : servait jusqu'ici à fermer, dessinée à la main à chaque fois.
+  x: (
+    <>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </>
+  ),
   scale: (
     <>
       <path d="M12 4.5v15M7 19.5h10M4 9.2h6M14 9.2h6M4 9.2 2.4 13a2.6 2.6 0 0 0 5.2 0ZM20 9.2 18.4 13a2.6 2.6 0 0 0 5.2 0Z" />
