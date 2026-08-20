@@ -18,6 +18,7 @@ import CommunityTabs from "./components/CommunityTabs.jsx";
 import CommunityDealCard from "./components/CommunityDealCard.jsx";
 const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
+const ChatView = lazy(() => import("./components/ChatView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
@@ -42,12 +43,6 @@ import {
   apiAdminStats,
   apiAdminUsers,
   apiAdminTriggerScan,
-  apiGetPublicChat,
-  apiPostPublicChat,
-  apiGetMembers,
-  apiGetConversations,
-  apiGetConversationWith,
-  apiPostMessageTo,
   apiCommunityListDeals,
   apiCommunitySubmitDeal,
   apiCommunityVote,
@@ -342,6 +337,39 @@ const GlobalStyles = () => (
          sans barre de défilement visible. — */
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
+
+    /* — Messages privés : deux volets côte à côte sur écran large, empilés
+         sur téléphone où l'on passe de la liste au fil et retour. Avant, la
+         liste des membres remplaçait la conversation : impossible de voir
+         avec qui on parlait tout en lisant le fil. — */
+    .rp-mp { display: grid; grid-template-columns: 288px 1fr; gap: 16px; align-items: start; }
+    .rp-mp-liste {
+      background: ${T.bgElevated}; border: 1px solid ${T.line};
+      border-radius: ${T.radiusLg}px; padding: 12px;
+      max-height: 520px; overflow-y: auto;
+    }
+    .rp-mp-retour { display: none; }
+    @media (max-width: 780px) {
+      .rp-mp { grid-template-columns: 1fr; }
+      .rp-mp-liste { max-height: none; }
+      /* Un seul volet à la fois : la liste disparaît quand un fil est ouvert. */
+      .rp-mp-cache-mobile { display: none; }
+      .rp-mp-retour { display: block; }
+    }
+
+    /* Ascenseur discret dans les fils et la liste des conversations. */
+    .rp-fil::-webkit-scrollbar, .rp-mp-liste::-webkit-scrollbar { width: 8px; }
+    .rp-fil::-webkit-scrollbar-thumb, .rp-mp-liste::-webkit-scrollbar-thumb {
+      background: ${T.surface3}; border-radius: 999px;
+    }
+    .rp-fil, .rp-mp-liste { scrollbar-width: thin; scrollbar-color: ${T.surface3} transparent; }
+
+    /* Champs de la messagerie : le contour blanc par défaut du navigateur
+       jurait avec la charte. On le remplace par la couleur de la marque. */
+    .rp-mp input:focus-visible, .rp-fil-saisie:focus-visible {
+      outline: none; border-color: ${T.emberSolid};
+      box-shadow: 0 0 0 3px rgba(255,106,26,.16);
+    }
 
     /* — Sous-navigation de la communauté : intitulés complets sur écran
          large, abrégés sur téléphone pour que les trois onglets tiennent
@@ -1579,211 +1607,6 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
     </PageShell>
   );
 }
-
-/* ── Communauté : salon général + messages privés ──────────────── */
-function CommunityView({ token, currentUserId, onBack, correspondant, onGoTo }) {
-  const [tab, setTab] = useState(correspondant ? "dm" : "public"); // public | dm
-  const [publicMsgs, setPublicMsgs] = useState([]);
-  const [text, setText] = useState("");
-  const [error, setError] = useState(null);
-
-  const [conversations, setConversations] = useState(null);
-  const [members, setMembers] = useState(null);
-  const [activeConvo, setActiveConvo] = useState(null); // {id, display_name}
-  const [dmMsgs, setDmMsgs] = useState([]);
-  const [dmText, setDmText] = useState("");
-
-  // Salon public : sondage régulier (toutes les 4s) pour un effet "live" sans websocket.
-  useEffect(() => {
-    let cancelled = false;
-    let lastId = 0;
-    const poll = async () => {
-      try {
-        const items = await apiGetPublicChat(lastId);
-        if (cancelled || items.length === 0) return;
-        lastId = items[items.length - 1].id;
-        setPublicMsgs((prev) => [...prev, ...items]);
-      } catch {}
-    };
-    poll();
-    const interval = setInterval(poll, 4000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
-
-  const sendPublic = async () => {
-    if (!text.trim()) return;
-    setError(null);
-    try {
-      await apiPostPublicChat(token, text.trim());
-      setText("");
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    if (tab !== "dm") return;
-    apiGetConversations(token).then(setConversations).catch((e) => setError(e.message));
-    apiGetMembers(token).then(setMembers).catch(() => {});
-  }, [tab, token]);
-
-  // Arrivée depuis un profil de membre ("Envoyer un message") : on ouvre
-  // directement la conversation avec cette personne, sans obliger à la
-  // retrouver dans la liste des membres.
-  useEffect(() => {
-    if (!correspondant || !members) return;
-    const cible = members.find((m) => m.id === Number(correspondant));
-    if (cible) openConvo(cible);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [correspondant, members]);
-
-  const openConvo = async (user) => {
-    setActiveConvo(user);
-    try {
-      const msgs = await apiGetConversationWith(token, user.user_id ?? user.id);
-      setDmMsgs(msgs);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  const sendDm = async () => {
-    if (!dmText.trim() || !activeConvo) return;
-    try {
-      await apiPostMessageTo(token, activeConvo.user_id ?? activeConvo.id, dmText.trim());
-      const msgs = await apiGetConversationWith(token, activeConvo.user_id ?? activeConvo.id);
-      setDmMsgs(msgs);
-      setDmText("");
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  return (
-    <PageShell
-      icon="message"
-      iconColor={T.cyan}
-      title="Salon & messages"
-      subtitle="Le salon général est ouvert à tous les membres. Les messages privés ne sont lus que par la personne à qui tu écris."
-      onBack={onBack}
-      width={720}
-      subnav={<CommunityTabs courante="communaute-chat" onNavigate={onGoTo} />}
-    >
-
-      <div style={{ display: "flex", background: T.surface2, borderRadius: 10, padding: 4, marginBottom: 16 }}>
-        <button onClick={() => setTab("public")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "public" ? T.ember : "transparent", color: tab === "public" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-          <Icon name="message" size={14} /> Salon général
-        </button>
-        <button onClick={() => setTab("dm")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, flex: 1, padding: "9px", borderRadius: 7, border: "none", background: tab === "dm" ? T.ember : "transparent", color: tab === "dm" ? "#0C0E14" : T.sub, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-          <Icon name="mail" size={14} /> Messages privés
-        </button>
-      </div>
-
-      {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
-
-      {tab === "public" && (
-        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 360, overflowY: "auto", marginBottom: 12 }}>
-            {publicMsgs.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun message pour l'instant — lance la discussion.</p>}
-            {publicMsgs.map((m) => (
-              <div key={m.id} className="msg-slide-in" style={{ display: "flex", gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <AuthorLink
-                    userId={m.user_id}
-                    nom={m.author}
-                    avatarUrl={m.avatar_url}
-                    taille={26}
-                    couleurNom={m.user_id === currentUserId ? T.emberSolid : T.ink}
-                    meta={m.created_at?.slice(11, 16)}
-                  />
-                  <div style={{ fontSize: 13.5, color: T.ink, paddingLeft: 34, marginTop: 2 }}>{m.body}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendPublic()}
-              maxLength={500}
-              placeholder="Écris un message au salon…"
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
-            />
-            <button onClick={sendPublic} className="rp-pressable" style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-              Envoyer
-            </button>
-          </div>
-        </div>
-      )}
-
-      {tab === "dm" && !activeConvo && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {conversations?.length > 0 && (
-            <div>
-              <h3 style={{ fontSize: 13, color: T.sub, marginBottom: 8, fontWeight: 700 }}>Conversations en cours</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {conversations.map((c) => (
-                  <button key={c.user_id} onClick={() => openConvo(c)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
-                    <Avatar email={c.display_name} avatarUrl={c.avatar_url} size={30} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{c.display_name}</div>
-                      <div style={{ fontSize: 12, color: T.sub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.last_body}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <h3 style={{ fontSize: 13, color: T.sub, marginBottom: 8, fontWeight: 700 }}>Démarrer une conversation</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {members?.map((m) => (
-                <button key={m.id} onClick={() => openConvo(m)} style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left", background: T.surface, border: `1px solid ${T.line}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer" }}>
-                  <Avatar email={m.display_name} avatarUrl={m.avatar_url} size={30} />
-                  <div style={{ fontWeight: 800, fontSize: 13, color: T.ink }}>{m.display_name}</div>
-                </button>
-              ))}
-              {members?.length === 0 && <p style={{ color: T.sub, fontSize: 13 }}>Aucun autre membre inscrit pour l'instant.</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tab === "dm" && activeConvo && (
-        <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 14 }}>
-          <button onClick={() => setActiveConvo(null)} style={{ background: "none", border: "none", color: T.sub, fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 10, fontFamily: "'Inter', sans-serif" }}>
-            ← Toutes les conversations
-          </button>
-          <div style={{ fontWeight: 800, fontSize: 14, color: T.ink, marginBottom: 10 }}>{activeConvo.display_name}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto", marginBottom: 12 }}>
-            {dmMsgs.map((m) => (
-              <div key={m.id} style={{ alignSelf: m.from_user_id === currentUserId ? "flex-end" : "flex-start", maxWidth: "80%" }}>
-                <div style={{ background: m.from_user_id === currentUserId ? T.ember : T.surface2, color: m.from_user_id === currentUserId ? "#0C0E14" : T.ink, padding: "8px 12px", borderRadius: 10, fontSize: 13.5 }}>
-                  {m.body}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input
-              value={dmText}
-              onChange={(e) => setDmText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendDm()}
-              maxLength={500}
-              placeholder="Ton message…"
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
-            />
-            <button onClick={sendDm} className="rp-pressable" style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
-              Envoyer
-            </button>
-          </div>
-        </div>
-      )}
-    </PageShell>
-  );
-}
-
 
 /* ── Petits styles partagés entre les vues Communauté / Forum ──── */
 const backButtonStyle = { background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" };
@@ -3252,7 +3075,15 @@ export default function RadarPrixSite() {
         )}
 
         {view === "communaute-chat" && authToken && (
-          <CommunityView token={authToken} currentUserId={authUser?.id} onBack={goHome} correspondant={chatCible} onGoTo={goToCommunity} />
+          <Suspense fallback={<ViewLoader />}>
+            <ChatView
+              token={authToken}
+              currentUserId={authUser?.id}
+              onBack={goHome}
+              correspondant={chatCible}
+              subnav={<CommunityTabs courante="communaute-chat" onNavigate={goToCommunity} />}
+            />
+          </Suspense>
         )}
 
         {view === "communaute-picks" && authToken && (

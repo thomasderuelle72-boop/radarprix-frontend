@@ -225,11 +225,14 @@ export async function apiGetMembers(token) {
   return data.items || [];
 }
 
+/** Mes conversations privées, avec dernier message et nombre en attente. */
 export async function apiGetConversations(token) {
-  const res = await fetch(`${BACKEND_URL}/api/chat/conversations`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${BACKEND_URL}/api/chat/conversations`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Conversations indisponibles.");
-  return data.items || [];
+  return { items: data.items || [], nonLus: data.nonLus || 0 };
 }
 
 export async function apiGetConversationWith(token, userId) {
