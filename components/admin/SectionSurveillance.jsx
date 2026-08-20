@@ -9,9 +9,9 @@
 // donner des URLs. C'est ce que cette section apporte.
 import { useEffect, useState } from "react";
 import { T, CATEGORIES } from "../../theme.js";
-import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun, apiAdminWatchAmorcer } from "../../api.js";
+import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun, apiAdminWatchAmorcer, apiAdminWatchPeupler } from "../../api.js";
 import Icon from "../Icon.jsx";
-import { carte, boutonPrimaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
+import { carte, boutonPrimaire, boutonSecondaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
 
 /** Le domaine seul : une URL de fiche complète est illisible dans un tableau. */
 function domaine(url) {
@@ -34,6 +34,7 @@ export default function SectionSurveillance({ token, estAdmin }) {
   const [encours, setEncours] = useState(false);
   const [rapport, setRapport] = useState(null);
   const [amorcage, setAmorcage] = useState(null);
+  const [peuplement, setPeuplement] = useState(null);
 
   // Formulaire d'ajout
   const [url, setUrl] = useState("");
@@ -92,6 +93,23 @@ export default function SectionSurveillance({ token, estAdmin }) {
     }
   }
 
+  // Découverte automatique : lit les sitemaps que les marchands publient
+  // pour les moteurs de recherche, et met les fiches trouvées sous
+  // surveillance. Aucune clé, aucune saisie, aucun programme à attendre.
+  async function peupler() {
+    setEncours(true);
+    setErreur(null);
+    setPeuplement(null);
+    try {
+      setPeuplement(await apiAdminWatchPeupler(token, { enseignes: 3, fiches: 25 }));
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEncours(false);
+    }
+  }
+
   async function verifierMaintenant() {
     setEncours(true);
     setErreur(null);
@@ -132,15 +150,50 @@ export default function SectionSurveillance({ token, estAdmin }) {
       {/* Tant que rien n'est surveillé, le moteur d'erreur de prix ne peut
           rien trouver. On met donc l'amorçage en avant plutôt que de laisser
           un tableau vide sans explication. */}
-      {estAdmin && urls && urls.length === 0 && (
-        <div style={{ ...carte, borderColor: `${T.ember}44` }}>
-          <Titre aide="Les scans passés ont enregistré l'adresse réelle de chaque offre chez son marchand. On les promeut en fiches surveillées plutôt que d'en saisir quarante à la main — ce sont des pages qui ont réellement existé, pas des adresses supposées.">
-            Mettre le moteur en route
+      {estAdmin && (
+        <div style={{ ...carte, borderColor: urls && urls.length === 0 ? `${T.ember}55` : T.line }}>
+          <Titre aide="Les marchands publient la liste complète de leurs fiches dans leur sitemap, pour être indexés par les moteurs de recherche. On y puise directement : aucune clé d'API, aucune adresse à saisir, aucun programme d'affiliation à attendre. La découverte tourne aussi toutes les trois heures, par petits lots et en rotation entre enseignes.">
+            Remplir le radar automatiquement
           </Titre>
-          <button onClick={amorcer} disabled={encours} style={{ ...boutonPrimaire, opacity: encours ? 0.6 : 1 }}>
-            <Icon name="sparkle" size={15} />
-            {encours ? "Amorçage…" : "Amorcer depuis les scans passés"}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={peupler} disabled={encours} style={{ ...boutonPrimaire, opacity: encours ? 0.6 : 1 }}>
+              <Icon name="radar" size={15} />
+              {encours ? "Découverte en cours…" : "Découvrir des fiches maintenant"}
+            </button>
+            <button onClick={amorcer} disabled={encours} style={boutonSecondaire}>
+              Reprendre les scans passés
+            </button>
+          </div>
+        </div>
+      )}
+
+      {peuplement && (
+        <div style={{ ...carte, borderColor: `${T.green}44` }}>
+          <Titre>Découverte</Titre>
+          <Tableau colonnes={["Enseigne", "Trouvées", "Nouvelles", "État"]}>
+            {(peuplement.resultats || []).map((r, i) => (
+              <tr key={r.enseigne || i}>
+                <td style={{ ...cellule, fontWeight: 700 }}>{r.enseigne || "—"}</td>
+                <td style={cellule}>{r.ok ? r.trouvees : "—"}</td>
+                <td style={{ ...cellule, fontWeight: 800, color: r.ajoutees > 0 ? T.green : T.muted }}>
+                  {r.ok ? r.ajoutees : "—"}
+                </td>
+                <td style={cellule}>
+                  {r.ignore ? (
+                    <Puce ton={T.yellow}>{r.motif}</Puce>
+                  ) : r.ok ? (
+                    <Puce ton={T.green}>{r.dejaConnues > 0 ? `${r.dejaConnues} déjà connue(s)` : "explorée"}</Puce>
+                  ) : (
+                    <Puce ton={T.red}>{r.erreur}</Puce>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </Tableau>
+          <p style={{ fontSize: 12, color: T.sub, lineHeight: 1.6, marginTop: 12, marginBottom: 0 }}>
+            Les fiches découvertes sont relues toutes les quinze minutes. Les premiers prix apparaîtront
+            dans le tableau ci-dessous au prochain passage — ou tout de suite avec « Vérifier maintenant ».
+          </p>
         </div>
       )}
 

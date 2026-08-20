@@ -654,3 +654,11 @@ export const apiAdminWatchAmorcer = (token, options = {}) =>
     { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
     "Amorçage impossible."
   );
+
+/** Découvre des fiches via les sitemaps marchands et les met sous surveillance. */
+export const apiAdminWatchPeupler = (token, options = {}) =>
+  adminFetch(
+    `/api/admin/watch/peupler`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
+    "Découverte impossible."
+  );
