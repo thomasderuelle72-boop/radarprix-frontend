@@ -1,0 +1,23 @@
+# robots.txt — RadarPrix
+#
+# Le site est ouvert à l'indexation : c'est par la recherche que les
+# visiteurs arrivent sur une fiche produit.
+
+User-agent: *
+Allow: /
+
+# Ces sections exigent déjà une authentification, ou n'ont pas de contenu
+# stable à indexer. Les lister évite qu'un robot dépense son budget
+# d'exploration sur des pages qu'il ne verra jamais.
+Disallow: /admin
+Disallow: /favoris
+Disallow: /communaute/chat
+
+# Les résultats de recherche produisent une infinité d'URL pour un contenu
+# qui existe déjà ailleurs sur le site.
+Disallow: /recherche
+
+# La bibliothèque de composants n'est pas du contenu éditorial.
+Disallow: /design-system/
+
+Sitemap: https://radarprix.fr/sitemap.xml

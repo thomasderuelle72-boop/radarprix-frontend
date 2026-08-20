@@ -2,13 +2,18 @@
 // prix (graphique Recharts) et fil de commentaires. Utilisés à la fois par
 // DealCard (version compacte, dépliable) et par ProductDetailView (version
 // pleine page). Extraits de RadarPrixSite.jsx pour éviter la duplication.
-import { useState, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { T } from "../theme.js";
 import { apiGetHistory, apiGetComments, apiPostComment } from "../api.js";
 import AuthorLink from "./AuthorLink.jsx";
 import { relativeTime } from "../utils.js";
 import ReportButton from "./ReportButton.jsx";
+
+/* Le moteur de graphiques n'est téléchargé qu'au moment où une courbe doit
+   réellement s'afficher — c'est-à-dire après que l'historique est revenu du
+   serveur et qu'il contient assez de points. Un visiteur qui ouvre une fiche
+   sans dérouler l'historique ne paie rien. */
+const PriceChart = lazy(() => import("./PriceChart.jsx"));
 
 const HISTORY_PERIODS = [
   { days: 7, label: "7 j" },
@@ -98,16 +103,17 @@ export function PriceHistoryPanel({ query, height = 140 }) {
           <span style={{ color: T.sub }}>Actuel <strong style={{ color: T.emberSolid }}>{currentPrice} €</strong></span>
         </div>
       </div>
-      <div style={{ height, marginTop: 4 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.sub }} axisLine={{ stroke: T.line }} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
-            <YAxis tick={{ fontSize: 10, fill: T.sub }} axisLine={false} tickLine={false} width={40} domain={["dataMin - 5", "dataMax + 5"]} />
-            <Tooltip contentStyle={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 8, fontSize: 12 }} labelStyle={{ color: T.ink }} formatter={(v) => [`${v} €`, "Prix moyen"]} />
-            <Line type="monotone" dataKey="prix" stroke={T.emberSolid} strokeWidth={2} dot={{ r: 3, fill: T.emberSolid }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* La réserve d'espace pendant le chargement évite que le contenu
+          situé dessous ne saute au moment où la courbe apparaît. */}
+      <Suspense
+        fallback={
+          <div style={{ height, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.muted }}>
+            Chargement du graphique…
+          </div>
+        }
+      >
+        <PriceChart data={chartData} height={height} />
+      </Suspense>
     </div>
   );
 }

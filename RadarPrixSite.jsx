@@ -2492,10 +2492,23 @@ export default function RadarPrixSite() {
               <img src="/design-system/01_LOGOS/logo_icon_radar.svg" alt="" aria-hidden="true" width={26} height={26} style={{ flexShrink: 0 }} />
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
             </button>
-            {/* Sur mobile cette barre s'écrasait à quelques pixels de large (boîte
-                vide inutilisable) : la recherche y est masquée et reste accessible
-                via le champ pleine largeur affiché sous le titre de la page. */}
-            {view === "results" && (
+            {/* La recherche est disponible partout où l'on regarde des
+                produits — donc sur tout le site sauf deux endroits :
+
+                  · l'accueil, qui porte déjà son propre champ en pleine
+                    largeur sous le titre ; en afficher deux à l'écran n'aide
+                    personne ;
+                  · l'administration, qui n'est pas une vue de catalogue.
+
+                Elle n'apparaissait auparavant que sur la page de résultats,
+                ce qui la rendait absente de quatre des cinq onglets
+                principaux — dont Occasion.
+
+                Sur mobile cette barre s'écrasait à quelques pixels de large
+                (boîte vide inutilisable) : la classe rp-nav-search l'y masque,
+                et la recherche reste accessible via le champ pleine largeur
+                affiché sous le titre de la page. */}
+            {view !== "home" && view !== "admin" && (
               <div className="rp-nav-search" style={{ flex: "1 1 140px", minWidth: 0, maxWidth: 340, marginLeft: 14 }}>
                 <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
