@@ -19,10 +19,16 @@ import SectionModeration from "./admin/SectionModeration.jsx";
 import SectionSante from "./admin/SectionSante.jsx";
 import SectionDetection from "./admin/SectionDetection.jsx";
 import SectionMembres from "./admin/SectionMembres.jsx";
+import SectionFlux from "./admin/SectionFlux.jsx";
+import SectionSurveillance from "./admin/SectionSurveillance.jsx";
+import SectionMesure from "./admin/SectionMesure.jsx";
 
 const SECTIONS = [
   { id: "accueil", libelle: "Vue d'ensemble", icone: "home" },
   { id: "moderation", libelle: "Modération", icone: "shield", badge: true },
+  { id: "flux", libelle: "Flux", icone: "package" },
+  { id: "surveillance", libelle: "Surveillance", icone: "search" },
+  { id: "mesure", libelle: "Mesure", icone: "scale" },
   { id: "membres", libelle: "Membres", icone: "users" },
   { id: "sante", libelle: "Santé du site", icone: "radar" },
   { id: "detection", libelle: "Détection", icone: "scale", adminSeul: true },
@@ -111,6 +117,9 @@ export default function AdminView({ token, role, moiId, onBack }) {
         <SectionTableauBord token={token} estAdmin={estAdmin} onOuvrirSection={setSection} />
       )}
       {section === "moderation" && <SectionModeration token={token} onCompteur={setSignalements} />}
+      {section === "flux" && <SectionFlux token={token} estAdmin={estAdmin} />}
+      {section === "surveillance" && <SectionSurveillance token={token} estAdmin={estAdmin} />}
+      {section === "mesure" && <SectionMesure token={token} />}
       {section === "membres" && <SectionMembres token={token} estAdmin={estAdmin} moiId={moiId} />}
       {section === "sante" && <SectionSante token={token} estAdmin={estAdmin} />}
       {section === "detection" && estAdmin && <SectionDetection token={token} estAdmin={estAdmin} />}
