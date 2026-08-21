@@ -18,8 +18,9 @@ import useRadar, { depuis } from "./useRadar.js";
  *
  * Les deux premiers intitulés se répondent : « Le radar » d'un côté, « La
  * communauté » de l'autre. L'opposition machine / humains se lit sans qu'on
- * ait besoin de l'expliquer, là où « Repéré par… / Trouvé par… » disait la
- * même chose en deux fois plus de mots et à la voix passive.
+ * ait besoin de l'expliquer — raison pour laquelle les notes explicatives
+ * qui les accompagnaient ont été retirées : elles paraphrasaient un titre
+ * qui se suffit à lui-même, et alourdissaient un menu qui se parcourt.
  *
  * C'est le point où RadarPrix se sépare des sites de bons plans habituels.
  * Ceux-ci rangent par catégories — high-tech, maison, mode — parce que tous
@@ -33,7 +34,6 @@ import useRadar, { depuis } from "./useRadar.js";
 const GROUPES = [
   {
     titre: "Le radar",
-    note: "Détecté automatiquement",
     entrees: [
       { key: "erreurs", icon: "alertCircle", label: "Erreurs de prix", compteur: "anomalies" },
       { key: "deals", icon: "trendingDown", label: "Gros deals", compteur: "deals" },
@@ -42,7 +42,6 @@ const GROUPES = [
   },
   {
     titre: "La communauté",
-    note: "Signalé par les membres",
     entrees: [
       { key: "communaute-picks", icon: "gem", label: "Leurs deals" },
       { key: "forum", icon: "message", label: "Forum" },
@@ -182,19 +181,11 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
                     letterSpacing: ".09em",
                     textTransform: "uppercase",
                     color: T.muted,
-                    margin: "0 0 2px 10px",
+                    margin: "0 0 7px 10px",
                   }}
                 >
                   {groupe.titre}
                 </p>
-                {/* La note dit ce que le groupe a de particulier. Sans elle,
-                    « Repéré par le radar » se lit comme un intitulé décoratif
-                    plutôt que comme une information sur la provenance. */}
-                {groupe.note && (
-                  <p style={{ fontSize: 11.5, color: T.muted, margin: "0 0 8px 10px", lineHeight: 1.45 }}>
-                    {groupe.note}
-                  </p>
-                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {entrees.map((e) => (
                     <button
