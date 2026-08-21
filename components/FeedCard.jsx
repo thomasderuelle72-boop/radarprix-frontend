@@ -27,6 +27,10 @@ export const NATURES = {
   odr: { label: "Remboursement", couleur: T.cyan, icone: "refresh" },
   promo: { label: "Promotion", couleur: T.emberSolid, icone: "flame" },
   occasion: { label: "Reconditionné", couleur: T.steel, icone: "refresh" },
+  // Une fiche relevée dont le prix n'a rien d'anormal. Le libellé le dit
+  // sans emphase : c'est le catalogue, pas une affaire. La teinte neutre
+  // évite qu'une carte sans intérêt attire l'œil autant qu'une erreur de prix.
+  produit: { label: "Prix relevé", couleur: T.steel, icone: "radar" },
 };
 
 /** Combien de temps reste-t-il ? Null si l'offre n'a pas de fin annoncée. */

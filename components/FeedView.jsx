@@ -21,6 +21,9 @@ const FILTRES = [
   { id: "code", label: "Codes promo" },
   { id: "promo", label: "Promotions" },
   { id: "odr", label: "Remboursements" },
+  // En dernier, et c'est voulu : le catalogue est ce qu'on consulte quand on
+  // cherche un produit précis, pas ce qu'on vient chercher en arrivant.
+  { id: "produit", label: "Tous les produits" },
 ];
 
 function Puce({ actif, onClick, children, couleur = T.emberSolid }) {
