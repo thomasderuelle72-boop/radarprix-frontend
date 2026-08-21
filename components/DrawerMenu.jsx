@@ -16,6 +16,11 @@ import useRadar, { depuis } from "./useRadar.js";
 
 /* Le menu ne classe pas par thème, mais par ORIGINE.
  *
+ * Les deux premiers intitulés se répondent : « Le radar » d'un côté, « La
+ * communauté » de l'autre. L'opposition machine / humains se lit sans qu'on
+ * ait besoin de l'expliquer, là où « Repéré par… / Trouvé par… » disait la
+ * même chose en deux fois plus de mots et à la voix passive.
+ *
  * C'est le point où RadarPrix se sépare des sites de bons plans habituels.
  * Ceux-ci rangent par catégories — high-tech, maison, mode — parce que tous
  * leurs deals viennent de la même source : leurs membres. Ici il y en a deux,
@@ -27,8 +32,8 @@ import useRadar, { depuis } from "./useRadar.js";
  */
 const GROUPES = [
   {
-    titre: "Repéré par le radar",
-    note: "Détecté automatiquement, sans intervention humaine",
+    titre: "Le radar",
+    note: "Détecté automatiquement",
     entrees: [
       { key: "erreurs", icon: "alertCircle", label: "Erreurs de prix", compteur: "anomalies" },
       { key: "deals", icon: "trendingDown", label: "Gros deals", compteur: "deals" },
@@ -36,8 +41,8 @@ const GROUPES = [
     ],
   },
   {
-    titre: "Trouvé par les membres",
-    note: "Signalé et voté par la communauté",
+    titre: "La communauté",
+    note: "Signalé par les membres",
     entrees: [
       { key: "communaute-picks", icon: "gem", label: "Leurs deals" },
       { key: "forum", icon: "message", label: "Forum" },
@@ -45,7 +50,9 @@ const GROUPES = [
     ],
   },
   {
-    titre: "Ce que je suis",
+    // « Ce que je suis » se lisait d'abord comme le verbe être plutôt que
+    // suivre — un contresens involontaire qu'on ne voit plus une fois écrit.
+    titre: "Mon espace",
     entrees: [
       { key: "favoris", icon: "star", label: "Mes favoris", auth: true },
       { key: "profil", icon: "user", label: "Mon profil", auth: true },
