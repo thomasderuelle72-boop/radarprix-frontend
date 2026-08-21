@@ -369,19 +369,18 @@ const GlobalStyles = () => (
     .rp-msg-fil { display: flex; flex-direction: column; min-height: 0; }
     @media (max-width: 780px) {
       .rp-messagerie { grid-template-columns: 1fr; height: calc(100vh - 190px); }
+      /* Sans fil ouvert, le cadre épousait la hauteur de l'écran pour trois
+         conversations : il soulignait le vide au lieu de le rendre discret. */
+      .rp-messagerie-liste { height: auto; min-height: 0; }
       .rp-msg-colonne { border-right: none; }
       .rp-msg-cache-mobile { display: none !important; }
       .rp-msg-retour { display: flex !important; }
     }
 
-    /* Suppression d'un de ses propres messages : présente sans être offerte.
-       Au survol sur ordinateur ; à peine visible au doigt, faute de survol —
-       mais toujours atteignable, ce qu'un menu caché ne serait pas. */
-    .rp-msg-suppr { opacity: 0; transition: opacity .15s ease; }
-    .rp-msg-ligne:hover .rp-msg-suppr { opacity: .75; }
-    @media (hover: none) {
-      .rp-msg-suppr { opacity: .4; }
-    }
+    /* Les actions sur un message passent par un appui long (ou un clic
+       droit), plus par une croix posée à côté de chaque bulle : faute de
+       survol sur téléphone, elle restait affichée en permanence — quatre
+       croix pour cinq messages. */
 
     /* Ascenseur discret dans les fils et la liste des conversations. */
     .rp-fil::-webkit-scrollbar, .rp-msg-colonne ::-webkit-scrollbar { width: 8px; }
@@ -2690,8 +2689,11 @@ export default function RadarPrixSite() {
                 confondre sous un même intitulé « Activité » obligeait à lire
                 deux listes pour savoir laquelle des deux réclamait quelque
                 chose. */}
+            {/* marginRight : sans elle, le fond du bouton d'enveloppe affleure
+                le bord de l'écran, là où le navigateur pose ses propres
+                poignées de geste sur iPhone. */}
             {authToken && (
-              <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: "auto" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: "auto", marginRight: 2 }}>
                 <div style={{ position: "relative" }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setNotifOuvert((v) => !v); }}

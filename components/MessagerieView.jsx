@@ -18,6 +18,7 @@ import { T } from "../theme.js";
 import {
   apiGetMembers, apiGetConversations, apiGetConversationWith, apiPostMessageTo,
   apiSupprimerConversation, apiConversationNonLue, apiSupprimerMessage,
+  apiMemberProfile,
 } from "../api.js";
 import Avatar from "./Avatar.jsx";
 import Icon from "./Icon.jsx";
@@ -43,6 +44,10 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
   // conversation la marque lue côté serveur, donc l'information disparaît
   // dès la première lecture si on ne la retient pas ici.
   const [premierNonLu, setPremierNonLu] = useState(null);
+  // Qui est en face. Sur un site où l'on parle d'argent avec des inconnus,
+  // « membre depuis mars, 12 deals publiés » vaut mieux que « voir le
+  // profil » : la première ligne renseigne, la seconde renvoie ailleurs.
+  const [fiche, setFiche] = useState(null);
 
   const chargerConversations = useCallback(async () => {
     try {
@@ -88,6 +93,18 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
     // rafraîchit la liste pour que la pastille retombe tout de suite.
     setTimeout(chargerConversations, 400);
   }, [chargerConversations]);
+
+  // Fiche du correspondant, relue à chaque conversation ouverte. Son échec
+  // est sans conséquence : l'en-tête retombe alors sur « Voir le profil ».
+  useEffect(() => {
+    if (!actif) return undefined;
+    let arrete = false;
+    setFiche(null);
+    apiMemberProfile(actif.pseudo || actif.user_id, token)
+      .then((d) => !arrete && setFiche(d))
+      .catch(() => {});
+    return () => { arrete = true; };
+  }, [actif, token]);
 
   // Le repère de non-lus ne peut se calculer qu'une fois le fil chargé : on
   // compte les derniers messages reçus, en nombre annoncé par la liste.
@@ -175,8 +192,13 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 16px 26px" }}>
+      {/* Deux flèches de retour se superposaient sur téléphone : celle-ci et
+          le chevron de la conversation, qui ne mènent pas au même endroit
+          sans que rien ne le dise. Dès qu'un fil est ouvert, seule reste
+          celle du fil. */}
       <button
         onClick={onBack}
+        className={actif ? "rp-msg-cache-mobile" : ""}
         style={{
           display: "flex", alignItems: "center", gap: 6, background: "none", border: "none",
           color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0,
@@ -190,7 +212,7 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
         <p style={{ color: T.red, fontSize: 12.5, marginBottom: 10 }}>{erreur}</p>
       )}
 
-      <div className="rp-messagerie">
+      <div className={`rp-messagerie ${actif ? "" : "rp-messagerie-liste"}`}>
         {/* ── Volet gauche : les conversations ── */}
         <aside className={`rp-msg-colonne ${actif ? "rp-msg-cache-mobile" : ""}`}>
           <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${T.line}` }}>
@@ -397,7 +419,9 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
                     <span style={{ display: "block", fontSize: 14.5, fontWeight: 800, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {actif.display_name}
                     </span>
-                    <span style={{ display: "block", fontSize: 11, color: T.muted }}>Voir le profil</span>
+                    <span style={{ display: "block", fontSize: 11, color: T.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {contexteMembre(fiche) || "Voir le profil"}
+                    </span>
                   </span>
                 </button>
 
@@ -536,6 +560,23 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
       )}
     </div>
   );
+}
+
+/**
+ * Une ligne de contexte à partir de la fiche publique : depuis quand la
+ * personne est membre, et ce qu'elle a publié. Renvoie null si la fiche
+ * n'a pas pu être lue — l'en-tête retombe alors sur le libellé neutre.
+ */
+function contexteMembre(fiche) {
+  if (!fiche?.membre) return null;
+  const morceaux = [];
+  const d = new Date(String(fiche.membre.createdAt || "").replace(" ", "T") + "Z");
+  if (!Number.isNaN(d.getTime())) {
+    morceaux.push(`Membre depuis ${d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}`);
+  }
+  const publies = fiche.stats?.deals?.publies || 0;
+  if (publies > 0) morceaux.push(`${publies} deal${publies > 1 ? "s" : ""}`);
+  return morceaux.length > 0 ? morceaux.join(" · ") : null;
 }
 
 /** Ligne de la colonne de gauche (conversation ou membre). */

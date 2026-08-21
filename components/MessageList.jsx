@@ -1,6 +1,18 @@
 // MessageList.jsx — Fil de discussion : bulles groupées, séparateurs de
 // jour, défilement automatique.
 //
+// ── Le parti pris « ardoise » ──────────────────────────────────────
+// Les messages de l'auteur étaient des bulles orange pleines. Trois
+// d'affilée fatiguent déjà l'œil, vingt deviennent illisibles — et
+// l'orange, employé comme fond sur la moitié du fil, ne pouvait plus
+// signaler quoi que ce soit ailleurs.
+//
+// Ici, aucune bulle pleine : des cartes sombres bordées d'un trait, orange
+// à droite pour soi, cyan à gauche pour l'autre. Ce sont les couleurs que
+// le site emploie déjà pour le radar et pour la communauté ; la messagerie
+// cesse d'être une île. L'orange redevient ce qu'il doit être : le bouton
+// d'envoi, une pastille de non-lu, une alerte.
+//
 // L'affichage précédent était une simple liste de lignes "pseudo : texte"
 // dans une boîte à hauteur fixe. Rien ne distinguait ses propres messages
 // de ceux des autres, rien ne datait la conversation, et l'arrivée d'un
@@ -81,6 +93,80 @@ export function grouper(messages, auteurDe, premierNonLu) {
   return groupes;
 }
 
+/* Actions sur un message : appui long au doigt, clic droit à la souris.
+   La croix affichée en permanence à côté de chaque bulle — visible sur
+   téléphone faute de survol — mettait quatre croix pour cinq messages. */
+function MenuMessage({ message, moi, onSupprimer, onFermer }) {
+  const [copie, setCopie] = useState(false);
+
+  const copier = async () => {
+    try {
+      await navigator.clipboard.writeText(message.body);
+      setCopie(true);
+      setTimeout(onFermer, 700);
+    } catch {
+      // Presse-papiers refusé (contexte non sécurisé, permission) : on le dit
+      // plutôt que de laisser croire que c'est copié.
+      setCopie("echec");
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Actions sur le message"
+      onClick={onFermer}
+      style={{
+        position: "fixed", inset: 0, zIndex: 320, background: "rgba(3,6,12,.6)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="rp-modal-in"
+        style={{
+          width: "100%", maxWidth: 340, background: T.surface,
+          border: `1px solid ${T.line}`, borderRadius: 15, padding: 6,
+          boxShadow: T.shadowCard, marginBottom: 8,
+        }}
+      >
+        <p
+          style={{
+            margin: 0, padding: "10px 13px 9px", fontSize: 12.5, color: T.muted,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            borderBottom: `1px solid ${T.line}`,
+          }}
+        >
+          {message.body}
+        </p>
+        <button onClick={copier} style={actionStyle()}>
+          <Icon name="folder" size={15} color={T.sub} />
+          {copie === true ? "Copié" : copie === "echec" ? "Copie impossible" : "Copier le texte"}
+        </button>
+        {moi && onSupprimer && (
+          <button onClick={() => { onFermer(); onSupprimer(message); }} style={actionStyle(T.red)}>
+            <Icon name="x" size={15} color={T.red} />
+            Supprimer ce message
+          </button>
+        )}
+        <button onClick={onFermer} style={actionStyle(T.sub)}>
+          <Icon name="chevronDown" size={15} color={T.sub} />
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function actionStyle(couleur = T.ink) {
+  return {
+    display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left",
+    background: "none", border: "none", borderRadius: 10, padding: "12px 13px",
+    cursor: "pointer", color: couleur, fontSize: 14, fontWeight: 700,
+    fontFamily: "'Inter', system-ui, sans-serif",
+  };
+}
+
 export default function MessageList({
   messages,
   currentUserId,
@@ -100,6 +186,7 @@ export default function MessageList({
   // on ne le ramène pas de force en bas à chaque nouveau message.
   const colleEnBas = useRef(true);
   const [nouveaux, setNouveaux] = useState(0);
+  const [menu, setMenu] = useState(null); // { message, moi }
   const dernierVu = useRef(0);
 
   const auteurDe = useCallback((m) => m.user_id ?? m.from_user_id, []);
@@ -145,7 +232,7 @@ export default function MessageList({
         style={{
           display: "flex", flexDirection: "column", gap: 14,
           overflowY: "auto", padding: "16px 16px 10px",
-          background: T.bgElevated, border: `1px solid ${T.line}`,
+          background: T.bg, border: `1px solid ${T.line}`,
           borderBottom: "none",
           // Dans la messagerie, le fil occupe toute la hauteur restante de
           // l'écran ; ailleurs il garde la hauteur qu'on lui donne.
@@ -180,7 +267,7 @@ export default function MessageList({
               key={g.cle}
               groupe={g}
               moi={g.auteurId === currentUserId}
-              onSupprimer={onSupprimer}
+              onActions={(m, moi) => setMenu({ message: m, moi })}
               accuse={accuseLecture && g.auteurId === currentUserId && g === dernierGroupeAMoi}
             />
           )
@@ -207,13 +294,32 @@ export default function MessageList({
           {nouveaux} nouveau{nouveaux > 1 ? "x" : ""} message{nouveaux > 1 ? "s" : ""}
         </button>
       )}
+
+      {menu && (
+        <MenuMessage
+          message={menu.message}
+          moi={menu.moi}
+          onSupprimer={onSupprimer}
+          onFermer={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }
 
 /** Un bloc de messages consécutifs d'un même auteur. */
-function Groupe({ groupe, moi, onSupprimer, accuse }) {
+function Groupe({ groupe, moi, onActions, accuse }) {
   const fin = groupe.fin ? heure(groupe.fin) : "";
+  // Appui long : le geste attendu sur un message, et le seul disponible au
+  // doigt puisqu'il n'y a pas de survol. 480 ms — assez pour ne pas se
+  // déclencher au défilement, assez court pour ne pas se faire attendre.
+  const minuteur = useRef(null);
+  const demarrerAppui = (m) => {
+    clearTimeout(minuteur.current);
+    minuteur.current = setTimeout(() => onActions?.(m, moi), 480);
+  };
+  const annulerAppui = () => clearTimeout(minuteur.current);
+  useEffect(() => () => clearTimeout(minuteur.current), []);
   const dernierMessage = groupe.messages[groupe.messages.length - 1];
   const lu = Boolean(dernierMessage?.read_at);
   return (
@@ -241,7 +347,7 @@ function Groupe({ groupe, moi, onSupprimer, accuse }) {
         // Plafond en pixels en plus du pourcentage : sur un écran large, une
         // bulle à 76 % d'un fil de 900 px traverse tout l'écran et se lit
         // moins bien qu'une colonne de texte de largeur raisonnable.
-        maxWidth: "min(76%, 520px)",
+        maxWidth: "min(82%, 540px)",
         display: "flex", flexDirection: "column", alignItems: moi ? "flex-end" : "flex-start", gap: 3 }}>
         {!moi && (
           <button
@@ -255,45 +361,36 @@ function Groupe({ groupe, moi, onSupprimer, accuse }) {
 
         {groupe.messages.map((m, i) => {
           const dernier = i === groupe.messages.length - 1;
-          // Le coin côté avatar reste carré sur la dernière bulle : c'est ce
-          // qui fait lire le bloc comme une prise de parole unique.
+          // Le coin côté interlocuteur se ferme sur la dernière bulle : c'est
+          // ce qui fait lire le bloc comme une prise de parole unique.
           const rayon = moi
-            ? `16px 16px ${dernier ? "5px" : "16px"} 16px`
-            : `16px 16px 16px ${dernier ? "5px" : "16px"}`;
-          const bulle = (
+            ? `13px 13px ${dernier ? "4px" : "13px"} 13px`
+            : `13px 13px 13px ${dernier ? "4px" : "13px"}`;
+          return (
             <div
               key={m.id}
+              onContextMenu={(e) => { e.preventDefault(); onActions?.(m, moi); }}
+              onTouchStart={() => demarrerAppui(m)}
+              onTouchEnd={annulerAppui}
+              onTouchMove={annulerAppui}
+              onTouchCancel={annulerAppui}
               style={{
-                padding: "9px 13px", borderRadius: rayon,
-                background: moi ? T.ember : T.surface2,
-                color: moi ? "#0C0E14" : T.ink,
-                border: moi ? "none" : `1px solid ${T.line}`,
+                padding: "8px 12px", borderRadius: rayon,
+                // Aucune bulle pleine : une carte sombre, un trait de couleur
+                // du côté de celui qui parle. Orange pour soi, cyan pour
+                // l'autre — les teintes que le site emploie déjà.
+                background: moi ? T.surface3 : "transparent",
+                color: T.ink,
+                border: `1px solid ${T.line}`,
+                ...(moi
+                  ? { borderRight: `2px solid ${T.emberSolid}` }
+                  : { borderLeft: `2px solid ${T.cyan}` }),
                 fontSize: 13.5, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word",
-                fontWeight: moi ? 600 : 400,
+                fontWeight: moi ? 500 : 400,
+                WebkitTouchCallout: "none",
               }}
             >
               {m.body}
-            </div>
-          );
-          if (!moi || !onSupprimer) return bulle;
-          // Suppression d'un de ses propres messages : discrète, elle
-          // n'apparaît qu'au survol de la bulle concernée (et reste
-          // légèrement visible au doigt, faute de survol sur mobile).
-          return (
-            <div key={m.id} className="rp-msg-ligne" style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: "row-reverse" }}>
-              {bulle}
-              <button
-                className="rp-msg-suppr"
-                onClick={() => onSupprimer(m)}
-                aria-label="Supprimer ce message"
-                title="Supprimer ce message"
-                style={{
-                  background: "none", border: "none", padding: 2, cursor: "pointer",
-                  color: T.muted, display: "flex", flexShrink: 0,
-                }}
-              >
-                <Icon name="x" size={13} />
-              </button>
             </div>
           );
         })}
