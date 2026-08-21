@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { T } from "../theme.js";
 import Avatar from "./Avatar.jsx";
 import Icon from "./Icon.jsx";
+import AvatarMaison, { MOTIFS, PALETTES, jetonAvatar, lireJeton } from "./avatars.jsx";
 
 const TAILLE = 160; // côté du carré final, en pixels
 const POIDS_MAX = 90 * 1024; // garde-fou : au-delà, on refuse plutôt que d'envoyer
@@ -56,6 +57,14 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
   const [chargement, setChargement] = useState(false);
   const [modeUrl, setModeUrl] = useState(false);
 
+  // Le choix courant, s'il vient de la panoplie : sert à cocher la bonne
+  // vignette et à conserver la teinte quand on change de motif.
+  const choix = lireJeton(value);
+  const [teinte, setTeinte] = useState(choix?.palette.cle || PALETTES[0].cle);
+  // Ouverte par défaut tant qu'aucune photo n'a été téléversée : c'est le
+  // chemin le plus court vers un profil qui ne soit plus une initiale.
+  const [galerie, setGalerie] = useState(!value || Boolean(choix));
+
   const choisirFichier = async (e) => {
     const file = e.target.files?.[0];
     // Permet de re-sélectionner le même fichier après une erreur.
@@ -85,13 +94,29 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
 
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 8 }}>Photo de profil</label>
+      <label style={{ display: "block", fontSize: 11.5, color: T.sub, marginBottom: 8 }}>Avatar</label>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <Avatar email={email} pseudo={pseudo} avatarUrl={value} size={64} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setGalerie((v) => !v)}
+              className="rp-pressable"
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                background: galerie ? T.ember : T.surface2,
+                border: `1.5px solid ${galerie ? "transparent" : T.line}`, borderRadius: 9,
+                padding: "9px 14px", color: galerie ? "#0C0E14" : T.ink,
+                fontSize: 12.5, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              <Icon name="sparkle" size={14} />
+              La galerie
+            </button>
+
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
@@ -105,7 +130,7 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
               }}
             >
               <Icon name="share" size={14} />
-              {chargement ? "Traitement…" : value ? "Changer la photo" : "Choisir une photo"}
+              {chargement ? "Traitement…" : "Ma photo"}
             </button>
 
             {value && (
@@ -134,6 +159,66 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
         </div>
       </div>
 
+      {/* ── La galerie ──────────────────────────────────────────────
+          La teinte d'abord, le motif ensuite : changer de couleur garde le
+          motif choisi, ce qui permet d'essayer les six sans repartir de
+          zéro. L'inverse — une grille de 72 vignettes — serait illisible. */}
+      {galerie && (
+        <div
+          style={{
+            marginTop: 14, padding: 14, borderRadius: 12,
+            background: T.surface2, border: `1px solid ${T.line}`,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+            {PALETTES.map((p) => (
+              <button
+                key={p.cle}
+                type="button"
+                onClick={() => { setTeinte(p.cle); if (choix) onChange(jetonAvatar(choix.motif.cle, p.cle)); }}
+                aria-label={p.nom}
+                aria-pressed={teinte === p.cle}
+                title={p.nom}
+                style={{
+                  width: 26, height: 26, borderRadius: "50%", cursor: "pointer",
+                  background: p.fond, padding: 0,
+                  border: teinte === p.cle ? `2.5px solid ${T.ink}` : "2.5px solid transparent",
+                  boxShadow: teinte === p.cle ? `0 0 0 2px ${p.fond}` : "none",
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))", gap: 9 }}>
+            {MOTIFS.map((m) => {
+              const jeton = jetonAvatar(m.cle, teinte);
+              const actif = value === jeton;
+              return (
+                <button
+                  key={m.cle}
+                  type="button"
+                  onClick={() => onChange(jeton)}
+                  aria-label={m.nom}
+                  aria-pressed={actif}
+                  title={m.nom}
+                  className="rp-pressable"
+                  style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                    padding: "7px 2px", borderRadius: 10, cursor: "pointer",
+                    background: actif ? "rgba(255,106,53,0.14)" : "transparent",
+                    border: `1.5px solid ${actif ? T.emberSolid : "transparent"}`,
+                    fontFamily: "'Inter', sans-serif",
+                  }}
+                >
+                  <AvatarMaison jeton={jeton} size={38} titre={m.nom} />
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: actif ? T.ink : T.muted }}>{m.nom}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
@@ -145,7 +230,7 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
 
       {modeUrl && (
         <input
-          value={value?.startsWith("data:") ? "" : value || ""}
+          value={value?.startsWith("data:") || value?.startsWith("rp:") ? "" : value || ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="https://…"
           style={{
@@ -158,7 +243,8 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
 
       {erreur && <p style={{ fontSize: 11.5, color: T.red, marginTop: 8 }}>{erreur}</p>}
       <p style={{ fontSize: 11, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>
-        L'image est recadrée en carré et réduite à {TAILLE} px dans ton navigateur — rien d'autre n'est envoyé.
+        Un avatar de la galerie ne pèse rien et s'affiche partout instantanément.
+        Une photo est recadrée en carré et réduite à {TAILLE} px dans ton navigateur — rien d'autre n'est envoyé.
       </p>
     </div>
   );

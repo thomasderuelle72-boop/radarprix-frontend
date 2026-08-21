@@ -3304,7 +3304,7 @@ export default function RadarPrixSite() {
         {view === "occasion" && <FeedView onBack={goHome} occasion />}
       </div>
 
-      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} token={authToken} />
+      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} token={authToken} utilisateur={authUser} />
       <DrawerMenu
         ouvert={menuOuvert}
         onFermer={() => setMenuOuvert(false)}
