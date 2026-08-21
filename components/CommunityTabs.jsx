@@ -14,7 +14,7 @@ import Icon from "./Icon.jsx";
 
 const SOUS_PAGES = [
   { vue: "communaute-picks", libelle: "Choix de la communauté", court: "Deals", icone: "trophy" },
-  { vue: "communaute-chat", libelle: "Salon & messages", court: "Messages", icone: "message" },
+  { vue: "communaute-chat", libelle: "Salon général", court: "Salon", icone: "message" },
   { vue: "communaute-forum", libelle: "Forum", court: "Forum", icone: "users" },
 ];
 

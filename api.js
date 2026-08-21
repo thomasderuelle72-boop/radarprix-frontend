@@ -247,6 +247,42 @@ export async function apiPostMessageTo(token, userId, body) {
   return data;
 }
 
+/**
+ * Supprime une conversation POUR SOI. Le serveur n'efface pas les messages :
+ * ils appartiennent aussi au correspondant, qui ne les a pas supprimés.
+ */
+export async function apiSupprimerConversation(token, userId) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Suppression impossible.");
+  return data;
+}
+
+/** Remet la conversation en attente, pour y revenir plus tard. */
+export async function apiConversationNonLue(token, userId) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/with/${userId}/non-lu`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Action impossible.");
+  return data;
+}
+
+/** Supprime un message qu'on a soi-même envoyé. */
+export async function apiSupprimerMessage(token, id) {
+  const res = await fetch(`${BACKEND_URL}/api/chat/message/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Suppression impossible.");
+  return data;
+}
+
 /* ── Communauté : deals soumis par les membres + votes de pertinence ── */
 export async function apiCommunityListDeals(token, category = "tout", sort = "hot", page = 1, pageSize = 20) {
   const params = new URLSearchParams({ category, sort, page, pageSize });

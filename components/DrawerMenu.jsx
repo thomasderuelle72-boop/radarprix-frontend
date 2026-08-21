@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
 import useRadar, { depuis } from "./useRadar.js";
+import useActivite from "./useActivite.js";
 
 /* Le menu ne classe pas par thème, mais par ORIGINE.
  *
@@ -53,6 +54,11 @@ const GROUPES = [
     // suivre — un contresens involontaire qu'on ne voit plus une fois écrit.
     titre: "Mon espace",
     entrees: [
+      // Les deux mêmes destinations que la cloche et l'enveloppe de
+      // l'en-tête. Un raccourci en haut de l'écran se voit ; il ne se
+      // cherche pas — et c'est dans un menu qu'on cherche.
+      { key: "messages", icon: "mail", label: "Messages privés", compteur: "messages", auth: true },
+      { key: "notifications", icon: "bell", label: "Notifications", compteur: "notifications", auth: true },
       { key: "favoris", icon: "star", label: "Mes favoris", auth: true },
       { key: "profil", icon: "user", label: "Mon profil", auth: true },
       { key: "parametres", icon: "settings", label: "Paramètres", auth: true },
@@ -70,9 +76,18 @@ const SECONDAIRES = [
   { key: "confidentialite", label: "Politique de confidentialité" },
 ];
 
-export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, admin, onDeconnexion }) {
+/* Deux sources de compteurs : le radar (ce que la machine a trouvé) et
+   l'activité du membre (ce qui l'attend). Une seule fonction pour que la
+   ligne d'affichage n'ait pas à savoir laquelle interroger. */
+function compteurDe(nom, radar, activite) {
+  if (nom === "messages" || nom === "notifications") return activite?.[nom] || 0;
+  return radar?.[nom] || 0;
+}
+
+export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, admin, onDeconnexion, token }) {
   const panneau = useRef(null);
   const radar = useRadar();
+  const activite = useActivite(token);
 
   /* Fermeture au clavier : un menu qui recouvre l'écran doit pouvoir se
      refermer sans viser un bouton, en particulier pour qui navigue au clavier
@@ -212,16 +227,16 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
                       <span style={{ flex: 1 }}>{e.label}</span>
                       {/* Le compteur ne s'affiche qu'à partir de un : « 0 »
                           annoncerait un vide que la page dira mieux. */}
-                      {e.compteur && radar?.[e.compteur] > 0 && (
+                      {e.compteur && compteurDe(e.compteur, radar, activite) > 0 && (
                         <span
                           style={{
                             fontSize: 11.5,
                             fontWeight: 800,
-                            color: e.compteur === "anomalies" ? T.red : T.sub,
+                            color: e.compteur === "anomalies" || e.compteur === "messages" ? T.red : T.sub,
                             fontVariantNumeric: "tabular-nums",
                           }}
                         >
-                          {radar[e.compteur]}
+                          {compteurDe(e.compteur, radar, activite)}
                         </span>
                       )}
                     </button>

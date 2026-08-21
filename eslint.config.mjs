@@ -78,6 +78,17 @@ export default [
         { skipStrings: true, skipTemplates: true, skipComments: true, skipJSXText: true },
       ],
 
+      // Une variable lue avant sa déclaration lève une ReferenceError au
+      // premier rendu, et rien ne la signale avant : Vite compile, les tests
+      // passent, la page reste blanche. C'est arrivé en déplaçant un appel de
+      // hook deux lignes trop haut. Les fonctions restent exclues — elles
+      // sont remontées par le langage, et l'usage du projet est de définir
+      // les composants après leur emploi.
+      "no-use-before-define": [
+        "error",
+        { functions: false, classes: false, variables: true, allowNamedExports: true },
+      ],
+
       // Règle très récente qui condamne tout setState dans le corps d'un
       // effet. Le motif qu'elle vise ici — remettre l'état à « chargement »
       // avant de lancer une requête — est la façon standard de charger des

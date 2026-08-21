@@ -52,6 +52,10 @@ export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand
       return "/occasion";
     case "favoris":
       return "/favoris";
+    case "messages":
+      return "/messages";
+    case "notifications":
+      return "/notifications";
     case "admin":
       return "/admin";
     case "communaute-picks":
@@ -106,6 +110,10 @@ export function pathToState(pathname, search) {
       return { view: "occasion" };
     case "favoris":
       return { view: "favoris" };
+    case "messages":
+      return { view: "messages" };
+    case "notifications":
+      return { view: "notifications" };
     case "admin":
       return { view: "admin" };
     case "communaute":

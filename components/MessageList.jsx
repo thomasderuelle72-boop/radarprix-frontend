@@ -38,7 +38,7 @@ const heure = (d) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2
  * espacés de moins de cinq minutes. Sans ce regroupement, une réponse en
  * trois messages affichait trois fois la photo et le pseudo.
  */
-function grouper(messages, auteurDe) {
+export function grouper(messages, auteurDe, premierNonLu) {
   const groupes = [];
   let jourCourant = null;
 
@@ -48,6 +48,14 @@ function grouper(messages, auteurDe) {
     if (cle !== jourCourant) {
       jourCourant = cle;
       groupes.push({ type: "jour", cle: `jour-${cle}-${m.id}`, libelle: d ? libelleJour(d) : "" });
+    }
+
+    // Repère « Nouveaux messages », après la date du jour : l'inverse
+    // donnerait « Nouveaux messages » suivi de « Aujourd'hui », comme si le
+    // repère annonçait la date. Il coupe le groupe en cours, sinon il se
+    // retrouverait au-dessus de messages déjà lus du même auteur.
+    if (premierNonLu && m.id === premierNonLu) {
+      groupes.push({ type: "nonlus", cle: `nonlus-${m.id}` });
     }
 
     const precedent = groupes[groupes.length - 1];
@@ -73,7 +81,19 @@ function grouper(messages, auteurDe) {
   return groupes;
 }
 
-export default function MessageList({ messages, currentUserId, hauteur = 420, vide }) {
+export default function MessageList({
+  messages,
+  currentUserId,
+  hauteur = 420,
+  vide,
+  // Messagerie privée seulement : accusé de lecture sous son dernier
+  // message, repère de non-lus, suppression de ses propres messages. Le
+  // salon général n'a rien de tout ça — il est public et sans destinataire.
+  accuseLecture = false,
+  premierNonLu = null,
+  onSupprimer = null,
+  pleineHauteur = false,
+}) {
   const zone = useRef(null);
   const finRef = useRef(null);
   // Vrai tant que le lecteur est au bas du fil. S'il est remonté pour relire,
@@ -110,19 +130,28 @@ export default function MessageList({ messages, currentUserId, hauteur = 420, vi
     else if (arrivees > 0) setNouveaux((n) => n + arrivees);
   }, [messages.length, descendre]);
 
-  const groupes = grouper(messages, auteurDe);
+  const groupes = grouper(messages, auteurDe, premierNonLu);
+  // L'accusé de lecture ne se met que sous le DERNIER de ses propres
+  // messages : répété sous chacun, il transformerait le fil en colonne de
+  // mentions « Vu ».
+  const dernierGroupeAMoi = [...groupes].reverse().find((g) => g.type === "groupe" && g.auteurId === currentUserId);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", ...(pleineHauteur ? { flex: 1, minHeight: 0, display: "flex" } : {}) }}>
       <div
         ref={zone}
         onScroll={verifierPosition}
         className="rp-fil"
         style={{
           display: "flex", flexDirection: "column", gap: 14,
-          height: hauteur, overflowY: "auto", padding: "16px 16px 10px",
+          overflowY: "auto", padding: "16px 16px 10px",
           background: T.bgElevated, border: `1px solid ${T.line}`,
-          borderRadius: `${T.radiusLg}px ${T.radiusLg}px 0 0`, borderBottom: "none",
+          borderBottom: "none",
+          // Dans la messagerie, le fil occupe toute la hauteur restante de
+          // l'écran ; ailleurs il garde la hauteur qu'on lui donne.
+          ...(pleineHauteur
+            ? { flex: 1, minHeight: 0, width: "100%", borderRadius: 0, border: "none", borderTop: `1px solid ${T.line}` }
+            : { height: hauteur, borderRadius: `${T.radiusLg}px ${T.radiusLg}px 0 0` }),
         }}
       >
         {messages.length === 0 && (
@@ -130,7 +159,15 @@ export default function MessageList({ messages, currentUserId, hauteur = 420, vi
         )}
 
         {groupes.map((g) =>
-          g.type === "jour" ? (
+          g.type === "nonlus" ? (
+            <div key={g.cle} style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
+              <span style={{ flex: 1, height: 1, background: `${T.red}55` }} />
+              <span style={{ fontSize: 10.5, fontWeight: 900, color: T.red, whiteSpace: "nowrap", letterSpacing: ".06em", textTransform: "uppercase" }}>
+                Nouveaux messages
+              </span>
+              <span style={{ flex: 1, height: 1, background: `${T.red}55` }} />
+            </div>
+          ) : g.type === "jour" ? (
             <div key={g.cle} style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0" }}>
               <span style={{ flex: 1, height: 1, background: T.line }} />
               <span style={{ fontSize: 11, fontWeight: 800, color: T.muted, whiteSpace: "nowrap", textTransform: "capitalize" }}>
@@ -139,7 +176,13 @@ export default function MessageList({ messages, currentUserId, hauteur = 420, vi
               <span style={{ flex: 1, height: 1, background: T.line }} />
             </div>
           ) : (
-            <Groupe key={g.cle} groupe={g} moi={g.auteurId === currentUserId} />
+            <Groupe
+              key={g.cle}
+              groupe={g}
+              moi={g.auteurId === currentUserId}
+              onSupprimer={onSupprimer}
+              accuse={accuseLecture && g.auteurId === currentUserId && g === dernierGroupeAMoi}
+            />
           )
         )}
         <div ref={finRef} />
@@ -169,8 +212,10 @@ export default function MessageList({ messages, currentUserId, hauteur = 420, vi
 }
 
 /** Un bloc de messages consécutifs d'un même auteur. */
-function Groupe({ groupe, moi }) {
+function Groupe({ groupe, moi, onSupprimer, accuse }) {
   const fin = groupe.fin ? heure(groupe.fin) : "";
+  const dernierMessage = groupe.messages[groupe.messages.length - 1];
+  const lu = Boolean(dernierMessage?.read_at);
   return (
     <div
       className="msg-slide-in"
@@ -215,7 +260,7 @@ function Groupe({ groupe, moi }) {
           const rayon = moi
             ? `16px 16px ${dernier ? "5px" : "16px"} 16px`
             : `16px 16px 16px ${dernier ? "5px" : "16px"}`;
-          return (
+          const bulle = (
             <div
               key={m.id}
               style={{
@@ -230,9 +275,44 @@ function Groupe({ groupe, moi }) {
               {m.body}
             </div>
           );
+          if (!moi || !onSupprimer) return bulle;
+          // Suppression d'un de ses propres messages : discrète, elle
+          // n'apparaît qu'au survol de la bulle concernée (et reste
+          // légèrement visible au doigt, faute de survol sur mobile).
+          return (
+            <div key={m.id} className="rp-msg-ligne" style={{ display: "flex", alignItems: "center", gap: 6, flexDirection: "row-reverse" }}>
+              {bulle}
+              <button
+                className="rp-msg-suppr"
+                onClick={() => onSupprimer(m)}
+                aria-label="Supprimer ce message"
+                title="Supprimer ce message"
+                style={{
+                  background: "none", border: "none", padding: 2, cursor: "pointer",
+                  color: T.muted, display: "flex", flexShrink: 0,
+                }}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          );
         })}
 
-        <span style={{ fontSize: 10.5, color: T.muted, padding: "0 4px" }}>{fin}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: T.muted, padding: "0 4px" }}>
+          {fin}
+          {accuse && (
+            <>
+              <span aria-hidden="true">·</span>
+              {lu ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 3, color: T.green }}>
+                  <Icon name="check" size={11} /> Vu
+                </span>
+              ) : (
+                "Envoyé"
+              )}
+            </>
+          )}
+        </span>
       </div>
     </div>
   );

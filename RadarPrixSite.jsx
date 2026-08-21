@@ -3,7 +3,9 @@ import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import DrawerMenu from "./components/DrawerMenu.jsx";
-import ActiviteView from "./components/ActiviteView.jsx";
+import NotificationsView from "./components/NotificationsView.jsx";
+import NotificationsMenu from "./components/NotificationsMenu.jsx";
+import useActivite from "./components/useActivite.js";
 // Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
 // l'historique de prix), de loin la plus grosse dépendance du projet. En
 // import statique, tout visiteur la téléchargeait au premier chargement de la
@@ -24,6 +26,7 @@ const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 const ChatView = lazy(() => import("./components/ChatView.jsx"));
 const AdminView = lazy(() => import("./components/AdminView.jsx"));
 const InfoView = lazy(() => import("./components/InfoView.jsx"));
+const MessagerieView = lazy(() => import("./components/MessagerieView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
@@ -349,35 +352,48 @@ const GlobalStyles = () => (
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
 
-    /* — Messages privés : deux volets côte à côte sur écran large, empilés
-         sur téléphone où l'on passe de la liste au fil et retour. Avant, la
-         liste des membres remplaçait la conversation : impossible de voir
-         avec qui on parlait tout en lisant le fil. — */
-    .rp-mp { display: grid; grid-template-columns: 288px 1fr; gap: 16px; align-items: start; }
-    .rp-mp-liste {
-      background: ${T.bgElevated}; border: 1px solid ${T.line};
-      border-radius: ${T.radiusLg}px; padding: 12px;
-      max-height: 520px; overflow-y: auto;
+    /* — Messagerie privée : une application, pas une section de page.
+         Les deux volets occupent la hauteur de la fenêtre et défilent
+         chacun de leur côté ; c'est le fil qui bouge, le reste tient en
+         place. Sur téléphone, un seul volet à la fois — la liste s'efface
+         dès qu'une conversation est ouverte. — */
+    .rp-messagerie {
+      display: grid; grid-template-columns: 322px 1fr;
+      height: calc(100vh - 230px); min-height: 480px;
+      background: ${T.bg}; border: 1px solid ${T.line};
+      border-radius: ${T.radiusLg}px; overflow: hidden;
     }
-    .rp-mp-retour { display: none; }
+    .rp-msg-colonne {
+      display: flex; flex-direction: column; min-height: 0;
+      border-right: 1px solid ${T.line}; background: ${T.surface};
+    }
+    .rp-msg-fil { display: flex; flex-direction: column; min-height: 0; }
     @media (max-width: 780px) {
-      .rp-mp { grid-template-columns: 1fr; }
-      .rp-mp-liste { max-height: none; }
-      /* Un seul volet à la fois : la liste disparaît quand un fil est ouvert. */
-      .rp-mp-cache-mobile { display: none; }
-      .rp-mp-retour { display: block; }
+      .rp-messagerie { grid-template-columns: 1fr; height: calc(100vh - 190px); }
+      .rp-msg-colonne { border-right: none; }
+      .rp-msg-cache-mobile { display: none !important; }
+      .rp-msg-retour { display: flex !important; }
+    }
+
+    /* Suppression d'un de ses propres messages : présente sans être offerte.
+       Au survol sur ordinateur ; à peine visible au doigt, faute de survol —
+       mais toujours atteignable, ce qu'un menu caché ne serait pas. */
+    .rp-msg-suppr { opacity: 0; transition: opacity .15s ease; }
+    .rp-msg-ligne:hover .rp-msg-suppr { opacity: .75; }
+    @media (hover: none) {
+      .rp-msg-suppr { opacity: .4; }
     }
 
     /* Ascenseur discret dans les fils et la liste des conversations. */
-    .rp-fil::-webkit-scrollbar, .rp-mp-liste::-webkit-scrollbar { width: 8px; }
-    .rp-fil::-webkit-scrollbar-thumb, .rp-mp-liste::-webkit-scrollbar-thumb {
+    .rp-fil::-webkit-scrollbar, .rp-msg-colonne ::-webkit-scrollbar { width: 8px; }
+    .rp-fil::-webkit-scrollbar-thumb, .rp-msg-colonne ::-webkit-scrollbar-thumb {
       background: ${T.surface3}; border-radius: 999px;
     }
-    .rp-fil, .rp-mp-liste { scrollbar-width: thin; scrollbar-color: ${T.surface3} transparent; }
+    .rp-fil, .rp-msg-colonne { scrollbar-width: thin; scrollbar-color: ${T.surface3} transparent; }
 
     /* Champs de la messagerie : le contour blanc par défaut du navigateur
        jurait avec la charte. On le remplace par la couleur de la marque. */
-    .rp-mp input:focus-visible, .rp-fil-saisie:focus-visible {
+    .rp-messagerie input:focus-visible, .rp-fil-saisie:focus-visible {
       outline: none; border-color: ${T.emberSolid};
       box-shadow: 0 0 0 3px rgba(255,106,26,.16);
     }
@@ -538,6 +554,16 @@ const GlobalStyles = () => (
     .rp-deal-card { transition: border-color 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms cubic-bezier(.2,.8,.2,1); }
     .rp-tilt3d:hover .rp-deal-card { border-color: ${T.emberSolid}; box-shadow: ${T.shadowCardHover}; }
     .rp-mobile-nav button { transition: color .15s ease; }
+    /* Boutons cloche et enveloppe de l'en-tête : cible tactile de 38 px,
+       sans cadre au repos pour ne pas encombrer une barre déjà chargée. */
+    .rp-nav-icone {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      background: none; border: 1px solid transparent; color: ${T.sub};
+      cursor: pointer; transition: background .15s ease, color .15s ease;
+    }
+    .rp-nav-icone:hover { background: ${T.surface2}; border-color: ${T.line}; color: ${T.ink}; }
+    .rp-notif-panneau { width: min(92vw, 372px); }
     /* Cartes explicatives de la page À propos : trois de front sur un
        écran large, une seule sur un téléphone, sans point de rupture à
        maintenir. */
@@ -1538,6 +1564,25 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
   );
 }
 
+/* Pastille de compte des deux boutons de l'en-tête. Elle n'apparaît qu'à
+   partir de un : un « 0 » attirerait l'œil pour annoncer qu'il n'y a rien. */
+function PastilleNav({ nombre, ton }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "absolute", top: 2, right: 1,
+        minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: ton, color: "#FFF", fontSize: 9.5, fontWeight: 900,
+        border: `2px solid ${T.bg}`, fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {nombre > 99 ? "99+" : nombre}
+    </span>
+  );
+}
+
 /* ── Petits styles partagés entre les vues Communauté / Forum ──── */
 /* Le bouton retour maison a disparu avec le passage de ces vues au gabarit
    commun : PageShell dessine le sien, identique d'une page à l'autre. */
@@ -2081,8 +2126,12 @@ export default function RadarPrixSite() {
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const [notifOuvert, setNotifOuvert] = useState(false);
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
+  // Ce qui attend le membre : sert aux deux pastilles de l'en-tête.
+  const activite = useActivite(authToken);
+  const relireActivite = activite.relire;
   const [followMsg, setFollowMsg] = useState(null);
   const [dealDetailItem, setDealDetailItem] = useState(null);
   const [marchandActif, setMarchandActif] = useState(null); // page marchand ouverte
@@ -2187,21 +2236,6 @@ export default function RadarPrixSite() {
 
   const authRole = authUser?.role || null;
 
-  const followCurrentSearch = async () => {
-    if (!authToken) {
-      setAuthOpen(true);
-      return;
-    }
-    const followQuery = searchTerm || `Catégorie : ${CATEGORIES.find((c) => c.id === category)?.label || category}`;
-    try {
-      await apiWatchlistAdd(authToken, followQuery, category);
-      setFollowMsg("✓ Ajouté à tes favoris");
-      setTimeout(() => setFollowMsg(null), 2500);
-    } catch (e) {
-      setFollowMsg("Erreur : " + e.message);
-      setTimeout(() => setFollowMsg(null), 3000);
-    }
-  };
 
   const [tab, setTab] = useState("deals"); // deals | erreurs
   const [searchTerm, setSearchTerm] = useState("");
@@ -2287,6 +2321,22 @@ export default function RadarPrixSite() {
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 15;
+
+  const followCurrentSearch = async () => {
+    if (!authToken) {
+      setAuthOpen(true);
+      return;
+    }
+    const followQuery = searchTerm || `Catégorie : ${CATEGORIES.find((c) => c.id === category)?.label || category}`;
+    try {
+      await apiWatchlistAdd(authToken, followQuery, category);
+      setFollowMsg("✓ Ajouté à tes favoris");
+      setTimeout(() => setFollowMsg(null), 2500);
+    } catch (e) {
+      setFollowMsg("Erreur : " + e.message);
+      setTimeout(() => setFollowMsg(null), 3000);
+    }
+  };
 
   // Arriver sur /deals ou /erreurs par l'URL (lien direct, favori, bouton
   // retour) ne passe pas par openTab(), qui est ce qui déclenche la requête :
@@ -2419,6 +2469,31 @@ export default function RadarPrixSite() {
     setSellerFilter("tous");
   };
 
+  /** Messagerie privée, éventuellement sur une conversation précise. */
+  const ouvrirMessages = (cibleId = null) => {
+    if (!authToken) return setAuthOpen(true);
+    setChatCible(cibleId);
+    setNotifOuvert(false);
+    setView("messages");
+    window.scrollTo(0, 0);
+  };
+
+  /** Page des notifications. */
+  const ouvrirNotifications = () => {
+    if (!authToken) return setAuthOpen(true);
+    setNotifOuvert(false);
+    setView("notifications");
+    window.scrollTo(0, 0);
+  };
+
+  /** Où mène une notification : à ce dont elle parle, pas à un libellé. */
+  const suivreNotification = (n) => {
+    if (n.cible_vue === "forum-thread") return goToCommunity("communaute-forum");
+    if (n.cible_vue === "profil" && n.acteur_pseudo) return ouvrirProfil(n.acteur_pseudo);
+    if (n.cible_vue === "produit" && n.cible_id) return searchProduct(n.cible_id);
+    return ouvrirNotifications();
+  };
+
   /** Ouvre une page secondaire (à propos, FAQ, contact, pages légales). */
   const ouvrirInfo = (page) => {
     setInfoPage(page);
@@ -2438,7 +2513,7 @@ export default function RadarPrixSite() {
 
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
   const mobileNavActive =
-    view === "activite" ? "activite" :
+    view === "favoris" ? "favoris" :
     view === "profil" ? "profil" :
     view === "results" && tab === "erreurs" ? "erreurs" :
     view === "results" && searchTerm ? "recherche" :
@@ -2464,9 +2539,9 @@ export default function RadarPrixSite() {
       setTimeout(() => document.querySelector('input[type="search"], .rp-search input')?.focus(), 80);
       return;
     }
-    if (key === "activite") {
+    if (key === "favoris") {
       if (!authToken) return setAuthOpen(true);
-      setView("activite");
+      setView("favoris");
       window.scrollTo(0, 0);
       return;
     }
@@ -2487,6 +2562,8 @@ export default function RadarPrixSite() {
       const cible = key === "forum" ? "communaute-forum" : key === "salon" ? "communaute-chat" : "communaute-picks";
       return goToCommunity(cible);
     }
+    if (key === "messages") return ouvrirMessages();
+    if (key === "notifications") return ouvrirNotifications();
     if (key === "favoris") {
       setView("favoris");
       window.scrollTo(0, 0);
@@ -2511,6 +2588,7 @@ export default function RadarPrixSite() {
       className="rp-body"
       onClick={() => {
         if (profileMenuOpen) setProfileMenuOpen(false);
+        if (notifOuvert) setNotifOuvert(false);
         // Un clic à l'extérieur ferme tout de suite : c'est une intention
         // explicite, elle n'a pas à attendre le délai de tolérance.
         if (communityMenuOpen) { clearTimeout(minuteurMenu.current); setCommunityMenuOpen(false); }
@@ -2610,16 +2688,53 @@ export default function RadarPrixSite() {
                 en-tête où le logo doit tenir le centre. Sur grand écran il
                 reste indispensable — le tiroir n'y existe pas, et c'est la
                 seule porte vers les paramètres, l'admin et la déconnexion. */}
-            {/* Rien à droite du logo sur mobile, et c'est délibéré. Cette
-                place a d'abord reçu un indicateur de radar : joli, mais il
-                répétait une information déjà lisible au bas du menu, et
-                n'appelait aucun geste. Recherche, activité et profil, eux,
-                sont déjà dans la barre du bas. Un en-tête de téléphone n'a
-                pas à porter une commande de plus — il doit tenir le logo
-                droit et laisser respirer le contenu. La place reste libre
-                pour une fonction qui n'existe nulle part ailleurs. */}
+            {/* ── Notifications et messages, en haut à droite ─────────────
+                Cette place cherchait sa fonction : elle a porté un menu de
+                profil, puis un indicateur de radar, sans jamais rien
+                appeler. Elle revient à ce qui attend le membre.
+
+                Les deux restent distincts, et c'est le point. Une
+                notification se parcourt d'un coup d'œil — d'où le panneau
+                déroulant, qui ne fait pas quitter la page. Un message attend
+                une réponse : il ouvre la messagerie, en pleine page. Les
+                confondre sous un même intitulé « Activité » obligeait à lire
+                deux listes pour savoir laquelle des deux réclamait quelque
+                chose. */}
+            {authToken && (
+              <div style={{ display: "flex", alignItems: "center", gap: 2, marginLeft: "auto" }}>
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setNotifOuvert((v) => !v); }}
+                    className="rp-nav-icone"
+                    aria-label={activite.notifications > 0 ? `${activite.notifications} notification(s)` : "Notifications"}
+                    aria-expanded={notifOuvert}
+                  >
+                    <Icon name="bell" size={19} />
+                    {activite.notifications > 0 && <PastilleNav nombre={activite.notifications} ton={T.emberSolid} />}
+                  </button>
+                  {notifOuvert && (
+                    <NotificationsMenu
+                      token={authToken}
+                      onFermer={() => setNotifOuvert(false)}
+                      onNaviguer={suivreNotification}
+                      onToutVoir={ouvrirNotifications}
+                      onLu={relireActivite}
+                    />
+                  )}
+                </div>
+
+                <button
+                  onClick={() => ouvrirMessages()}
+                  className="rp-nav-icone"
+                  aria-label={activite.messages > 0 ? `${activite.messages} message(s) non lu(s)` : "Messages privés"}
+                >
+                  <Icon name="mail" size={19} />
+                  {activite.messages > 0 && <PastilleNav nombre={activite.messages} ton={T.red} />}
+                </button>
+              </div>
+            )}
             {authToken && authUser ? (
-              <div className="rp-nav-profil" style={{ position: "relative", marginLeft: "auto", paddingLeft: 12 }}>
+              <div className="rp-nav-profil" style={{ position: "relative", marginLeft: 8 }}>
                 <button
                   onClick={() => setProfileMenuOpen((v) => !v)}
                   aria-label="Menu du profil"
@@ -2703,8 +2818,8 @@ export default function RadarPrixSite() {
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-chat")}>
                     <Icon name="message" size={16} color={T.cyan} />
                     <span>
-                      Chat
-                      <span className="rp-dropdown-desc">Salon général et messages privés</span>
+                      Salon
+                      <span className="rp-dropdown-desc">La discussion ouverte à tous les membres</span>
                     </span>
                   </button>
                   <button className="rp-dropdown-item" role="menuitem" onClick={() => goToCommunity("communaute-forum")}>
@@ -3201,7 +3316,7 @@ export default function RadarPrixSite() {
               onBack={goHome}
               onNeedAuth={() => setAuthOpen(true)}
               onOpenThread={(id) => { setActiveThreadId(id); setView("communaute-forum-thread"); window.scrollTo(0, 0); }}
-              onMessage={(id) => { setChatCible(id); goToCommunity("communaute-chat"); }}
+              onMessage={(id) => ouvrirMessages(id)}
             />
           </Suspense>
         )}
@@ -3235,7 +3350,6 @@ export default function RadarPrixSite() {
               token={authToken}
               currentUserId={authUser?.id}
               onBack={goHome}
-              correspondant={chatCible}
               subnav={<CommunityTabs courante="communaute-chat" onNavigate={goToCommunity} />}
             />
           </Suspense>
@@ -3271,19 +3385,26 @@ export default function RadarPrixSite() {
             promotions au même endroit. Accessible sans compte — c'est le
             contenu principal du site, pas une fonctionnalité de membre. */}
         {view === "flux" && <FeedView onBack={goHome} />}
-        {view === "activite" && (
-          <ActiviteView
+        {view === "notifications" && authToken && (
+          <NotificationsView
             token={authToken}
             onBack={goHome}
-            onOuvrirConversation={(c) => goToCommunity("communaute-chat", c.user_id)}
-            onNaviguer={(n) => {
-              // Une notification porte sa destination : on l'y emmène plutôt
-              // que de la laisser au rang de libellé.
-              if (n.cible_vue === "forum-thread") return goToCommunity("communaute-forum");
-              if (n.cible_vue === "profil" && n.acteur_pseudo) return ouvrirProfil(n.acteur_pseudo);
-              if (n.cible_vue === "produit" && n.cible_id) return searchProduct(n.cible_id);
-            }}
+            onNaviguer={suivreNotification}
+            onLu={relireActivite}
           />
+        )}
+
+        {/* La messagerie n'est pas une section de page : elle occupe la
+            hauteur de l'écran, comme toute messagerie. */}
+        {view === "messages" && authToken && (
+          <Suspense fallback={<ViewLoader />}>
+            <MessagerieView
+              token={authToken}
+              currentUserId={authUser?.id}
+              onBack={goHome}
+              correspondant={chatCible}
+            />
+          </Suspense>
         )}
 
         {/* L'occasion a sa propre section, par choix : une offre
@@ -3309,12 +3430,13 @@ export default function RadarPrixSite() {
         )}
       </div>
 
-      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} token={authToken} />
+      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
       <DrawerMenu
         ouvert={menuOuvert}
         onFermer={() => setMenuOuvert(false)}
         onNavigate={handleDrawerNav}
         connecte={Boolean(authToken)}
+        token={authToken}
         admin={authUser?.role === "admin"}
         onDeconnexion={logout}
       />

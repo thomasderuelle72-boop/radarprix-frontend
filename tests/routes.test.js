@@ -89,6 +89,8 @@ describe("aller-retour entre les deux", () => {
     { view: "flux" },
     { view: "occasion" },
     { view: "favoris" },
+    { view: "messages" },
+    { view: "notifications" },
     { view: "communaute-picks" },
     { view: "communaute-chat" },
     { view: "communaute-forum" },
