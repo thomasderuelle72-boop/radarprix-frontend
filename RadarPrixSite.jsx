@@ -480,17 +480,6 @@ const GlobalStyles = () => (
     .rp-dropdown-item > span > :first-child, .rp-dropdown-item > span { white-space: nowrap; }
     .rp-dropdown-item .rp-dropdown-desc { display: block; font-weight: 500; font-size: 11px; color: ${T.sub}; margin-top: 2px; white-space: nowrap; }
     html, body { overflow-x: hidden; max-width: 100vw; }
-    /* L'aiguille du radar balaie au survol et au focus seulement. Une
-       animation qui tourne en permanence dans un en-tête devient un tic
-       visuel, et le mouvement doit rester au service du sens. */
-    .rp-burger-aiguille { transform-origin: 12px 12px; }
-    .rp-burger:hover .rp-burger-aiguille,
-    .rp-burger:focus-visible .rp-burger-aiguille { animation: rp-balayage 1.6s linear infinite; }
-    @keyframes rp-balayage { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) {
-      .rp-burger:hover .rp-burger-aiguille,
-      .rp-burger:focus-visible .rp-burger-aiguille { animation: none; }
-    }
     .rp-mobile-nav {
       display: none;
       position: fixed;
@@ -502,18 +491,7 @@ const GlobalStyles = () => (
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
     @media (max-width: 640px) {
-      /* L'aiguille du radar balaie au survol et au focus seulement. Une
-       animation qui tourne en permanence dans un en-tête devient un tic
-       visuel, et le mouvement doit rester au service du sens. */
-    .rp-burger-aiguille { transform-origin: 12px 12px; }
-    .rp-burger:hover .rp-burger-aiguille,
-    .rp-burger:focus-visible .rp-burger-aiguille { animation: rp-balayage 1.6s linear infinite; }
-    @keyframes rp-balayage { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) {
-      .rp-burger:hover .rp-burger-aiguille,
-      .rp-burger:focus-visible .rp-burger-aiguille { animation: none; }
-    }
-    .rp-mobile-nav { display: flex; }
+      .rp-mobile-nav { display: flex; }
       .rp-body { padding-bottom: 64px; }
       /* Le menu latéral prend le relais des onglets masqués ci-dessous : sans
          lui, les sections secondaires deviendraient inatteignables sur mobile. */
@@ -2559,16 +2537,20 @@ export default function RadarPrixSite() {
               aria-expanded={menuOuvert}
               style={{ background: "none", border: "none", color: T.ink, cursor: "pointer", padding: "6px 10px 6px 0", display: "none", alignItems: "center" }}
             >
-              {/* Trois traits, c'est le bouton de menu de tout le monde. Ici
-                  c'est un cadran de radar : deux arcs et une aiguille, qui
-                  restent lisibles comme « ouvrir » tout en disant de quel site
-                  il s'agit. Le balayage ne tourne qu'au survol et au focus —
-                  une animation permanente en bas d'écran fatigue. */}
-              <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="9.2" strokeWidth="1.6" opacity=".38" />
-                <circle cx="12" cy="12" r="5" strokeWidth="1.6" opacity=".62" />
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
-                <line className="rp-burger-aiguille" x1="12" y1="12" x2="12" y2="3.4" strokeWidth="2.1" />
+              {/* Un cadran de radar avait été tenté ici, par souci
+                  d'originalité. Mauvaise idée : posé à côté du logo, qui est
+                  lui-même un radar, il se lisait comme un second logo et non
+                  comme une commande. Une commande de navigation doit se
+                  comprendre sans réfléchir — c'est le seul endroit du site où
+                  la convention vaut mieux que l'invention.
+
+                  Reste une touche discrète : le trait du milieu est plus
+                  court, ce qui suffit à ne pas ressembler à un gabarit sans
+                  jamais faire douter de ce que fait le bouton. */}
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" aria-hidden="true">
+                <line x1="3.5" y1="6.5" x2="20.5" y2="6.5" />
+                <line x1="3.5" y1="12" x2="14" y2="12" />
+                <line x1="3.5" y1="17.5" x2="20.5" y2="17.5" />
               </svg>
             </button>
             <button onClick={goHome} className="rp-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
