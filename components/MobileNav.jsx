@@ -4,18 +4,24 @@
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
 
-// Cinq entrées au maximum : au-delà, les libellés deviennent illisibles sur
-// un écran étroit. « Bons plans » remplace l'ancien onglet « Deals », qui ne
-// menait qu'aux anomalies de prix — soit une nature de bon plan sur cinq.
+/* Cinq entrées, jamais plus : au-delà, les libellés deviennent illisibles sur
+   un écran étroit. Le choix de ces cinq-là suit un principe simple — la barre
+   du bas est réservée aux gestes QUOTIDIENS, tout le reste vit dans le menu
+   latéral (voir DrawerMenu).
+
+   « Bons plans » a disparu : cet onglet regroupait ce que « Gros deals » et
+   « Erreurs de prix » montrent déjà séparément, et occupait une place au prix
+   d'un doublon. La place libérée revient à la recherche, jusqu'ici absente de
+   la navigation mobile alors que c'est le geste le plus courant sur un site
+   de prix. */
 const ITEMS = [
   { key: "home", icon: "home", label: "Accueil" },
-  { key: "flux", icon: "flame", label: "Bons plans" },
-  { key: "erreurs", icon: "alertCircle", label: "Alertes" },
+  // La promesse distinctive du site passe en deuxième position, juste après
+  // l'accueil : c'est ce pour quoi on vient.
+  { key: "erreurs", icon: "alertCircle", label: "Erreurs" },
+  { key: "recherche", icon: "search", label: "Chercher" },
   { key: "favoris", icon: "star", label: "Favoris" },
-  // Communauté plutôt que Profil : le profil est déjà accessible par l'avatar
-  // en haut à droite, et son menu s'ouvrait tout en haut de l'écran alors
-  // qu'on venait d'appuyer tout en bas.
-  { key: "communaute", icon: "users", label: "Communauté" },
+  { key: "profil", icon: "user", label: "Profil" },
 ];
 
 export default function MobileNav({ active, onNavigate }) {

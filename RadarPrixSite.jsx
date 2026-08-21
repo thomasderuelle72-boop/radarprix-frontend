@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
+import DrawerMenu from "./components/DrawerMenu.jsx";
 // Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
 // l'historique de prix), de loin la plus grosse dépendance du projet. En
 // import statique, tout visiteur la téléchargeait au premier chargement de la
@@ -491,6 +492,9 @@ const GlobalStyles = () => (
     @media (max-width: 640px) {
       .rp-mobile-nav { display: flex; }
       .rp-body { padding-bottom: 64px; }
+      /* Le menu latéral prend le relais des onglets masqués ci-dessous : sans
+         lui, les sections secondaires deviendraient inatteignables sur mobile. */
+      .rp-burger { display: inline-flex !important; }
       /* La rangée d'onglets du haut faisait doublon avec la barre fixe du bas
          et débordait sur deux lignes, mangeant un tiers de l'écran. */
       .rp-nav-tabs { display: none !important; }
@@ -2059,6 +2063,7 @@ export default function RadarPrixSite() {
   useEffect(() => () => clearTimeout(minuteurMenu.current), []);
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [menuOuvert, setMenuOuvert] = useState(false);
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
@@ -2407,11 +2412,10 @@ export default function RadarPrixSite() {
 
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
   const mobileNavActive =
-    COMMUNITY_VIEWS.includes(view) ? "communaute" :
     view === "favoris" ? "favoris" :
-    view === "flux" || view === "occasion" ? "flux" :
+    view === "profil" ? "profil" :
     view === "results" && tab === "erreurs" ? "erreurs" :
-    view === "results" ? "deals" :
+    view === "results" && searchTerm ? "recherche" :
     view === "home" ? "home" :
     null;
 
@@ -2423,19 +2427,55 @@ export default function RadarPrixSite() {
 
   const handleMobileNav = (key) => {
     if (key === "home") return goHome();
-    if (key === "flux") return goToFlux();
-    if (key === "deals") return openTab("deals");
     if (key === "erreurs") return openTab("erreurs");
+    // La recherche était absente de la navigation mobile alors que c'est le
+    // geste le plus courant sur un site de prix. On renvoie à l'accueil, où
+    // le champ pleine largeur est immédiatement saisissable.
+    if (key === "recherche") {
+      goHome();
+      // Laisse le rendu se faire avant de viser le champ, sinon il n'existe
+      // pas encore au moment où on le cherche.
+      setTimeout(() => document.querySelector('input[type="search"], .rp-search input')?.focus(), 80);
+      return;
+    }
     if (key === "favoris") {
       if (!authToken) return setAuthOpen(true);
       setView("favoris");
       window.scrollTo(0, 0);
       return;
     }
-    // La communauté remplace l'ancien onglet "Profil" : le profil est déjà
-    // accessible via l'avatar en haut à droite, et son menu s'ouvrait là-haut
-    // alors qu'on venait d'appuyer en bas de l'écran — geste déroutant.
-    if (key === "communaute") return goToCommunity("communaute-picks");
+    if (key === "profil") {
+      if (!authToken) return setAuthOpen(true);
+      if (authUser?.pseudo) return ouvrirProfil(authUser.pseudo);
+      setSettingsOpen(true);
+      return;
+    }
+  };
+
+  /** Routage des entrées du menu latéral mobile. */
+  const handleDrawerNav = (key) => {
+    if (key === "deals") return openTab("deals");
+    if (key === "erreurs") return openTab("erreurs");
+    if (key === "occasion") return goToFlux("occasion");
+    if (key === "communaute-picks" || key === "forum" || key === "salon") {
+      const cible = key === "forum" ? "communaute-forum" : key === "salon" ? "communaute-chat" : "communaute-picks";
+      return goToCommunity(cible);
+    }
+    if (key === "favoris") {
+      setView("favoris");
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (key === "profil") {
+      if (authUser?.pseudo) return ouvrirProfil(authUser.pseudo);
+      return setSettingsOpen(true);
+    }
+    if (key === "parametres") return setSettingsOpen(true);
+    if (key === "admin") return setView("admin");
+    // Pages secondaires : l'écran légal existant sait afficher ces clés.
+    if (["a-propos", "faq", "contact", "cgu", "confidentialite"].includes(key)) {
+      return setLegalPage(key === "a-propos" ? "mentions" : key);
+    }
   };
 
   return (
@@ -2487,6 +2527,21 @@ export default function RadarPrixSite() {
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, minWidth: 0 }}>
+            {/* Le menu latéral n'existe que sur mobile : sur grand écran, la
+                rangée d'onglets remplit le même rôle sans masquer la page. */}
+            <button
+              className="rp-burger"
+              onClick={() => setMenuOuvert(true)}
+              aria-label="Ouvrir le menu"
+              aria-expanded={menuOuvert}
+              style={{ background: "none", border: "none", color: T.ink, cursor: "pointer", padding: "6px 10px 6px 0", display: "none", alignItems: "center" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <button onClick={goHome} className="rp-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <img src="/design-system/01_LOGOS/logo_icon_radar.svg" alt="" aria-hidden="true" width={26} height={26} style={{ flexShrink: 0 }} />
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
@@ -2547,12 +2602,10 @@ export default function RadarPrixSite() {
           {/* overflowX: "visible" (pas "auto") : un axe non-"visible" forcerait l'autre à "auto" en CSS,
               ce qui découperait le menu déroulant "Communauté" qui dépasse verticalement sous la barre. */}
           <div className="rp-nav-tabs" style={{ display: "flex", gap: 6, flexWrap: "wrap", overflowX: "visible", paddingBottom: 6 }}>
-            {/* Le flux unifié vient en tête : c'est désormais le contenu
-                principal du site. Les deux onglets suivants restent des
-                raccourcis vers les anomalies mesurées par l'algorithme. */}
-            <button className={`rp-tab ${view === "flux" ? "active" : ""}`} onClick={() => goToFlux("flux")}>
-              <Icon name="flame" size={15} /> Bons plans
-            </button>
+            {/* « Bons plans » a été retiré : cet onglet regroupait ce que les
+                deux suivants montrent déjà séparément. Trois entrées pour un
+                même flux trié différemment, dont le visiteur ne pouvait pas
+                deviner laquelle ouvrir. */}
             <button className={`rp-tab ${view === "results" && tab === "deals" ? "active" : ""}`} onClick={() => openTab("deals")}>
               <Icon name="trendingDown" size={15} /> Gros deals
             </button>
@@ -3175,6 +3228,14 @@ export default function RadarPrixSite() {
       </div>
 
       <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
+      <DrawerMenu
+        ouvert={menuOuvert}
+        onFermer={() => setMenuOuvert(false)}
+        onNavigate={handleDrawerNav}
+        connecte={Boolean(authToken)}
+        admin={authUser?.role === "admin"}
+        onDeconnexion={logout}
+      />
       <Footer
         setLegalPage={setLegalPage}
         goHome={goHome}
