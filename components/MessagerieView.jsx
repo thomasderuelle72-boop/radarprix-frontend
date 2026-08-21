@@ -191,7 +191,14 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
   }, [membres, conversations, q, nouvelle]);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 16px 26px" }}>
+    /* Conversation ouverte sur téléphone : la messagerie prend tout l'écran.
+       Elle vivait dans une carte à bords arrondis posée au milieu de la page,
+       marges comprises — un fil de discussion dans une vignette. Une
+       messagerie occupe l'écran ; c'est à ça qu'on la reconnaît. */
+    <div
+      className={`rp-messagerie-page ${actif ? "rp-messagerie-ouverte" : ""}`}
+      style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 16px 26px" }}
+    >
       {/* Deux flèches de retour se superposaient sur téléphone : celle-ci et
           le chevron de la conversation, qui ne mènent pas au même endroit
           sans que rien ne le dise. Dès qu'un fil est ouvert, seule reste
@@ -209,7 +216,7 @@ export default function MessagerieView({ token, currentUserId, onBack, correspon
       </button>
 
       {erreur && (
-        <p style={{ color: T.red, fontSize: 12.5, marginBottom: 10 }}>{erreur}</p>
+        <p style={{ color: T.red, fontSize: 12.5, margin: "0 0 10px", padding: "10px 14px 0" }}>{erreur}</p>
       )}
 
       <div className={`rp-messagerie ${actif ? "" : "rp-messagerie-liste"}`}>

@@ -372,6 +372,24 @@ const GlobalStyles = () => (
       /* Sans fil ouvert, le cadre épousait la hauteur de l'écran pour trois
          conversations : il soulignait le vide au lieu de le rendre discret. */
       .rp-messagerie-liste { height: auto; min-height: 0; }
+
+      /* ── Conversation ouverte : plein écran ──────────────────────
+         Le fil tenait dans une carte arrondie, marges comprises, au milieu
+         de la page. On lit une conversation à pleine largeur, avec la barre
+         de saisie posée juste au-dessus de la barre du bas — pas dans une
+         vignette qui laisse deviner la page derrière.
+
+         119px = les 55 px de l'en-tête collant et les 64 px de la barre du
+         bas, que .rp-body réserve déjà en marge intérieure. dvh plutôt que
+         vh : sur iPhone, vh compte la barre d'adresse comme si elle était
+         toujours repliée, et le composeur passait sous elle. */
+      .rp-messagerie-ouverte { padding: 0 !important; max-width: none !important; }
+      .rp-messagerie-ouverte .rp-messagerie {
+        border: none; border-radius: 0;
+        border-top: 1px solid ${T.line};
+        height: calc(100vh - 119px);
+        height: calc(100dvh - 119px - env(safe-area-inset-bottom, 0px));
+      }
       .rp-msg-colonne { border-right: none; }
       .rp-msg-cache-mobile { display: none !important; }
       .rp-msg-retour { display: flex !important; }
