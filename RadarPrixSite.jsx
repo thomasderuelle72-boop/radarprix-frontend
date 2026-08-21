@@ -4,6 +4,7 @@ import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import DrawerMenu from "./components/DrawerMenu.jsx";
 import ActiviteView from "./components/ActiviteView.jsx";
+import useRadar from "./components/useRadar.js";
 // Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
 // l'historique de prix), de loin la plus grosse dépendance du projet. En
 // import statique, tout visiteur la téléchargeait au premier chargement de la
@@ -496,6 +497,17 @@ const GlobalStyles = () => (
       /* Le menu latéral prend le relais des onglets masqués ci-dessous : sans
          lui, les sections secondaires deviendraient inatteignables sur mobile. */
       .rp-burger { display: inline-flex !important; }
+      /* Le logo tient le centre : le bouton de menu et l'indicateur de radar
+         l'encadrent, et les deux pèsent visuellement à peu près pareil. */
+      .rp-logo {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .rp-nav-radar { display: inline-flex !important; }
+      /* Le profil vit dans le tiroir sur mobile : deux accès au même endroit
+         encombreraient un en-tête où le logo doit rester centré. */
+      .rp-nav-profil { display: none !important; }
       /* La rangée d'onglets du haut faisait doublon avec la barre fixe du bas
          et débordait sur deux lignes, mangeant un tiers de l'écran. */
       .rp-nav-tabs { display: none !important; }
@@ -2065,6 +2077,7 @@ export default function RadarPrixSite() {
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const radarEtat = useRadar();
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
@@ -2527,7 +2540,7 @@ export default function RadarPrixSite() {
 
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(12,14,20,0.92)", backdropFilter: "blur(10px)", borderBottom: `1px solid ${T.line}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, minWidth: 0 }}>
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: 54, minWidth: 0 }}>
             {/* Le menu latéral n'existe que sur mobile : sur grand écran, la
                 rangée d'onglets remplit le même rôle sans masquer la page. */}
             <button
@@ -2553,7 +2566,7 @@ export default function RadarPrixSite() {
                 <line x1="3.5" y1="17.5" x2="20.5" y2="17.5" />
               </svg>
             </button>
-            <button onClick={goHome} className="rp-display" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            <button onClick={goHome} className="rp-display rp-logo" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 900, color: T.ink, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <img src="/design-system/01_LOGOS/logo_icon_radar.svg" alt="" aria-hidden="true" width={26} height={26} style={{ flexShrink: 0 }} />
               RADAR<span style={{ background: T.ember, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>PRIX</span>
             </button>
@@ -2578,8 +2591,47 @@ export default function RadarPrixSite() {
                 <SearchBar onSearch={(t) => searchProduct(t)} />
               </div>
             )}
+            {/* Sur mobile, le profil vit dans le menu latéral : le garder ici
+                ferait deux accès au même endroit et déséquilibrerait un
+                en-tête où le logo doit tenir le centre. Sur grand écran il
+                reste indispensable — le tiroir n'y existe pas, et c'est la
+                seule porte vers les paramètres, l'admin et la déconnexion. */}
+            {/* ── L'état du radar, à droite ──────────────────────────────
+                Cette place revenait au profil, désormais dans le tiroir. Y
+                mettre une commande de plus aurait fait doublon avec la barre
+                du bas ; on y met donc ce qui n'existe nulle part ailleurs :
+                le radar est-il en train de tourner, et a-t-il trouvé quelque
+                chose. Un site qui promet de surveiller les prix devrait le
+                montrer en permanence, pas seulement le dire. */}
+            <button
+              className="rp-nav-radar"
+              onClick={() => openTab("erreurs")}
+              aria-label={
+                radarEtat?.anomalies > 0
+                  ? `${radarEtat.anomalies} erreur(s) de prix détectée(s)`
+                  : "Voir les erreurs de prix"
+              }
+              style={{
+                display: "none", alignItems: "center", gap: 6, background: "none",
+                border: `1px solid ${T.line}`, borderRadius: 999, padding: "5px 11px 5px 9px",
+                cursor: "pointer", marginLeft: "auto",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                  background: radarEtat?.actif ? T.green : T.muted,
+                  boxShadow: radarEtat?.actif ? `0 0 0 3px ${T.green}22` : "none",
+                }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 800, color: T.ink, fontVariantNumeric: "tabular-nums" }}>
+                {radarEtat?.anomalies > 0 ? radarEtat.anomalies : "—"}
+              </span>
+            </button>
+
             {authToken && authUser ? (
-              <div style={{ position: "relative", marginLeft: 12 }}>
+              <div className="rp-nav-profil" style={{ position: "relative", marginLeft: 12 }}>
                 <button
                   onClick={() => setProfileMenuOpen((v) => !v)}
                   aria-label="Menu du profil"
