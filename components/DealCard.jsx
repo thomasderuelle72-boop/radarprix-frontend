@@ -5,11 +5,8 @@
 // façon coupon (classe .rp-ticket déjà définie dans GlobalStyles).
 // Toute la carte est cliquable et ouvre la fiche produit — les cartes-listes
 // n'ont aucun bouton inline dans la maquette.
-import { useState } from "react";
 import { T } from "../theme.js";
 import { relativeTime } from "../utils.js";
-import { getSession, peutModerer } from "../session.js";
-import { apiAdminRejeter } from "../api.js";
 import MerchantBadge from "./MerchantBadge.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
 import Tilt3D from "./Tilt3D.jsx";
@@ -35,36 +32,11 @@ export function SkeletonCard() {
   );
 }
 
-export default function DealCard({ item, onOpenDetail, variant, index, onEcarte }) {
+export default function DealCard({ item, onOpenDetail, variant, index }) {
   const resolvedVariant = variant || (item.verdict === "erreur" ? "price-error" : "deal");
   const isErr = resolvedVariant === "price-error";
   const isGem = item.score >= 85;
   const seenAgo = relativeTime(item.scraped_at);
-  const { token } = getSession();
-  const modere = peutModerer();
-  const [ecarte, setEcarte] = useState(false);
-
-  // Écarter une détection : la carte disparaît de l'affichage courant, et
-  // l'offre ne sera plus publiée. Réservé à la modération, et rendu HORS du
-  // bouton de la carte — un bouton imbriqué dans un bouton est invalide.
-  const ecarter = async (e) => {
-    e.stopPropagation();
-    const motif = window.prompt(
-      `Écarter cette détection ?\n\n${item.name}\n${item.seller} — ${item.price} €\n\nMotif (facultatif) :`,
-      "faux positif"
-    );
-    if (motif === null) return;
-    try {
-      await apiAdminRejeter(token, { name: item.name, seller: item.seller, price: item.price, motif });
-      setEcarte(true);
-      onEcarte?.(item);
-    } catch (err) {
-      window.alert(err.message);
-    }
-  };
-
-  if (ecarte) return null;
-
   return (
     <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
     <button
@@ -214,22 +186,6 @@ export default function DealCard({ item, onOpenDetail, variant, index, onEcarte 
       </div>
     </button>
 
-    {modere && (
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-        <button
-          onClick={ecarter}
-          title="Retirer cette détection des résultats publiés"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 5,
-            background: "none", border: "none", padding: "2px 4px", cursor: "pointer",
-            color: T.muted, fontSize: 11, fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          <Icon name="alertTriangle" size={11} />
-          Écarter cette détection
-        </button>
-      </div>
-    )}
     </Tilt3D>
   );
 }

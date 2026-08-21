@@ -40,7 +40,6 @@ import OnboardingModal from "./components/OnboardingModal.jsx";
 
 import {
   fetchDeals,
-  scanBackend,
   apiGetLatest,
   apiAuth,
   apiWatchlistAdd,
@@ -2410,13 +2409,11 @@ export default function RadarPrixSite() {
     }
   };
 
-  // Recherche libre (barre de recherche). Deux étapes :
-  // 1) D'abord parcourir les deals déjà détectés par le cron qui matchent ce
-  //    mot-clé (instantané, gratuit, et fiable même sur un terme large comme
-  //    "pc" — chaque deal a déjà été comparé à ses propres pairs/historique,
-  //    jamais à un autre produit).
-  // 2) Si rien ne matche, lancer un vrai scan SerpApi en direct sur ce terme
-  //    précis — pertinent pour un produit spécifique pas encore au catalogue.
+  /* La recherche interroge ce qui est en base, et rien d'autre.
+     Elle lançait auparavant un scan en direct quand aucun deal enregistré ne
+     correspondait — c'est cette machinerie qui a été retirée. Une recherche
+     sans résultat le dit maintenant franchement, au lieu d'attendre puis
+     d'échouer sur un service absent. */
   const searchProduct = async (term) => {
     setTab("deals");
     setSearchTerm(term);
@@ -2428,19 +2425,12 @@ export default function RadarPrixSite() {
     setItems(null);
     setLastScan(null);
     try {
-      const catalogMatch = await fetchDeals("tout", 1, 30, term);
-      if (catalogMatch.items.length > 0) {
-        setItems(catalogMatch.items);
-        setHasMore(false);
-        return;
-      }
-      const { items: found } = await scanBackend(term, "tout");
-      setItems(found);
+      const trouves = await fetchDeals("tout", 1, 30, term);
+      setItems(trouves.items);
       setHasMore(false);
-      setLastScan(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     } catch (e) {
       console.error(e);
-      setError("Le scan a échoué : " + e.message);
+      setError("La recherche a échoué : " + e.message);
     } finally {
       setLoading(false);
     }

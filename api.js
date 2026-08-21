@@ -155,17 +155,6 @@ export async function apiAdminStats(token) {
 }
 
 
-export async function apiAdminTriggerScan(token, size) {
-  const res = await fetch(`${BACKEND_URL}/api/admin/trigger-scan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ size }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Le scan a échoué.");
-  return data;
-}
-
 export async function apiGetHistory(query, days = 30) {
   const params = new URLSearchParams({ query, days });
   const res = await fetch(`${BACKEND_URL}/api/history?${params}`);
@@ -503,77 +492,6 @@ export const apiAdminRole = (token, userId, role) =>
 export const apiAdminHealth = (token) =>
   adminFetch("/api/admin/health", { headers: auth(token) }, "État indisponible.");
 
-export const apiAdminScans = (token) =>
-  adminFetch("/api/admin/scans", { headers: auth(token) }, "Historique indisponible.");
-
-export const apiAdminEmails = (token) =>
-  adminFetch("/api/admin/emails", { headers: auth(token) }, "Journal indisponible.");
-
-export const apiAdminDiagnostic = (token, query) =>
-  adminFetch(
-    "/api/admin/diagnose",
-    { method: "POST", headers: authJson(token), body: JSON.stringify({ query }) },
-    "Diagnostic impossible."
-  );
-
-// ── Qualité de détection ──
-export const apiAdminSettings = (token) =>
-  adminFetch("/api/admin/settings", { headers: auth(token) }, "Réglages indisponibles.");
-
-export const apiAdminSetSetting = (token, cle, valeur) =>
-  adminFetch(
-    "/api/admin/settings",
-    { method: "PATCH", headers: authJson(token), body: JSON.stringify({ cle, valeur }) },
-    "Réglage refusé."
-  );
-
-export const apiAdminBlacklist = (token) =>
-  adminFetch("/api/admin/blacklist", { headers: auth(token) }, "Liste noire indisponible.");
-
-export const apiAdminBlacklistAdd = (token, type, valeur, note) =>
-  adminFetch(
-    "/api/admin/blacklist",
-    { method: "POST", headers: authJson(token), body: JSON.stringify({ type, valeur, note }) },
-    "Ajout impossible."
-  );
-
-export const apiAdminBlacklistDel = (token, id) =>
-  adminFetch(`/api/admin/blacklist/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
-
-export const apiAdminRejets = (token) =>
-  adminFetch("/api/admin/rejects", { headers: auth(token) }, "Rejets indisponibles.");
-
-export const apiAdminRejeter = (token, offre) =>
-  adminFetch(
-    "/api/admin/rejects",
-    { method: "POST", headers: authJson(token), body: JSON.stringify(offre) },
-    "Rejet impossible."
-  );
-
-export const apiAdminAnnulerRejet = (token, id) =>
-  adminFetch(`/api/admin/rejects/${id}`, { method: "DELETE", headers: auth(token) }, "Annulation impossible.");
-
-// ── Catalogue ──
-export const apiAdminCatalog = (token) =>
-  adminFetch("/api/admin/catalog", { headers: auth(token) }, "Catalogue indisponible.");
-
-export const apiAdminCatalogAdd = (token, name, category) =>
-  adminFetch(
-    "/api/admin/catalog",
-    { method: "POST", headers: authJson(token), body: JSON.stringify({ name, category }) },
-    "Ajout impossible."
-  );
-
-export const apiAdminCatalogToggle = (token, id, actif) =>
-  adminFetch(
-    `/api/admin/catalog/${id}`,
-    { method: "PATCH", headers: authJson(token), body: JSON.stringify({ actif }) },
-    "Action impossible."
-  );
-
-export const apiAdminCatalogDel = (token, id) =>
-  adminFetch(`/api/admin/catalog/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
-
 // ── Membres ──
 export const apiAdminMembers = (token, params = {}) =>
   adminFetch(
@@ -635,77 +553,6 @@ export async function apiFeedOccasion({ etat = "reconditionne", category = "tout
 
 
 /* ── Administration du flux et de la mesure ───────────────────── */
-
-export const apiAdminIndicateurs = (token, jours = 30) =>
-  adminFetch(`/api/admin/indicateurs?jours=${jours}`, { headers: auth(token) }, "Indicateurs indisponibles.");
-
-export const apiAdminManquees = (token, limit = 50) =>
-  adminFetch(`/api/admin/manquees?limit=${limit}`, { headers: auth(token) }, "Liste indisponible.");
-
-export const apiAdminMarchands = (token, limit = 50) =>
-  adminFetch(`/api/admin/marchands?limit=${limit}`, { headers: auth(token) }, "Marchands indisponibles.");
-
-export const apiAdminFeedStats = (token) =>
-  adminFetch(`/api/admin/feed/stats`, { headers: auth(token) }, "Statistiques indisponibles.");
-
-/** Jugement d'un modérateur : c'est cette étiquette qui alimente la précision. */
-export const apiAdminJugerDeal = (token, id, verdict, motif) =>
-  adminFetch(
-    `/api/admin/feed/${id}/juger`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ verdict, motif }) },
-    "Jugement impossible."
-  );
-
-export const apiAdminCollecte = (token, detecteur) =>
-  adminFetch(
-    `/api/admin/collecte`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ detecteur }) },
-    "Collecte impossible."
-  );
-
-export const apiAdminWatchList = (token) =>
-  adminFetch(`/api/admin/watch`, { headers: auth(token) }, "Fiches surveillées indisponibles.");
-
-export const apiAdminWatchAdd = (token, fiche) =>
-  adminFetch(
-    `/api/admin/watch`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(fiche) },
-    "Ajout impossible."
-  );
-
-export const apiAdminWatchRemove = (token, id) =>
-  adminFetch(`/api/admin/watch/${id}`, { method: "DELETE", headers: auth(token) }, "Retrait impossible.");
-
-export const apiAdminWatchRun = (token, taille) =>
-  adminFetch(
-    `/api/admin/watch/run`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ taille }) },
-    "Surveillance impossible."
-  );
-
-/** Amorce la surveillance à partir des fiches déjà observées par les scans passés. */
-export const apiAdminWatchAmorcer = (token, options = {}) =>
-  adminFetch(
-    `/api/admin/watch/amorcer`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
-    "Amorçage impossible."
-  );
-
-/** Découvre des fiches via les sitemaps marchands et les met sous surveillance. */
-export const apiAdminWatchPeupler = (token, options = {}) =>
-  adminFetch(
-    `/api/admin/watch/peupler`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
-    "Découverte impossible."
-  );
-
-/** Diagnostique la découverte chez une enseigne : où elle casse, et pourquoi. */
-export const apiAdminWatchDiagnostic = (token, domaine) =>
-  adminFetch(
-    `/api/admin/watch/diagnostic`,
-    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ domaine }) },
-    "Diagnostic impossible."
-  );
 
 /** État public du radar : fiches suivies, dernier balayage, détections en cours. */
 export async function fetchRadar() {

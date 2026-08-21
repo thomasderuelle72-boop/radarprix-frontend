@@ -2,8 +2,9 @@
 //
 // Remplace les quatre blocs écrits en dur dans RadarPrixSite : deux
 // compteurs, un bouton de scan, un top 10 et une liste brute d'utilisateurs.
-// Le panneau couvre désormais la modération, la santé des services, la
-// qualité de détection et l'administration des membres.
+// Le panneau couvre la modération, la santé du site et l'administration des
+// membres. Les sections qui pilotaient la détection et la collecte ont été
+// retirées en même temps que cette machinerie.
 //
 // Les sections sont réparties en fichiers distincts sous components/admin/ :
 // tout garder ici donnerait un fichier de plus de mille lignes, et le
@@ -17,21 +18,18 @@ import PageShell from "./PageShell.jsx";
 import SectionTableauBord from "./admin/SectionTableauBord.jsx";
 import SectionModeration from "./admin/SectionModeration.jsx";
 import SectionSante from "./admin/SectionSante.jsx";
-import SectionDetection from "./admin/SectionDetection.jsx";
 import SectionMembres from "./admin/SectionMembres.jsx";
-import SectionFlux from "./admin/SectionFlux.jsx";
-import SectionSurveillance from "./admin/SectionSurveillance.jsx";
-import SectionMesure from "./admin/SectionMesure.jsx";
 
+/* Quatre onglets ont disparu avec la machinerie qu'ils pilotaient : Flux
+   (collecte des sources), Surveillance (fiches marchandes), Mesure (qualité
+   de la détection) et Détection (seuils de l'algorithme). Ils commandaient
+   des routes qui n'existent plus ; les garder aurait affiché des boutons
+   dont chaque clic aurait répondu 404. */
 const SECTIONS = [
   { id: "accueil", libelle: "Vue d'ensemble", icone: "home" },
   { id: "moderation", libelle: "Modération", icone: "shield", badge: true },
-  { id: "flux", libelle: "Flux", icone: "package" },
-  { id: "surveillance", libelle: "Surveillance", icone: "search" },
-  { id: "mesure", libelle: "Mesure", icone: "scale" },
   { id: "membres", libelle: "Membres", icone: "users" },
   { id: "sante", libelle: "Santé du site", icone: "radar" },
-  { id: "detection", libelle: "Détection", icone: "scale", adminSeul: true },
 ];
 
 export default function AdminView({ token, role, moiId, onBack }) {
@@ -117,12 +115,8 @@ export default function AdminView({ token, role, moiId, onBack }) {
         <SectionTableauBord token={token} estAdmin={estAdmin} onOuvrirSection={setSection} />
       )}
       {section === "moderation" && <SectionModeration token={token} onCompteur={setSignalements} />}
-      {section === "flux" && <SectionFlux token={token} estAdmin={estAdmin} />}
-      {section === "surveillance" && <SectionSurveillance token={token} estAdmin={estAdmin} />}
-      {section === "mesure" && <SectionMesure token={token} />}
       {section === "membres" && <SectionMembres token={token} estAdmin={estAdmin} moiId={moiId} />}
       {section === "sante" && <SectionSante token={token} estAdmin={estAdmin} />}
-      {section === "detection" && estAdmin && <SectionDetection token={token} estAdmin={estAdmin} />}
     </PageShell>
   );
 }

@@ -1,42 +1,24 @@
 // SectionTableauBord.jsx — Vue d'ensemble : chiffres qui appellent une
-// action, courbes sur 30 jours, scan manuel et exports.
+// action, courbes sur 30 jours, exports.
 //
-// Les deux compteurs d'origine (inscrits, scans) ne disaient rien de ce
-// qu'il y avait à faire ni d'une tendance.
+// Le bouton « Scan manuel » et le classement des produits les plus scannés
+// ont disparu avec la machinerie qui les alimentait.
 import { useState, useEffect } from "react";
 import { T } from "../../theme.js";
 import Icon from "../Icon.jsx";
-import { apiAdminStats, apiAdminTriggerScan, apiAdminActivity, apiAdminExport } from "../../api.js";
+import { apiAdminStats, apiAdminActivity, apiAdminExport } from "../../api.js";
 import { nombreLisible } from "../../utils.js";
-import { carte, Titre, Chiffre, Tableau, cellule, Rien, boutonPrimaire, boutonSecondaire, champ } from "./ui.jsx";
+import { carte, Titre, Chiffre, boutonSecondaire } from "./ui.jsx";
 
 export default function SectionTableauBord({ token, estAdmin, onOuvrirSection }) {
   const [stats, setStats] = useState(null);
   const [activite, setActivite] = useState(null);
   const [erreur, setErreur] = useState(null);
-  const [scanEnCours, setScanEnCours] = useState(false);
-  const [resultatScan, setResultatScan] = useState(null);
-  const [taille, setTaille] = useState(10);
 
   useEffect(() => {
     apiAdminStats(token).then(setStats).catch((e) => setErreur(e.message));
     apiAdminActivity(token, 30).then(setActivite).catch(() => setActivite(null));
   }, [token]);
-
-  const lancerScan = async () => {
-    setScanEnCours(true);
-    setErreur(null);
-    setResultatScan(null);
-    try {
-      const d = await apiAdminTriggerScan(token, taille);
-      setResultatScan(d);
-      apiAdminStats(token).then(setStats).catch(() => {});
-    } catch (e) {
-      setErreur(e.message);
-    } finally {
-      setScanEnCours(false);
-    }
-  };
 
   return (
     <>
@@ -78,46 +60,6 @@ export default function SectionTableauBord({ token, estAdmin, onOuvrirSection })
       )}
 
       {activite && <Courbes activite={activite} />}
-
-      {estAdmin && (
-        <div style={carte}>
-          <Titre aide="Chaque produit scanné consomme une requête du quota mensuel. Deux lancements par quart d'heure sont autorisés.">
-            Scan manuel
-          </Titre>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <select value={taille} onChange={(e) => setTaille(Number(e.target.value))} style={{ ...champ, flex: "0 0 150px" }}>
-              {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} produits</option>)}
-            </select>
-            <button onClick={lancerScan} disabled={scanEnCours} style={boutonPrimaire}>
-              <Icon name="radar" size={14} />
-              {scanEnCours ? "Scan en cours…" : "Lancer un scan"}
-            </button>
-          </div>
-          {resultatScan && (
-            <p style={{ fontSize: 12.5, color: T.green, marginTop: 12 }}>
-              {resultatScan.scanned} produit(s) traité(s). Le détail est dans l'historique, section « Santé du site ».
-            </p>
-          )}
-        </div>
-      )}
-
-      <div style={carte}>
-        <Titre aide="Les produits les plus souvent remontés par les scans — pas les plus recherchés par les visiteurs.">
-          Produits les plus scannés
-        </Titre>
-        {!stats && <Rien>Chargement…</Rien>}
-        {stats?.topProducts.length === 0 && <Rien>Aucune donnée pour l'instant.</Rien>}
-        {stats?.topProducts.length > 0 && (
-          <Tableau colonnes={["Produit", "Occurrences"]}>
-            {stats.topProducts.map((p) => (
-              <tr key={p.query}>
-                <td style={{ ...cellule, textTransform: "capitalize" }}>{p.query}</td>
-                <td style={{ ...cellule, color: T.sub }}>{p.times_seen}×</td>
-              </tr>
-            ))}
-          </Tableau>
-        )}
-      </div>
 
       {estAdmin && (
         <div style={carte}>
