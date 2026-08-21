@@ -9,7 +9,7 @@
 // donner des URLs. C'est ce que cette section apporte.
 import { useEffect, useState } from "react";
 import { T, CATEGORIES } from "../../theme.js";
-import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun, apiAdminWatchAmorcer, apiAdminWatchPeupler } from "../../api.js";
+import { apiAdminWatchList, apiAdminWatchAdd, apiAdminWatchRemove, apiAdminWatchRun, apiAdminWatchAmorcer, apiAdminWatchPeupler, apiAdminWatchDiagnostic } from "../../api.js";
 import Icon from "../Icon.jsx";
 import { carte, boutonPrimaire, boutonSecondaire, boutonDanger, champ, Titre, Chiffre, Puce, Tableau, cellule, Rien, confirmer } from "./ui.jsx";
 
@@ -35,6 +35,8 @@ export default function SectionSurveillance({ token, estAdmin }) {
   const [rapport, setRapport] = useState(null);
   const [amorcage, setAmorcage] = useState(null);
   const [peuplement, setPeuplement] = useState(null);
+  const [diag, setDiag] = useState(null);
+  const [domaineDiag, setDomaineDiag] = useState("www.cdiscount.com");
 
   // Formulaire d'ajout
   const [url, setUrl] = useState("");
@@ -110,6 +112,23 @@ export default function SectionSurveillance({ token, estAdmin }) {
     }
   }
 
+  // Diagnostic : rejoue la découverte en rapportant chaque étape. « Rien ne
+  // s'affiche » ne dit pas si le marchand refuse la requête, si son sitemap
+  // est introuvable, ou si ses adresses ne ressemblent à aucun motif connu —
+  // trois pannes qui se corrigent différemment.
+  async function lancerDiagnostic() {
+    setEncours(true);
+    setErreur(null);
+    setDiag(null);
+    try {
+      setDiag(await apiAdminWatchDiagnostic(token, domaineDiag.trim()));
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEncours(false);
+    }
+  }
+
   async function verifierMaintenant() {
     setEncours(true);
     setErreur(null);
@@ -164,6 +183,63 @@ export default function SectionSurveillance({ token, estAdmin }) {
               Reprendre les scans passés
             </button>
           </div>
+        </div>
+      )}
+
+      {estAdmin && (
+        <div style={carte}>
+          <Titre aide="Rejoue la découverte étape par étape sur une enseigne et montre la forme réelle de ses adresses. C'est ce qui permet de distinguer un marchand qui bloque d'un motif d'URL manquant.">
+            Diagnostiquer une enseigne
+          </Titre>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={domaineDiag}
+              onChange={(e) => setDomaineDiag(e.target.value)}
+              placeholder="www.cdiscount.com"
+              style={{ ...champ, flex: "1 1 220px" }}
+            />
+            <button onClick={lancerDiagnostic} disabled={encours} style={boutonSecondaire}>
+              {encours ? "Analyse…" : "Diagnostiquer"}
+            </button>
+          </div>
+
+          {diag && (
+            <div style={{ marginTop: 14 }}>
+              <Tableau colonnes={["Étape", "État", "Détail"]}>
+                {diag.etapes.map((e, i) => (
+                  <tr key={i}>
+                    <td style={{ ...cellule, fontWeight: 700 }}>{e.etape}</td>
+                    <td style={cellule}>
+                      <Puce ton={e.ok ? T.green : T.red}>{e.ok ? "ok" : "échec"}</Puce>
+                    </td>
+                    <td style={{ ...cellule, color: T.sub, wordBreak: "break-all" }}>
+                      {e.detail}
+                      {e.exemples?.length > 0 && (
+                        <div style={{ fontSize: 11, color: T.muted, marginTop: 4 }}>{e.exemples.join(" · ")}</div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </Tableau>
+
+              {diag.exemplesEcartes?.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 12, color: T.sub, margin: "0 0 6px" }}>
+                    Adresses trouvées mais <strong style={{ color: T.ink }}>non reconnues</strong> comme fiches
+                    produits — c'est ce qu'il faut me montrer si le compte est à zéro :
+                  </p>
+                  <pre
+                    style={{
+                      fontSize: 11, color: T.ink, background: T.surface2, border: `1px solid ${T.line}`,
+                      borderRadius: 8, padding: 10, margin: 0, overflowX: "auto", lineHeight: 1.7,
+                    }}
+                  >
+                    {diag.exemplesEcartes.join("\n")}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

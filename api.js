@@ -662,3 +662,11 @@ export const apiAdminWatchPeupler = (token, options = {}) =>
     { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(options) },
     "Découverte impossible."
   );
+
+/** Diagnostique la découverte chez une enseigne : où elle casse, et pourquoi. */
+export const apiAdminWatchDiagnostic = (token, domaine) =>
+  adminFetch(
+    `/api/admin/watch/diagnostic`,
+    { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ domaine }) },
+    "Diagnostic impossible."
+  );
