@@ -14,6 +14,7 @@ import Icon from "./Icon.jsx";
 import { apiNotifications, apiNotificationsLues, apiGetConversations } from "../api.js";
 import { depuis } from "./useRadar.js";
 import Avatar from "./Avatar.jsx";
+import PageShell, { EmptyState } from "./PageShell.jsx";
 
 /* Chaque nature a son icône et sa teinte. Une alerte de prix ne se lit pas
    comme un abonnement : la couleur porte cette différence avant le texte. */
@@ -55,39 +56,33 @@ export default function ActiviteView({ token, onBack, onOuvrirConversation, onNa
   const nonLues = (notifications || []).filter((n) => !n.lu_at).length;
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px 40px" }}>
-      <button
-        onClick={onBack}
-        style={{
-          background: "none", border: "none", color: T.sub, cursor: "pointer",
-          padding: "18px 0 10px", fontSize: 14, fontWeight: 700,
-          fontFamily: "'Inter', system-ui, sans-serif",
-        }}
-      >
-        ← Accueil
-      </button>
-
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h1 className="rp-display" style={{ fontSize: 26, fontWeight: 900, margin: "0 0 6px", color: T.ink }}>
-          Activité
-        </h1>
-        {nonLues > 0 && (
+    /* Cette vue affichait son titre et son bouton retour à la main, ce qui la
+       laissait sans la nappe de couleur ni l'en-tête des autres pages : on
+       changeait d'univers graphique en la rejoignant depuis la barre du bas,
+       alors que c'est l'une des pages les plus visitées d'un compte. */
+    <PageShell
+      icon="bell"
+      iconColor={T.emberSolid}
+      title="Activité"
+      subtitle="Les réponses, abonnements et alertes qui vous concernent, et vos conversations."
+      onBack={onBack}
+      width={720}
+      action={
+        nonLues > 0 ? (
           <button
             onClick={toutMarquerLu}
+            className="rp-pressable"
             style={{
               background: "none", border: `1px solid ${T.line}`, borderRadius: 999,
-              color: T.sub, cursor: "pointer", padding: "5px 12px", fontSize: 12.5,
-              fontWeight: 700, fontFamily: "'Inter', system-ui, sans-serif",
+              color: T.sub, cursor: "pointer", padding: "7px 14px", fontSize: 12.5,
+              fontWeight: 700, fontFamily: "'Inter', system-ui, sans-serif", whiteSpace: "nowrap",
             }}
           >
             Tout marquer comme lu
           </button>
-        )}
-      </div>
-      <p style={{ color: T.sub, margin: "0 0 22px", fontSize: 14.5 }}>
-        Les réponses, abonnements et alertes qui vous concernent, et vos conversations.
-      </p>
-
+        ) : null
+      }
+    >
       {erreur && (
         <div style={{ border: `1px solid ${T.red}55`, borderRadius: 10, padding: 12, color: T.red, fontSize: 13, marginBottom: 16 }}>
           {erreur}
@@ -103,10 +98,12 @@ export default function ActiviteView({ token, onBack, onOuvrirConversation, onNa
         {notifications === null ? (
           <p style={{ color: T.muted, fontSize: 13.5 }}>Chargement…</p>
         ) : notifications.length === 0 ? (
-          <p style={{ color: T.muted, fontSize: 13.5, padding: "14px 0" }}>
-            Rien pour l'instant. Les réponses à vos sujets, les commentaires sur les produits que vous
-            suivez et vos nouveaux abonnés apparaîtront ici.
-          </p>
+          <EmptyState
+            icon="bell"
+            tone={T.emberSolid}
+            title="Rien de neuf"
+            text="Les réponses à vos sujets, les commentaires sur les produits que vous suivez et vos nouveaux abonnés apparaîtront ici."
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {notifications.map((n) => {
@@ -164,9 +161,12 @@ export default function ActiviteView({ token, onBack, onOuvrirConversation, onNa
         {conversations === null ? (
           <p style={{ color: T.muted, fontSize: 13.5 }}>Chargement…</p>
         ) : conversations.length === 0 ? (
-          <p style={{ color: T.muted, fontSize: 13.5, padding: "14px 0" }}>
-            Aucune conversation. Vous pouvez écrire à un membre depuis son profil.
-          </p>
+          <EmptyState
+            icon="message"
+            tone={T.cyan}
+            title="Aucune conversation"
+            text="Vous pouvez écrire à un membre depuis son profil, ou le retrouver dans le salon de la communauté."
+          />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {conversations.map((c) => (
@@ -208,6 +208,6 @@ export default function ActiviteView({ token, onBack, onOuvrirConversation, onNa
           </div>
         )}
       </section>
-    </div>
+    </PageShell>
   );
 }

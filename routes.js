@@ -12,9 +12,31 @@
 // fonctionne, chaque page peut être mise en favori ou partagée, et le site
 // devient indexable page par page (jusqu'ici, seule l'accueil avait une URL).
 
+/* Correspondance page secondaire <-> chemin, dans les deux sens : une
+   seule table, pour qu'un ajout ne puisse pas n'être fait qu'à moitié. */
+const CHEMINS_INFO = {
+  "a-propos": "/a-propos",
+  faq: "/faq",
+  contact: "/contact",
+  mentions: "/mentions-legales",
+  cgu: "/cgu",
+  confidentialite: "/confidentialite",
+};
+
+const PAGES_INFO = Object.fromEntries(
+  Object.entries(CHEMINS_INFO).map(([page, chemin]) => [chemin.slice(1), page])
+);
+
 /** État de navigation -> chemin d'URL. */
-export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand, membre }) {
+export function stateToPath({ view, tab, searchTerm, produit, threadId, marchand, membre, infoPage }) {
   switch (view) {
+    // Pages secondaires (à propos, FAQ, contact, mentions, CGU,
+    // confidentialité). Elles ont leur propre adresse pour deux raisons :
+    // un visiteur doit pouvoir envoyer un lien vers une réponse de la FAQ,
+    // et ce sont les pages qu'un moteur de recherche lit pour décider si un
+    // site de prix est sérieux.
+    case "info":
+      return CHEMINS_INFO[infoPage] || "/a-propos";
     case "results":
       if (searchTerm) return `/recherche?q=${encodeURIComponent(searchTerm)}`;
       return tab === "erreurs" ? "/erreurs" : "/deals";
@@ -58,6 +80,8 @@ export function pathToState(pathname, search) {
   if (segments.length === 0) return { view: "home" };
 
   const [premier, deuxieme, troisieme] = segments;
+
+  if (PAGES_INFO[premier]) return { view: "info", infoPage: PAGES_INFO[premier] };
 
   switch (premier) {
     case "deals":

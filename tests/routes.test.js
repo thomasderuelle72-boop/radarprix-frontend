@@ -92,16 +92,24 @@ describe("aller-retour entre les deux", () => {
     { view: "communaute-picks" },
     { view: "communaute-chat" },
     { view: "communaute-forum" },
+    // Pages secondaires : c'est ici qu'un oubli se voit tout de suite,
+    // puisque chacune doit exister dans les deux sens de la table.
+    { view: "info", infoPage: "a-propos" },
+    { view: "info", infoPage: "faq" },
+    { view: "info", infoPage: "contact" },
+    { view: "info", infoPage: "mentions" },
+    { view: "info", infoPage: "cgu" },
+    { view: "info", infoPage: "confidentialite" },
   ];
 
   for (const etat of etats) {
-    it(`conserve ${etat.view}${etat.tab ? ` (${etat.tab})` : ""}`, () => {
+    it(`conserve ${etat.view}${etat.tab ? ` (${etat.tab})` : ""}${etat.infoPage ? ` (${etat.infoPage})` : ""}`, () => {
       const chemin = stateToPath(etat);
       const [avantQuestion, apresQuestion] = chemin.split("?");
       const retour = pathToState(avantQuestion, apresQuestion ? `?${apresQuestion}` : "");
 
       expect(retour.view).toBe(etat.view);
-      for (const cle of ["tab", "searchTerm", "produit", "marchand", "membre"]) {
+      for (const cle of ["tab", "searchTerm", "produit", "marchand", "membre", "infoPage"]) {
         if (etat[cle] !== undefined) expect(retour[cle]).toBe(etat[cle]);
       }
     });

@@ -4,7 +4,6 @@ import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import DrawerMenu from "./components/DrawerMenu.jsx";
 import ActiviteView from "./components/ActiviteView.jsx";
-import useRadar from "./components/useRadar.js";
 // Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
 // l'historique de prix), de loin la plus grosse dépendance du projet. En
 // import statique, tout visiteur la téléchargeait au premier chargement de la
@@ -24,6 +23,7 @@ const MerchantView = lazy(() => import("./components/MerchantView.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 const ChatView = lazy(() => import("./components/ChatView.jsx"));
 const AdminView = lazy(() => import("./components/AdminView.jsx"));
+const InfoView = lazy(() => import("./components/InfoView.jsx"));
 import { relativeTime } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
@@ -497,14 +497,14 @@ const GlobalStyles = () => (
       /* Le menu latéral prend le relais des onglets masqués ci-dessous : sans
          lui, les sections secondaires deviendraient inatteignables sur mobile. */
       .rp-burger { display: inline-flex !important; }
-      /* Le logo tient le centre : le bouton de menu et l'indicateur de radar
-         l'encadrent, et les deux pèsent visuellement à peu près pareil. */
+      /* Le logo tient le centre de l'en-tête, quelle que soit la largeur
+         de ce qui l'entoure : positionné en absolu, il ne se décale plus
+         selon qu'un bouton « Connexion » est affiché à droite ou non. */
       .rp-logo {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
       }
-      .rp-nav-radar { display: inline-flex !important; }
       /* Le profil vit dans le tiroir sur mobile : deux accès au même endroit
          encombreraient un en-tête où le logo doit rester centré. */
       .rp-nav-profil { display: none !important; }
@@ -538,6 +538,10 @@ const GlobalStyles = () => (
     .rp-deal-card { transition: border-color 160ms cubic-bezier(.2,.8,.2,1), box-shadow 160ms cubic-bezier(.2,.8,.2,1); }
     .rp-tilt3d:hover .rp-deal-card { border-color: ${T.emberSolid}; box-shadow: ${T.shadowCardHover}; }
     .rp-mobile-nav button { transition: color .15s ease; }
+    /* Cartes explicatives de la page À propos : trois de front sur un
+       écran large, une seule sur un téléphone, sans point de rupture à
+       maintenir. */
+    .rp-info-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(216px, 1fr)); gap: 14px; }
   `}</style>
 );
 
@@ -1345,56 +1349,6 @@ function LigneFiltre({ libelle, children }) {
   );
 }
 
-/* ── Pages légales ──────────────────────────────────────────── */
-const LEGAL = {
-  mentions: {
-    title: "Mentions légales",
-    body: `Éditeur du site : [Nom / raison sociale à compléter]
-Statut : [auto-entrepreneur, SAS…] — SIREN : [à compléter]
-Adresse : [à compléter] — Contact : [email à compléter]
-Directeur de la publication : [à compléter]
-Hébergeur du site : [à compléter] — Hébergeur du backend : Railway Corp.
-
-RadarPrix est un service d'information sur les prix. Les offres affichées proviennent d'une analyse automatique de données de marchés (Google Shopping) ; RadarPrix n'est ni vendeur, ni intermédiaire de vente.`,
-  },
-  cgu: {
-    title: "Conditions générales d'utilisation",
-    body: `1. Objet — RadarPrix détecte des variations de prix inhabituelles sur des sites marchands tiers et les présente à titre purement informatif, via un algorithme de comparaison de prix.
-
-2. Absence de garantie — Les prix, remises et disponibilités affichés sont estimés au moment du scan et peuvent changer à tout moment. RadarPrix ne garantit ni l'exactitude des offres, ni leur maintien par le vendeur. En droit français, un vendeur peut annuler une commande en cas d'erreur manifeste sur le prix (prix dérisoire).
-
-3. Responsabilité — L'utilisateur reste seul responsable de ses achats. Vérifiez systématiquement l'offre, le vendeur et les conditions sur le site marchand avant tout paiement.
-
-4. Usage — Le service est fourni « en l'état », pour un usage personnel et raisonnable.`,
-  },
-  confidentialite: {
-    title: "Politique de confidentialité",
-    body: `RadarPrix ne crée pas de compte et ne dépose pas de cookie publicitaire.
-
-Les recherches que vous lancez sont envoyées à notre serveur, qui interroge Google Shopping (via SerpApi) pour trouver les prix actuels. L'historique des prix consultés est conservé côté serveur pour améliorer la détection, sans donnée personnelle associée.
-
-Pour toute question : [email de contact à compléter].
-
-[À faire relire par un professionnel avant mise en ligne commerciale — RGPD.]`,
-  },
-};
-
-function LegalModal({ page, onClose }) {
-  if (!page) return null;
-  const { title, body } = LEGAL[page];
-  return (
-    <div role="dialog" aria-modal="true" aria-label={title} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 }}>
-      <div onClick={(e) => e.stopPropagation()} className="rp-modal-in" style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 16, padding: "26px 22px", maxWidth: 560, maxHeight: "80vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h3 className="rp-display" style={{ fontSize: 17, color: T.ink }}>{title}</h3>
-          <button onClick={onClose} aria-label="Fermer" style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: T.sub, width: 40, height: 40, borderRadius: 8, flexShrink: 0 }}>×</button>
-        </div>
-        <p style={{ whiteSpace: "pre-line", fontSize: 13.5, lineHeight: 1.7, color: T.sub }}>{body}</p>
-      </div>
-    </div>
-  );
-}
-
 function FooterLink({ children, onClick }) {
   return (
     <button onClick={onClick} style={{ display: "block", background: "none", border: "none", color: T.sub, cursor: "pointer", padding: "3px 0", fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "left" }}>
@@ -1403,7 +1357,7 @@ function FooterLink({ children, onClick }) {
   );
 }
 
-function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNeedAuth, onOpenFavoris }) {
+function Footer({ ouvrirInfo, openTab, goToCommunity, authToken, onNeedAuth, onOpenFavoris }) {
   return (
     <footer style={{ background: "#080A0F", borderTop: `1px solid ${T.line}`, marginTop: 40 }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 18px 24px" }}>
@@ -1434,14 +1388,20 @@ function Footer({ setLegalPage, goHome, openTab, goToCommunity, authToken, onNee
 
           <div>
             <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Légal</h4>
-            <FooterLink onClick={() => setLegalPage("mentions")}>Mentions légales</FooterLink>
-            <FooterLink onClick={() => setLegalPage("cgu")}>CGU</FooterLink>
-            <FooterLink onClick={() => setLegalPage("confidentialite")}>Politique de confidentialité</FooterLink>
+            <FooterLink onClick={() => ouvrirInfo("mentions")}>Mentions légales</FooterLink>
+            <FooterLink onClick={() => ouvrirInfo("cgu")}>CGU</FooterLink>
+            <FooterLink onClick={() => ouvrirInfo("confidentialite")}>Politique de confidentialité</FooterLink>
           </div>
 
           <div>
-            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>À propos</h4>
-            <FooterLink onClick={() => { goHome(); window.scrollTo({ top: document.body.scrollHeight * 0.55, behavior: "smooth" }); }}>Comment ça marche ?</FooterLink>
+            <h4 style={{ fontSize: 13, fontWeight: 800, color: T.ink, marginBottom: 8 }}>Le site</h4>
+            {/* « Comment ça marche ? » faisait défiler l'accueil jusqu'à 55 %
+                de sa hauteur — un repère qui se déplace à chaque ajout de
+                section. La page À propos répond à la même question et ne
+                bouge pas. */}
+            <FooterLink onClick={() => ouvrirInfo("a-propos")}>À propos</FooterLink>
+            <FooterLink onClick={() => ouvrirInfo("faq")}>Questions fréquentes</FooterLink>
+            <FooterLink onClick={() => ouvrirInfo("contact")}>Nous contacter</FooterLink>
           </div>
 
           <div>
@@ -1579,7 +1539,8 @@ function FavorisView({ token, onBack, onOpenSearch, onOpenDetail, onNeedAuth }) 
 }
 
 /* ── Petits styles partagés entre les vues Communauté / Forum ──── */
-const backButtonStyle = { background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 16, fontFamily: "'Inter', sans-serif" };
+/* Le bouton retour maison a disparu avec le passage de ces vues au gabarit
+   commun : PageShell dessine le sien, identique d'une page à l'autre. */
 const emberButtonStyle = { padding: "9px 16px", borderRadius: 10, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 900, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" };
 const inputStyle = { padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif", width: "100%" };
 function pillTabStyle(active) {
@@ -1978,21 +1939,33 @@ function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
     }
   };
 
+  /* Un sujet de forum ouvert depuis la liste faisait disparaître la nappe de
+     couleur et l'en-tête des autres pages : le fil paraissait appartenir à un
+     autre site. Il reprend ici le gabarit commun, son titre en tête et sa
+     catégorie comme chemin de retour. */
   if (!data) {
     return (
-      <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
-        <button onClick={onBack} style={backButtonStyle}>← Retour</button>
-        {error ? <p style={{ color: T.red, fontSize: 13 }}>{error}</p> : <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>}
-      </main>
+      <PageShell onBack={onBack} backLabel="Forum" width={720}>
+        {error ? (
+          <p style={{ color: T.red, fontSize: 13 }}>{error}</p>
+        ) : (
+          <p style={{ color: T.sub, fontSize: 13 }}>Chargement…</p>
+        )}
+      </PageShell>
     );
   }
 
   const { thread, replies } = data;
   return (
-    <main style={{ maxWidth: 680, margin: "0 auto", padding: "22px 16px 60px" }}>
-      <button onClick={onBack} style={backButtonStyle}>← {thread.category_name}</button>
-      <h2 className="rp-display" style={{ fontSize: 19, fontWeight: 900, marginBottom: 12 }}>{thread.title}</h2>
-      <div style={{ background: T.surface, border: `1px solid ${T.line}`, borderRadius: 14, padding: 16, marginBottom: 16 }}>
+    <PageShell
+      icon="message"
+      iconColor={T.cyan}
+      title={thread.title}
+      onBack={onBack}
+      backLabel={thread.category_name}
+      width={720}
+    >
+      <div style={{ background: T.gradSurface, border: `1px solid ${T.line}`, borderRadius: T.radiusMd, padding: 18, marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <AuthorLink
             userId={thread.user_id}
@@ -2007,8 +1980,8 @@ function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
         <p style={{ fontSize: 14, color: T.ink, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{thread.body}</p>
       </div>
 
-      <h3 style={{ fontSize: 13, color: T.sub, fontWeight: 800, marginBottom: 10 }}>
-        {replies.length} réponse{replies.length > 1 ? "s" : ""}
+      <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: T.muted, margin: "0 0 12px" }}>
+        {replies.length === 0 ? "Aucune réponse" : `${replies.length} réponse${replies.length > 1 ? "s" : ""}`}
       </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {replies.map((r) => (
@@ -2028,33 +2001,64 @@ function ThreadDetailView({ threadId, token, currentUserId, onBack }) {
 
       {error && <p style={{ color: T.red, fontSize: 12, marginBottom: 10 }}>{error}</p>}
       {token ? (
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
+        /* Une réponse de forum se rédigeait dans un champ d'une seule ligne :
+           la touche Entrée publiait au lieu d'aller à la ligne, et un message
+           un peu long défilait à l'horizontale. Une zone de texte qui grandit
+           avec le propos, et un envoi explicite. */
+        <div
+          style={{
+            border: `1.5px solid ${T.line}`, borderRadius: T.radiusMd,
+            background: T.surface2, padding: 10,
+          }}
+        >
+          <textarea
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && reply()}
+            onKeyDown={(e) => {
+              // Entrée va à la ligne ; Ctrl/⌘+Entrée publie — la convention
+              // de tous les fils de discussion.
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) reply();
+            }}
             maxLength={5000}
+            rows={3}
             placeholder="Votre réponse…"
-            style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${T.line}`, background: T.surface2, color: T.ink, fontSize: 13.5, fontFamily: "'Inter', sans-serif" }}
+            style={{
+              width: "100%", resize: "vertical", minHeight: 76, border: "none",
+              background: "none", color: T.ink, fontSize: 13.5, lineHeight: 1.6,
+              outline: "none", fontFamily: "'Inter', sans-serif",
+            }}
           />
-          <button
-            onClick={reply}
-            disabled={posting}
-            style={{ padding: "0 16px", borderRadius: 8, border: "none", background: T.ember, color: "#0C0E14", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", opacity: posting ? 0.6 : 1 }}
-          >
-            Répondre
-          </button>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: T.muted }}>
+              {replyText.length > 4500 ? `${5000 - replyText.length} caractères restants` : "Ctrl + Entrée pour publier"}
+            </span>
+            <button
+              onClick={reply}
+              disabled={posting || !replyText.trim()}
+              className="rp-pressable"
+              style={{
+                padding: "9px 18px", borderRadius: 9, border: "none", background: T.ember,
+                color: "#0C0E14", fontWeight: 800, fontSize: 13,
+                cursor: posting || !replyText.trim() ? "default" : "pointer",
+                fontFamily: "'Inter', sans-serif",
+                opacity: posting || !replyText.trim() ? 0.5 : 1,
+              }}
+            >
+              {posting ? "Envoi…" : "Répondre"}
+            </button>
+          </div>
         </div>
       ) : (
         <p style={{ color: T.sub, fontSize: 13 }}>Connectez-vous pour répondre à ce sujet.</p>
       )}
-    </main>
+    </PageShell>
   );
 }
 
 export default function RadarPrixSite() {
   const [view, setView] = useState("home");
-  const [legalPage, setLegalPage] = useState(null);
+  // Page secondaire ouverte (à propos, FAQ, contact, pages légales).
+  const [infoPage, setInfoPage] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [communityMenuOpen, setCommunityMenuOpen] = useState(false);
@@ -2077,7 +2081,6 @@ export default function RadarPrixSite() {
   const [activeThreadId, setActiveThreadId] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOuvert, setMenuOuvert] = useState(false);
-  const radarEtat = useRadar();
   const [authToken, setAuthToken] = useState(null);
   const [authUser, setAuthUser] = useState(null); // { id, email, role, pseudo, avatar_url }
   const [followMsg, setFollowMsg] = useState(null);
@@ -2240,6 +2243,7 @@ export default function RadarPrixSite() {
     if (etat.view === "marchand") setMarchandActif(etat.marchand);
     if (etat.view === "membre") setMembreActif(etat.membre);
     if (etat.view === "communaute-forum-thread") setActiveThreadId(etat.threadId);
+    if (etat.view === "info") setInfoPage(etat.infoPage);
     if (etat.tab) setTab(etat.tab);
     setSearchTerm(etat.searchTerm || null);
     setView(etat.view);
@@ -2263,10 +2267,11 @@ export default function RadarPrixSite() {
       threadId: activeThreadId,
       marchand: marchandActif,
       membre: membreActif,
+      infoPage,
     });
     const actuel = window.location.pathname + window.location.search;
     if (chemin !== actuel) window.history.pushState(null, "", chemin);
-  }, [view, tab, searchTerm, dealDetailItem, activeThreadId, marchandActif, membreActif]);
+  }, [view, tab, searchTerm, dealDetailItem, activeThreadId, marchandActif, membreActif, infoPage]);
   const [category, setCategory] = useState("tout");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -2414,6 +2419,13 @@ export default function RadarPrixSite() {
     setSellerFilter("tous");
   };
 
+  /** Ouvre une page secondaire (à propos, FAQ, contact, pages légales). */
+  const ouvrirInfo = (page) => {
+    setInfoPage(page);
+    setView("info");
+    window.scrollTo(0, 0);
+  };
+
   const goHome = () => {
     setView("home");
     window.scrollTo(0, 0);
@@ -2486,9 +2498,11 @@ export default function RadarPrixSite() {
     }
     if (key === "parametres") return setSettingsOpen(true);
     if (key === "admin") return setView("admin");
-    // Pages secondaires : l'écran légal existant sait afficher ces clés.
-    if (["a-propos", "faq", "contact", "cgu", "confidentialite"].includes(key)) {
-      return setLegalPage(key === "a-propos" ? "mentions" : key);
+    // Pages secondaires. « a-propos » est bien la page À propos, et non les
+    // mentions légales : les confondre renvoyait le visiteur curieux vers un
+    // numéro de SIREN.
+    if (["a-propos", "faq", "contact", "mentions", "cgu", "confidentialite"].includes(key)) {
+      return ouvrirInfo(key);
     }
   };
 
@@ -2596,42 +2610,16 @@ export default function RadarPrixSite() {
                 en-tête où le logo doit tenir le centre. Sur grand écran il
                 reste indispensable — le tiroir n'y existe pas, et c'est la
                 seule porte vers les paramètres, l'admin et la déconnexion. */}
-            {/* ── L'état du radar, à droite ──────────────────────────────
-                Cette place revenait au profil, désormais dans le tiroir. Y
-                mettre une commande de plus aurait fait doublon avec la barre
-                du bas ; on y met donc ce qui n'existe nulle part ailleurs :
-                le radar est-il en train de tourner, et a-t-il trouvé quelque
-                chose. Un site qui promet de surveiller les prix devrait le
-                montrer en permanence, pas seulement le dire. */}
-            <button
-              className="rp-nav-radar"
-              onClick={() => openTab("erreurs")}
-              aria-label={
-                radarEtat?.anomalies > 0
-                  ? `${radarEtat.anomalies} erreur(s) de prix détectée(s)`
-                  : "Voir les erreurs de prix"
-              }
-              style={{
-                display: "none", alignItems: "center", gap: 6, background: "none",
-                border: `1px solid ${T.line}`, borderRadius: 999, padding: "5px 11px 5px 9px",
-                cursor: "pointer", marginLeft: "auto",
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-                  background: radarEtat?.actif ? T.green : T.muted,
-                  boxShadow: radarEtat?.actif ? `0 0 0 3px ${T.green}22` : "none",
-                }}
-              />
-              <span style={{ fontSize: 12, fontWeight: 800, color: T.ink, fontVariantNumeric: "tabular-nums" }}>
-                {radarEtat?.anomalies > 0 ? radarEtat.anomalies : "—"}
-              </span>
-            </button>
-
+            {/* Rien à droite du logo sur mobile, et c'est délibéré. Cette
+                place a d'abord reçu un indicateur de radar : joli, mais il
+                répétait une information déjà lisible au bas du menu, et
+                n'appelait aucun geste. Recherche, activité et profil, eux,
+                sont déjà dans la barre du bas. Un en-tête de téléphone n'a
+                pas à porter une commande de plus — il doit tenir le logo
+                droit et laisser respirer le contenu. La place reste libre
+                pour une fonction qui n'existe nulle part ailleurs. */}
             {authToken && authUser ? (
-              <div className="rp-nav-profil" style={{ position: "relative", marginLeft: 12 }}>
+              <div className="rp-nav-profil" style={{ position: "relative", marginLeft: "auto", paddingLeft: 12 }}>
                 <button
                   onClick={() => setProfileMenuOpen((v) => !v)}
                   aria-label="Menu du profil"
@@ -2656,7 +2644,8 @@ export default function RadarPrixSite() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                style={{ marginLeft: 12, background: "none", border: `1.5px solid ${T.line}`, borderRadius: 8, padding: "6px 12px", color: T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
+                className="rp-nav-connexion"
+                style={{ marginLeft: "auto", background: "none", border: `1.5px solid ${T.line}`, borderRadius: 8, padding: "6px 12px", color: T.sub, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Inter', sans-serif" }}
               >
                 Connexion
               </button>
@@ -3302,6 +3291,22 @@ export default function RadarPrixSite() {
             la mélanger au flux principal afficherait en permanence de
             fausses bonnes affaires. */}
         {view === "occasion" && <FeedView onBack={goHome} occasion />}
+
+        {/* Pages secondaires. Elles étaient jusqu'ici une modale de texte
+            brut : illisible sur les CGU, impossible à partager sur la FAQ,
+            et absente pour deux des cinq entrées du menu. */}
+        {view === "info" && (
+          <Suspense fallback={<ViewLoader />}>
+            <InfoView
+              page={infoPage}
+              onBack={goHome}
+              onNaviguer={(cle) => {
+                if (cle === "communaute-forum") return goToCommunity("communaute-forum");
+                ouvrirInfo(cle);
+              }}
+            />
+          </Suspense>
+        )}
       </div>
 
       <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} token={authToken} />
@@ -3314,15 +3319,13 @@ export default function RadarPrixSite() {
         onDeconnexion={logout}
       />
       <Footer
-        setLegalPage={setLegalPage}
-        goHome={goHome}
+        ouvrirInfo={ouvrirInfo}
         openTab={openTab}
         goToCommunity={goToCommunity}
         authToken={authToken}
         onNeedAuth={() => setAuthOpen(true)}
         onOpenFavoris={() => { setView("favoris"); window.scrollTo(0, 0); }}
       />
-      <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />
       {authOpen && (
         <AuthModal
           onClose={() => setAuthOpen(false)}
