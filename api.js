@@ -677,3 +677,21 @@ export async function fetchRadar() {
   if (!res.ok) throw new Error(`Le serveur a répondu ${res.status}`);
   return res.json();
 }
+
+/** Ce qui attend le membre : messages privés et notifications, en un appel. */
+export const apiActivite = (token) =>
+  adminFetch("/api/activite", { headers: auth(token) }, "Activité indisponible.");
+
+export const apiNotifications = (token) =>
+  adminFetch("/api/notifications", { headers: auth(token) }, "Notifications indisponibles.");
+
+export const apiNotificationsLues = (token, ids = null) =>
+  adminFetch(
+    "/api/notifications/lues",
+    {
+      method: "POST",
+      headers: { ...auth(token), "Content-Type": "application/json" },
+      body: JSON.stringify(ids ? { ids } : {}),
+    },
+    "Marquage impossible."
+  );

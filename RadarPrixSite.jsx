@@ -3,6 +3,7 @@ import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import DrawerMenu from "./components/DrawerMenu.jsx";
+import ActiviteView from "./components/ActiviteView.jsx";
 // Chargé à la demande : cette vue tire recharts (le moteur de graphiques de
 // l'historique de prix), de loin la plus grosse dépendance du projet. En
 // import statique, tout visiteur la téléchargeait au premier chargement de la
@@ -2434,7 +2435,7 @@ export default function RadarPrixSite() {
 
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
   const mobileNavActive =
-    view === "favoris" ? "favoris" :
+    view === "activite" ? "activite" :
     view === "profil" ? "profil" :
     view === "results" && tab === "erreurs" ? "erreurs" :
     view === "results" && searchTerm ? "recherche" :
@@ -2460,9 +2461,9 @@ export default function RadarPrixSite() {
       setTimeout(() => document.querySelector('input[type="search"], .rp-search input')?.focus(), 80);
       return;
     }
-    if (key === "favoris") {
+    if (key === "activite") {
       if (!authToken) return setAuthOpen(true);
-      setView("favoris");
+      setView("activite");
       window.scrollTo(0, 0);
       return;
     }
@@ -3247,6 +3248,20 @@ export default function RadarPrixSite() {
             promotions au même endroit. Accessible sans compte — c'est le
             contenu principal du site, pas une fonctionnalité de membre. */}
         {view === "flux" && <FeedView onBack={goHome} />}
+        {view === "activite" && (
+          <ActiviteView
+            token={authToken}
+            onBack={goHome}
+            onOuvrirConversation={(c) => goToCommunity("communaute-chat", c.user_id)}
+            onNaviguer={(n) => {
+              // Une notification porte sa destination : on l'y emmène plutôt
+              // que de la laisser au rang de libellé.
+              if (n.cible_vue === "forum-thread") return goToCommunity("communaute-forum");
+              if (n.cible_vue === "profil" && n.acteur_pseudo) return ouvrirProfil(n.acteur_pseudo);
+              if (n.cible_vue === "produit" && n.cible_id) return searchProduct(n.cible_id);
+            }}
+          />
+        )}
 
         {/* L'occasion a sa propre section, par choix : une offre
             reconditionnée est légitimement moins chère qu'un produit neuf, et
@@ -3255,7 +3270,7 @@ export default function RadarPrixSite() {
         {view === "occasion" && <FeedView onBack={goHome} occasion />}
       </div>
 
-      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
+      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} token={authToken} />
       <DrawerMenu
         ouvert={menuOuvert}
         onFermer={() => setMenuOuvert(false)}
