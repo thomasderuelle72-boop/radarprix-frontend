@@ -670,3 +670,10 @@ export const apiAdminWatchDiagnostic = (token, domaine) =>
     { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify({ domaine }) },
     "Diagnostic impossible."
   );
+
+/** État public du radar : fiches suivies, dernier balayage, détections en cours. */
+export async function fetchRadar() {
+  const res = await fetch(`${BACKEND_URL}/api/radar`);
+  if (!res.ok) throw new Error(`Le serveur a répondu ${res.status}`);
+  return res.json();
+}

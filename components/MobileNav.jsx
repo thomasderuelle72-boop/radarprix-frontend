@@ -3,6 +3,7 @@
 // dans GlobalStyles, cachée par défaut et affichée en @media max-width:640px).
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
+import useRadar from "./useRadar.js";
 
 /* Cinq entrées, jamais plus : au-delà, les libellés deviennent illisibles sur
    un écran étroit. Le choix de ces cinq-là suit un principe simple — la barre
@@ -18,13 +19,19 @@ const ITEMS = [
   { key: "home", icon: "home", label: "Accueil" },
   // La promesse distinctive du site passe en deuxième position, juste après
   // l'accueil : c'est ce pour quoi on vient.
-  { key: "erreurs", icon: "alertCircle", label: "Erreurs" },
+  { key: "erreurs", icon: "alertCircle", label: "Erreurs", compteur: "anomalies" },
   { key: "recherche", icon: "search", label: "Chercher" },
   { key: "favoris", icon: "star", label: "Favoris" },
   { key: "profil", icon: "user", label: "Profil" },
 ];
 
 export default function MobileNav({ active, onNavigate }) {
+  /* Une barre de navigation ordinaire est une table des matières. Celle-ci
+     est un instrument : elle dit ce que le radar a trouvé À CET INSTANT.
+     Une erreur de prix vit vingt minutes — une navigation qui ne sait pas
+     annoncer « il y en a trois, maintenant » rate le seul argument du site. */
+  const radar = useRadar();
+
   return (
     <nav className="rp-mobile-nav" aria-label="Navigation mobile">
       {ITEMS.map((it) => (
@@ -46,7 +53,35 @@ export default function MobileNav({ active, onNavigate }) {
             fontFamily: "'Inter', system-ui, sans-serif",
           }}
         >
-          <Icon name={it.icon} size={19} />
+          <span style={{ position: "relative", display: "flex" }}>
+            <Icon name={it.icon} size={19} />
+            {/* Pastille de compte. Elle n'apparaît qu'à partir de un : un
+                « 0 » attirerait l'œil pour annoncer qu'il n'y a rien. */}
+            {it.compteur && radar?.[it.compteur] > 0 && (
+              <span
+                className="rp-nav-pastille"
+                aria-label={`${radar[it.compteur]} en cours`}
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  left: "calc(50% + 4px)",
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: 999,
+                  background: T.red,
+                  color: "#fff",
+                  fontSize: 9.5,
+                  fontWeight: 900,
+                  lineHeight: "16px",
+                  textAlign: "center",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {radar[it.compteur] > 99 ? "99+" : radar[it.compteur]}
+              </span>
+            )}
+          </span>
           <span style={{ fontSize: 10, fontWeight: 800 }}>{it.label}</span>
         </button>
       ))}

@@ -12,29 +12,40 @@
 import { useEffect, useRef } from "react";
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
+import useRadar, { depuis } from "./useRadar.js";
 
-/* Groupes du menu. L'ordre suit ce qu'un visiteur cherche réellement :
-   d'abord parcourir, puis la communauté, puis son compte, puis les pages
-   qu'on ne consulte qu'une fois. */
+/* Le menu ne classe pas par thème, mais par ORIGINE.
+ *
+ * C'est le point où RadarPrix se sépare des sites de bons plans habituels.
+ * Ceux-ci rangent par catégories — high-tech, maison, mode — parce que tous
+ * leurs deals viennent de la même source : leurs membres. Ici il y en a deux,
+ * franchement différentes : ce qu'une machine a trouvé seule, et ce que des
+ * gens ont signalé. Cette distinction est le produit lui-même ; la ranger
+ * derrière des catégories la rendrait invisible.
+ *
+ * Un visiteur qui ouvre ce menu comprend en trois lignes ce que fait le site.
+ */
 const GROUPES = [
   {
-    titre: "Parcourir",
+    titre: "Repéré par le radar",
+    note: "Détecté automatiquement, sans intervention humaine",
     entrees: [
-      { key: "deals", icon: "trendingDown", label: "Gros deals" },
-      { key: "erreurs", icon: "alertCircle", label: "Erreurs de prix" },
+      { key: "erreurs", icon: "alertCircle", label: "Erreurs de prix", compteur: "anomalies" },
+      { key: "deals", icon: "trendingDown", label: "Gros deals", compteur: "deals" },
       { key: "occasion", icon: "refresh", label: "Occasion & reconditionné" },
     ],
   },
   {
-    titre: "Communauté",
+    titre: "Trouvé par les membres",
+    note: "Signalé et voté par la communauté",
     entrees: [
-      { key: "communaute-picks", icon: "gem", label: "Deals des membres" },
+      { key: "communaute-picks", icon: "gem", label: "Leurs deals" },
       { key: "forum", icon: "message", label: "Forum" },
       { key: "salon", icon: "users", label: "Salon" },
     ],
   },
   {
-    titre: "Mon compte",
+    titre: "Ce que je suis",
     entrees: [
       { key: "favoris", icon: "star", label: "Mes favoris", auth: true },
       { key: "profil", icon: "user", label: "Mon profil", auth: true },
@@ -55,6 +66,7 @@ const SECONDAIRES = [
 
 export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, admin, onDeconnexion }) {
   const panneau = useRef(null);
+  const radar = useRadar();
 
   /* Fermeture au clavier : un menu qui recouvre l'écran doit pouvoir se
      refermer sans viser un bouton, en particulier pour qui navigue au clavier
@@ -163,11 +175,19 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
                     letterSpacing: ".09em",
                     textTransform: "uppercase",
                     color: T.muted,
-                    margin: "0 0 6px 10px",
+                    margin: "0 0 2px 10px",
                   }}
                 >
                   {groupe.titre}
                 </p>
+                {/* La note dit ce que le groupe a de particulier. Sans elle,
+                    « Repéré par le radar » se lit comme un intitulé décoratif
+                    plutôt que comme une information sur la provenance. */}
+                {groupe.note && (
+                  <p style={{ fontSize: 11.5, color: T.muted, margin: "0 0 8px 10px", lineHeight: 1.45 }}>
+                    {groupe.note}
+                  </p>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {entrees.map((e) => (
                     <button
@@ -191,7 +211,21 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
                       }}
                     >
                       <Icon name={e.icon} size={18} color={T.sub} />
-                      {e.label}
+                      <span style={{ flex: 1 }}>{e.label}</span>
+                      {/* Le compteur ne s'affiche qu'à partir de un : « 0 »
+                          annoncerait un vide que la page dira mieux. */}
+                      {e.compteur && radar?.[e.compteur] > 0 && (
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            fontWeight: 800,
+                            color: e.compteur === "anomalies" ? T.red : T.sub,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {radar[e.compteur]}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -262,6 +296,49 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
               ))}
             </div>
           </div>
+
+          {/* ── L'état du radar, en clair ──────────────────────────────
+              Personne n'affiche ça, et c'est précisément l'intérêt. Un site
+              qui promet de la fraîcheur devrait pouvoir la prouver plutôt que
+              la répéter. Le jour où le radar tombe en panne, cette ligne le
+              dit — et mieux vaut un visiteur informé qu'un visiteur trompé. */}
+          {radar && (
+            <div
+              style={{
+                borderTop: `1px solid ${T.line}`,
+                paddingTop: 14,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 9,
+                padding: "14px 10px 0",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  marginTop: 5,
+                  flexShrink: 0,
+                  background: radar.actif ? T.green : T.muted,
+                  boxShadow: radar.actif ? `0 0 0 3px ${T.green}22` : "none",
+                }}
+              />
+              <p style={{ margin: 0, fontSize: 11.5, color: T.sub, lineHeight: 1.55 }}>
+                {radar.actif ? (
+                  <>
+                    Dernier balayage <strong style={{ color: T.ink }}>{depuis(radar.dernierBalayage)}</strong>
+                    {radar.fiches > 0 && <> · {radar.fiches} fiche{radar.fiches > 1 ? "s" : ""} sous surveillance</>}
+                  </>
+                ) : radar.fiches > 0 ? (
+                  <>Radar en veille · {radar.fiches} fiche{radar.fiches > 1 ? "s" : ""} en attente de balayage</>
+                ) : (
+                  <>Radar en veille · aucune fiche sous surveillance</>
+                )}
+              </p>
+            </div>
+          )}
 
           {connecte && (
             <button
