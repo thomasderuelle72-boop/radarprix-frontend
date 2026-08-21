@@ -3,6 +3,7 @@
 // dans GlobalStyles, cachée par défaut et affichée en @media max-width:640px).
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
+import Avatar from "./Avatar.jsx";
 import useRadar from "./useRadar.js";
 
 /* Cinq entrées, jamais plus : au-delà, les libellés deviennent illisibles sur
@@ -27,10 +28,12 @@ const ITEMS = [
   // visibles sur toutes les pages, y compris ici. Les répéter dans la barre
   // du bas ferait deux chemins vers la même chose.
   { key: "favoris", icon: "star", label: "Favoris" },
-  { key: "profil", icon: "user", label: "Profil" },
+  // L'avatar remplace l'icône quand le membre est connecté : c'est son
+  // compte, pas une silhouette générique. Voir `vignette` plus bas.
+  { key: "profil", icon: "user", label: "Profil", avatar: true },
 ];
 
-export default function MobileNav({ active, onNavigate }) {
+export default function MobileNav({ active, onNavigate, utilisateur }) {
   /* Une barre de navigation ordinaire est une table des matières. Celle-ci
      est un instrument : elle dit ce que le radar a trouvé À CET INSTANT.
      Une erreur de prix vit vingt minutes — une navigation qui ne sait pas
@@ -59,7 +62,28 @@ export default function MobileNav({ active, onNavigate }) {
           }}
         >
           <span style={{ position: "relative", display: "flex" }}>
-            <Icon name={it.icon} size={19} />
+            {it.avatar && utilisateur ? (
+              /* Cercle de 21 px : l'avatar occupe la place de l'icône sans
+                 décaler les libellés des quatre autres entrées. L'anneau
+                 marque l'onglet courant, puisqu'une image ne peut pas
+                 changer de couleur comme un trait. */
+              <span
+                style={{
+                  display: "flex", borderRadius: "50%", padding: 1.5,
+                  border: `1.5px solid ${active === it.key ? T.emberSolid : "transparent"}`,
+                  margin: -3,
+                }}
+              >
+                <Avatar
+                  email={utilisateur.email}
+                  pseudo={utilisateur.pseudo}
+                  avatarUrl={utilisateur.avatar_url}
+                  size={21}
+                />
+              </span>
+            ) : (
+              <Icon name={it.icon} size={19} />
+            )}
             {/* Pastille de compte. Elle n'apparaît qu'à partir de un : un
                 « 0 » attirerait l'œil pour annoncer qu'il n'y a rien. */}
             {it.compteur && radar?.[it.compteur] > 0 && (

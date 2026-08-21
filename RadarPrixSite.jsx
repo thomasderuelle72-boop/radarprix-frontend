@@ -3430,7 +3430,7 @@ export default function RadarPrixSite() {
         )}
       </div>
 
-      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} />
+      <MobileNav active={mobileNavActive} onNavigate={handleMobileNav} utilisateur={authUser} />
       <DrawerMenu
         ouvert={menuOuvert}
         onFermer={() => setMenuOuvert(false)}
