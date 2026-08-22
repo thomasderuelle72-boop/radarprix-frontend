@@ -7,7 +7,8 @@
 // Tout passe par ici — commentaires, salon, cartes de deal, profils — donc
 // ajouter la panoplie à cet endroit suffit à la faire apparaître partout.
 import { useState } from "react";
-import AvatarMaison, { estAvatarMaison } from "./avatars.jsx";
+import AvatarMaison, { estAvatarMaison, lireJeton } from "./avatars.jsx";
+import AvatarHunter, { estHunter, lireHunter } from "./hunters.jsx";
 
 const AVATAR_COLORS = ["#FF6A1A", "#35D475", "#1F5EFF", "#FFD166", "#FF345D", "#8B5CF6"];
 
@@ -22,14 +23,22 @@ export default function Avatar({ email, pseudo, avatarUrl, size = 32 }) {
   const initial = label.trim()[0]?.toUpperCase() || "?";
   const [imgFailed, setImgFailed] = useState(false);
 
-  // Un jeton maison n'est pas une adresse : le passer à <img> déclencherait
-  // une requête vers « rp:… » et un carré cassé.
-  if (estAvatarMaison(avatarUrl)) {
-    const dessine = <AvatarMaison jeton={avatarUrl} size={size} titre={label} />;
-    // Jeton inconnu — motif retiré du jeu depuis — : on retombe sur l'initiale
-    // plutôt que de laisser un trou.
-    if (dessine) return dessine;
+  // Ni un jeton maison ni un chasseur ne sont des adresses : passés à
+  // <img>, ils déclencheraient une requête vers « rp:… » ou « rh:… » et un
+  // carré cassé. On les intercepte avant.
+  //
+  // On teste le RÉSULTAT DE LECTURE, jamais l'élément rendu : un élément
+  // JSX est toujours vrai, même quand le composant renvoie null — un jeton
+  // devenu invalide afficherait alors un trou au lieu de l'initiale.
+  if (estHunter(avatarUrl) && lireHunter(avatarUrl)) {
+    return <AvatarHunter jeton={avatarUrl} size={size} titre={label} />;
   }
+  if (estAvatarMaison(avatarUrl) && lireJeton(avatarUrl)) {
+    return <AvatarMaison jeton={avatarUrl} size={size} titre={label} />;
+  }
+  // Jeton reconnu mais illisible — pièce retirée du jeu, caractère abîmé :
+  // on tombe sur l'initiale colorée plutôt que de laisser un vide.
+  if (estHunter(avatarUrl) || estAvatarMaison(avatarUrl)) avatarUrl = null;
 
   if (avatarUrl && !imgFailed) {
     return (

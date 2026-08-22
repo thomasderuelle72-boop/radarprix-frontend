@@ -15,6 +15,51 @@ import { T } from "../theme.js";
 import Avatar from "./Avatar.jsx";
 import Icon from "./Icon.jsx";
 import AvatarMaison, { MOTIFS, PALETTES, jetonAvatar, lireJeton } from "./avatars.jsx";
+import AvatarHunter, {
+  jetonHunter, lireHunter, tirerHunter, estHunter, accorder,
+  VISAGES, COIFFURES, YEUX, EXPRESSIONS, VETEMENTS, CHEFS, ACCESSOIRES, OBJETS,
+  NOMS_PEAU, NOMS_CHEVEUX, NOMS_TEINTE, TEINTES,
+} from "./hunters.jsx";
+
+/* Les couches que le membre règle lui-même. Les autres — marque radar,
+   effet, rareté — sont tirées au sort ou réservées à la progression :
+   quatorze réglages d'affilée transformeraient le choix d'un avatar en
+   formulaire administratif. */
+const REGLAGES = [
+  ["visage", "Visage", VISAGES.map((v) => v[0])],
+  ["peau", "Teint", NOMS_PEAU],
+  ["coiffure", "Coiffure", COIFFURES.map((v) => v[0])],
+  ["cheveux", "Cheveux", NOMS_CHEVEUX],
+  ["yeux", "Yeux", YEUX.map((v) => v[0])],
+  ["expression", "Expression", EXPRESSIONS.map((v) => v[0])],
+  ["vetement", "Vêtement", VETEMENTS.map((v) => v[0])],
+  ["chef", "Couvre-chef", CHEFS.map((v) => v[0])],
+  ["accessoire", "Accessoire", ACCESSOIRES.map((v) => v[0])],
+  ["objet", "Objet", OBJETS.map((v) => v[0])],
+  ["teinte", "Teinte", Object.keys(TEINTES).map((k) => NOMS_TEINTE[k])],
+];
+
+/** Une ligne de réglage : le nom de la pièce, et deux flèches pour la
+ *  changer. Une grille de vignettes par couche demanderait onze grilles. */
+function Reglage({ libelle, valeur, options, onChange }) {
+  const aller = (pas) => onChange((valeur + pas + options.length) % options.length);
+  const fleche = {
+    width: 26, height: 26, borderRadius: 7, cursor: "pointer",
+    border: `1.5px solid ${T.line}`, background: T.surface, color: T.ink,
+    fontSize: 13, fontWeight: 800, lineHeight: 1, padding: 0,
+    fontFamily: "'Inter', sans-serif",
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontSize: 11, color: T.muted, fontWeight: 800, width: 74, flexShrink: 0 }}>{libelle}</span>
+      <button type="button" onClick={() => aller(-1)} style={fleche} aria-label={`${libelle} précédent`}>‹</button>
+      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: T.ink, textAlign: "center", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {options[valeur]}
+      </span>
+      <button type="button" onClick={() => aller(1)} style={fleche} aria-label={`${libelle} suivant`}>›</button>
+    </div>
+  );
+}
 
 const TAILLE = 160; // côté du carré final, en pixels
 const POIDS_MAX = 90 * 1024; // garde-fou : au-delà, on refuse plutôt que d'envoyer
@@ -63,7 +108,13 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
   const [teinte, setTeinte] = useState(choix?.palette.cle || PALETTES[0].cle);
   // Ouverte par défaut tant qu'aucune photo n'a été téléversée : c'est le
   // chemin le plus court vers un profil qui ne soit plus une initiale.
-  const [galerie, setGalerie] = useState(!value || Boolean(choix));
+  const [galerie, setGalerie] = useState(!value || Boolean(choix) || estHunter(value));
+
+  // Le chasseur en cours de composition. On part de celui déjà porté, ou
+  // d'un tirage — un compositeur qui s'ouvre sur un personnage vide ne
+  // donne aucune envie d'y toucher.
+  const [chasseur, setChasseur] = useState(() => lireHunter(value) || tirerHunter());
+  const [mode, setMode] = useState(estHunter(value) ? "chasseur" : "galerie");
 
   const choisirFichier = async (e) => {
     const file = e.target.files?.[0];
@@ -101,21 +152,24 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => setGalerie((v) => !v)}
-              className="rp-pressable"
-              style={{
-                display: "flex", alignItems: "center", gap: 7,
-                background: galerie ? T.ember : T.surface2,
-                border: `1.5px solid ${galerie ? "transparent" : T.line}`, borderRadius: 9,
-                padding: "9px 14px", color: galerie ? "#0C0E14" : T.ink,
-                fontSize: 12.5, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              <Icon name="sparkle" size={14} />
-              La galerie
-            </button>
+            {[["chasseur", "Mon chasseur", "users"], ["galerie", "Emblèmes", "sparkle"]].map(([cle, libelle, icone]) => (
+              <button
+                key={cle}
+                type="button"
+                onClick={() => { setMode(cle); setGalerie(true); if (cle === "chasseur") onChange(jetonHunter(chasseur)); }}
+                className="rp-pressable"
+                style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  background: galerie && mode === cle ? T.ember : T.surface2,
+                  border: `1.5px solid ${galerie && mode === cle ? "transparent" : T.line}`, borderRadius: 9,
+                  padding: "9px 14px", color: galerie && mode === cle ? "#0C0E14" : T.ink,
+                  fontSize: 12.5, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                <Icon name={icone} size={14} />
+                {libelle}
+              </button>
+            ))}
 
             <button
               type="button"
@@ -163,7 +217,46 @@ export default function AvatarPicker({ value, onChange, email, pseudo }) {
           La teinte d'abord, le motif ensuite : changer de couleur garde le
           motif choisi, ce qui permet d'essayer les six sans repartir de
           zéro. L'inverse — une grille de 72 vignettes — serait illisible. */}
-      {galerie && (
+      {galerie && mode === "chasseur" && (
+        <div style={{ marginTop: 14, padding: 16, borderRadius: 12, background: T.surface2, border: `1px solid ${T.line}` }}>
+          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <AvatarHunter jeton={jetonHunter(chasseur)} size={104} titre="Aperçu" />
+              <button
+                type="button"
+                onClick={() => { const c = tirerHunter(); setChasseur(c); onChange(jetonHunter(c)); }}
+                className="rp-pressable"
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: T.surface, border: `1.5px solid ${T.line}`, borderRadius: 9,
+                  padding: "8px 12px", color: T.ink, fontSize: 12, fontWeight: 800,
+                  cursor: "pointer", fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                <Icon name="refresh" size={13} /> Au hasard
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 210, display: "flex", flexDirection: "column", gap: 7 }}>
+              {REGLAGES.map(([cle, libelle, options]) => (
+                <Reglage
+                  key={cle}
+                  libelle={libelle}
+                  valeur={chasseur[cle]}
+                  options={options}
+                  onChange={(v) => {
+                    const c = accorder({ ...chasseur, [cle]: v });
+                    setChasseur(c);
+                    onChange(jetonHunter(c));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {galerie && mode === "galerie" && (
         <div
           style={{
             marginTop: 14, padding: 14, borderRadius: 12,
