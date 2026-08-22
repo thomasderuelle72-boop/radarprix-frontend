@@ -578,3 +578,44 @@ export const apiNotificationsLues = (token, ids = null) =>
     },
     "Marquage impossible."
   );
+
+/* ── Détection : cibles suivies et scans ──────────────────────────
+   Le moteur d'acquisition suit des « cibles » (watch_targets) : un produit,
+   et de quoi aller le chercher — un flux RSS/XML marchand, ou des domaines
+   confiés au scraping Firecrawl.
+
+   La lecture est ouverte à la modération, les modifications à
+   l'administrateur seul : le backend applique déjà cette règle, on ne fait
+   que la refléter dans l'interface. */
+
+export const apiCibles = (token) =>
+  adminFetch("/api/admin/targets", { headers: auth(token) }, "Cibles indisponibles.");
+
+export const apiCibleAjouter = (token, cible) =>
+  adminFetch(
+    "/api/admin/targets",
+    { method: "POST", headers: authJson(token), body: JSON.stringify(cible) },
+    "Création impossible."
+  );
+
+export const apiCibleModifier = (token, id, champs) =>
+  adminFetch(
+    `/api/admin/targets/${id}`,
+    { method: "PATCH", headers: authJson(token), body: JSON.stringify(champs) },
+    "Modification impossible."
+  );
+
+export const apiCibleSupprimer = (token, id) =>
+  adminFetch(`/api/admin/targets/${id}`, { method: "DELETE", headers: auth(token) }, "Suppression impossible.");
+
+/** Lance un scan. `targetId` limite le balayage à une seule cible. */
+export const apiScanLancer = (token, targetId) =>
+  adminFetch(
+    "/api/admin/scan",
+    { method: "POST", headers: authJson(token), body: JSON.stringify(targetId ? { targetId } : {}) },
+    "Lancement impossible."
+  );
+
+/** Exécutions récentes et santé des deux canaux de collecte (flux, Firecrawl). */
+export const apiScanStatut = (token) =>
+  adminFetch("/api/admin/scan/status", { headers: auth(token) }, "Statut indisponible.");

@@ -19,17 +19,24 @@ import SectionTableauBord from "./admin/SectionTableauBord.jsx";
 import SectionModeration from "./admin/SectionModeration.jsx";
 import SectionSante from "./admin/SectionSante.jsx";
 import SectionMembres from "./admin/SectionMembres.jsx";
+import SectionDetection from "./admin/SectionDetection.jsx";
 
 /* Quatre onglets ont disparu avec la machinerie qu'ils pilotaient : Flux
    (collecte des sources), Surveillance (fiches marchandes), Mesure (qualité
    de la détection) et Détection (seuils de l'algorithme). Ils commandaient
    des routes qui n'existent plus ; les garder aurait affiché des boutons
-   dont chaque clic aurait répondu 404. */
+   dont chaque clic aurait répondu 404.
+
+   « Détection » revient, mais pour piloter le moteur neuf : les cibles
+   suivies et les scans. Ses routes existaient depuis la refonte sans que
+   rien ne les appelle — déclarer un produit à surveiller demandait une
+   commande curl, ce qui est impraticable depuis un téléphone. */
 const SECTIONS = [
   { id: "accueil", libelle: "Vue d'ensemble", icone: "home" },
   { id: "moderation", libelle: "Modération", icone: "shield", badge: true },
+  { id: "detection", libelle: "Détection", icone: "radar" },
   { id: "membres", libelle: "Membres", icone: "users" },
-  { id: "sante", libelle: "Santé du site", icone: "radar" },
+  { id: "sante", libelle: "Santé du site", icone: "package" },
 ];
 
 export default function AdminView({ token, role, moiId, onBack }) {
@@ -115,6 +122,7 @@ export default function AdminView({ token, role, moiId, onBack }) {
         <SectionTableauBord token={token} estAdmin={estAdmin} onOuvrirSection={setSection} />
       )}
       {section === "moderation" && <SectionModeration token={token} onCompteur={setSignalements} />}
+      {section === "detection" && <SectionDetection token={token} estAdmin={estAdmin} />}
       {section === "membres" && <SectionMembres token={token} estAdmin={estAdmin} moiId={moiId} />}
       {section === "sante" && <SectionSante token={token} estAdmin={estAdmin} />}
     </PageShell>
