@@ -128,8 +128,22 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   className="rp-display"
                   style={{ fontSize: 19, fontWeight: 900, color: isErr ? T.red : T.emberSolid }}
                 />
+                {/* Un prix barré n'a pas la même valeur selon son origine :
+                    une médiane constatée chez plusieurs vendeurs est un fait,
+                    le tarif que le marchand dit pratiquer est un argument.
+                    Le site vend la première ; il ne doit pas laisser croire
+                    qu'il garantit la seconde. */}
                 {item.refPrice > 0 && (
-                  <span style={{ color: T.sub, textDecoration: "line-through", fontSize: 12.5 }}>
+                  <span
+                    className="rp-hint"
+                    tabIndex={0}
+                    data-hint={
+                      item.refSource === "flux"
+                        ? "Prix barré annoncé par le marchand. RadarPrix ne l'a pas vérifié."
+                        : "Prix habituel constaté chez les autres vendeurs."
+                    }
+                    style={{ color: T.sub, textDecoration: "line-through", fontSize: 12.5 }}
+                  >
                     {Number(item.refPrice).toFixed(2).replace(".", ",")} €
                   </span>
                 )}
@@ -154,11 +168,13 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 )}
               </div>
             </div>
-            {/* Le score ne s'affiche que si un prix de référence a été mesuré.
-                Un article rapporté par un flux marchand n'a souvent aucun
+            {/* Le score ne s'affiche que si RadarPrix a lui-même mesuré la
+                référence. Un article rapporté par un flux n'a souvent aucun
                 comparable : afficher « 0/100 » laisserait croire qu'on l'a
-                évalué et jugé sans intérêt, alors qu'on ne l'a pas mesuré. */}
-            {Number(item.refPrice) > 0 && (
+                évalué et jugé sans intérêt, alors qu'on ne l'a pas mesuré.
+                Et un prix barré venu du marchand ne fonde aucun score : il
+                n'est pas une mesure. */}
+            {item.refSource === "mesure" && (
               <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
                 <span
                   className="rp-hint rp-hint-end"
