@@ -32,11 +32,37 @@ export function SkeletonCard() {
   );
 }
 
+/**
+ * Fin d'offre lisible : « se termine aujourd'hui », « plus que 3 jours »,
+ * « jusqu'au 30/09 ».
+ *
+ * Une date brute ne dit rien à qui la lit vite ; c'est le temps restant
+ * qui compte. Au-delà d'une semaine on rend la date, parce qu'« encore
+ * 42 jours » n'a plus rien d'une urgence.
+ */
+function finDeLOffre(iso) {
+  if (!iso) return null;
+  // SQLite rend « 2026-09-30 00:00:00 » : sans le T, Safari ne sait pas lire.
+  const fin = new Date(String(iso).replace(" ", "T"));
+  if (Number.isNaN(fin.getTime())) return null;
+
+  const jours = Math.ceil((fin - Date.now()) / 86400000);
+  if (jours < 0) return null; // expirée : dealsStore la retire, inutile d'insister
+  if (jours === 0) return { libelle: "se termine aujourd'hui", urgent: true };
+  if (jours === 1) return { libelle: "dernier jour demain", urgent: true };
+  if (jours <= 7) return { libelle: `plus que ${jours} jours`, urgent: true };
+  return { libelle: `jusqu'au ${fin.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}`, urgent: false };
+}
+
 export default function DealCard({ item, onOpenDetail, variant, index }) {
   const resolvedVariant = variant || (item.verdict === "erreur" ? "price-error" : "deal");
   const isErr = resolvedVariant === "price-error";
   const isGem = item.score >= 85;
   const seenAgo = relativeTime(item.scraped_at);
+  // Combien de temps il reste, quand le marchand l'annonce. Une offre qui
+  // se termine demain ne se lit pas comme une offre permanente, et c'est
+  // souvent ce qui décide d'acheter maintenant ou pas.
+  const finOffre = finDeLOffre(item.expiresAt);
   return (
     <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
     <button
@@ -160,12 +186,17 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.seller || "Vendeur inconnu"}
                 </div>
-                {seenAgo && (
+                {finOffre ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: finOffre.urgent ? T.yellow : T.sub }}>
+                    <Icon name="clock" size={10} color={finOffre.urgent ? T.yellow : T.sub} />
+                    {finOffre.libelle}
+                  </div>
+                ) : seenAgo ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: T.sub }}>
                     <span className="rp-fresh-dot" aria-hidden="true" />
                     {seenAgo}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
             {/* Le score ne s'affiche que si RadarPrix a lui-même mesuré la
