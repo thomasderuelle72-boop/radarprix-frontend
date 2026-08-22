@@ -365,6 +365,13 @@ function Journal({ statut, scanEnCours, onScan, peutScanner }) {
             {c.dernierMessage && c.serieEchecs > 0 && (
               <p style={{ fontSize: 11, color: T.red, marginTop: 5, marginBottom: 0 }}>{c.dernierMessage}</p>
             )}
+            {/* Un canal peut réussir sans rien publier : les articles écartés
+                faute de vendeur ou de prix de référence n'apparaissent nulle
+                part ailleurs. Sans cette ligne, le panneau afficherait
+                « opérationnel » devant un site vide. */}
+            {c.dernierBilan && c.serieEchecs === 0 && (
+              <p style={{ fontSize: 11, color: T.muted, marginTop: 5, marginBottom: 0 }}>{c.dernierBilan}</p>
+            )}
           </div>
         ))}
       </div>
