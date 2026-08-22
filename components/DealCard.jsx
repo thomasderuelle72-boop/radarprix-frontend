@@ -154,20 +154,26 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 )}
               </div>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
-              <span
-                className="rp-hint rp-hint-end"
-                tabIndex={0}
-                data-hint="Note sur 100 mesurant l'écart entre ce prix et le prix habituel du produit chez les autres vendeurs. Plus il est haut, plus la remise est forte."
-                style={{ display: "inline-block", fontSize: 9.5, color: T.sub, lineHeight: 1.2 }}
-              >
-                Score RadarPrix
-              </span>
-              <div className="rp-display" style={{ fontSize: 13, fontWeight: 800, color: isErr ? T.red : isGem ? T.green : T.ink }}>{item.score}/100</div>
-              {item.confidence != null && item.confidence < 60 && (
-                <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}><Icon name="alertTriangle" size={10} /> à vérifier</div>
-              )}
-            </div>
+            {/* Le score ne s'affiche que si un prix de référence a été mesuré.
+                Un article rapporté par un flux marchand n'a souvent aucun
+                comparable : afficher « 0/100 » laisserait croire qu'on l'a
+                évalué et jugé sans intérêt, alors qu'on ne l'a pas mesuré. */}
+            {Number(item.refPrice) > 0 && (
+              <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
+                <span
+                  className="rp-hint rp-hint-end"
+                  tabIndex={0}
+                  data-hint="Note sur 100 mesurant l'écart entre ce prix et le prix habituel du produit chez les autres vendeurs. Plus il est haut, plus la remise est forte."
+                  style={{ display: "inline-block", fontSize: 9.5, color: T.sub, lineHeight: 1.2 }}
+                >
+                  Score RadarPrix
+                </span>
+                <div className="rp-display" style={{ fontSize: 13, fontWeight: 800, color: isErr ? T.red : isGem ? T.green : T.ink }}>{item.score}/100</div>
+                {item.confidence != null && item.confidence < 60 && (
+                  <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}><Icon name="alertTriangle" size={10} /> à vérifier</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
