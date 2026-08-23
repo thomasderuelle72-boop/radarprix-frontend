@@ -152,6 +152,17 @@ describe("comparaison", () => {
     expect(c.alerte).toBe(false);
     expect(c.total).toBe(2);
     expect(c.libelle).toBe("Aussi chez Boulanger — 299,99 €");
+    // À prix égal, personne n'est « le moins cher ».
+    expect(c.avantage).toBe(false);
+  });
+
+  it("ne se dit le moins cher que si l'écart existe", () => {
+    const c = comparaison({
+      price: 269.9,
+      nbMarchands: 2,
+      autresMarchands: [{ marchand: "Fnac", prix: 310 }],
+    });
+    expect(c.avantage).toBe(true);
   });
 
   it("annonce le moins cher même quand ce n'est pas celui de la carte", () => {

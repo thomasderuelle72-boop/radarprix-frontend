@@ -74,7 +74,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   // ici qu'il est le moins cher. Sans cette ligne, la même serrure Nuki
   // occupait deux cartes de la page d'accueil.
   const compare = comparaison(item);
-  const leMoinsCher = compare && !compare.alerte;
+  const leMoinsCher = Boolean(compare && compare.avantage);
 
   // Un score n'a de sens que s'il mesure un écart. Sur une offre sans
   // remise, « 15/100 » occupait un tiers du pied de carte pour ne rien

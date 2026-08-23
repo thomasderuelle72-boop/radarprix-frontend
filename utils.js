@@ -87,10 +87,16 @@ export function comparaison(item) {
     .sort((a, b) => a.prix - b.prix)[0];
 
   if (moinsCher) {
-    return { libelle: `Moins cher chez ${moinsCher.marchand} : ${euros(moinsCher.prix)}`, alerte: true, total };
+    return { libelle: `Moins cher chez ${moinsCher.marchand} : ${euros(moinsCher.prix)}`, alerte: true, avantage: false, total };
   }
+
+  // « Le moins cher » ne se dit que si l'écart existe. À prix égal chez
+  // deux marchands — le cas de la serrure Nuki — personne n'est le moins
+  // cher, et l'annoncer serait un argument fabriqué.
+  const avantage = autres.some((a) => Number(a.prix) > 0 && Number(a.prix) > Number(item.price));
+
   if (total === 2) {
-    return { libelle: `Aussi chez ${autres[0].marchand} \u2014 ${euros(autres[0].prix)}`, alerte: false, total };
+    return { libelle: `Aussi chez ${autres[0].marchand} \u2014 ${euros(autres[0].prix)}`, alerte: false, avantage, total };
   }
-  return { libelle: `Aussi chez ${total - 1} autres marchands`, alerte: false, total };
+  return { libelle: `Aussi chez ${total - 1} autres marchands`, alerte: false, avantage, total };
 }
