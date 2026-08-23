@@ -28,6 +28,25 @@ function SectionTitle({ children, action }) {
   );
 }
 
+/**
+ * Ce que le bouton promet, selon ce qu'il ouvre vraiment.
+ *
+ * Annoncer « Voir le deal » puis aboutir sur une page de résultats de
+ * recherche est la façon la plus sûre de perdre un visiteur. Les
+ * agrégateurs ne publient pas l'adresse du produit — c'est leur fonds de
+ * commerce — donc pour ces offres on ne peut qu'envoyer chercher chez le
+ * marchand. Autant le dire.
+ *
+ * Seules les offres relevées par RadarPrix sur le site du marchand ouvrent
+ * la fiche exacte, et elles seules annoncent « Voir le produit ».
+ */
+function libelleSortie(item) {
+  const chez = item.seller ? ` chez ${item.seller}` : "";
+  if (item.lienType === "recherche") return `Chercher${chez}`;
+  if (item.lienType === "marchand") return `Ouvrir le site${chez}`;
+  return "Voir le produit";
+}
+
 export default function ProductDetailView({ item, authToken, onNeedAuth, onBack, onOpenDetail, onOpenMerchant }) {
   const isErr = item.verdict === "erreur";
   const isGem = item.score >= 85;
@@ -189,7 +208,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
 
           {item.seller && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.sub, flexWrap: "wrap" }}>
-              <MerchantBadge name={item.seller} size={24} />
+              <MerchantBadge name={item.seller} domaine={item.marchandDomaine} size={24} />
               {/* Nom cliquable : ouvre la page du marchand (fiabilité vue par
                   la communauté + tout ce qui est repéré chez lui). */}
               {onOpenMerchant ? (
@@ -251,8 +270,14 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {item.url && (
-              <a href={item.url} target="_blank" rel="noopener noreferrer" className="rp-cta" style={{ flex: 1, textAlign: "center", padding: "12px 18px", borderRadius: 10, background: isErr ? T.red : T.ember, color: isErr ? "#fff" : "#0C0E14", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>
-                Voir le deal →
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rp-cta"
+                style={{ flex: 1, textAlign: "center", padding: "12px 18px", borderRadius: 10, background: isErr ? T.red : T.ember, color: isErr ? "#fff" : "#0C0E14", fontWeight: 800, fontSize: 14, textDecoration: "none" }}
+              >
+                {libelleSortie(item)} →
               </a>
             )}
             <button
@@ -351,7 +376,7 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
               {[...offers].sort((a, b) => Number(a.price) - Number(b.price)).map((o, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", padding: "11px 14px", background: i % 2 ? T.surface : "transparent", borderTop: `1px solid ${T.line}` }}>
                   <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: T.ink, minWidth: 0 }}>
-                    <MerchantBadge name={o.seller} size={20} />
+                    <MerchantBadge name={o.seller} domaine={o.marchandDomaine} size={20} />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.seller || "Vendeur inconnu"}</span>
                     {o.verdict === "erreur" && <span style={{ fontSize: 9, color: T.red, fontWeight: 800, flexShrink: 0 }}>ERREUR</span>}
                   </span>

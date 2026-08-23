@@ -63,6 +63,12 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   // se termine demain ne se lit pas comme une offre permanente, et c'est
   // souvent ce qui décide d'acheter maintenant ou pas.
   const finOffre = finDeLOffre(item.expiresAt);
+
+  // Une « remise » d'un centime n'en est pas une. Vu sur l'accueil :
+  // « 299,99 € au lieu de 300,00 € », prix barré à l'appui. Sous 3 %,
+  // l'écart relève de l'arrondi ou du prix conseillé recopié : on n'affiche
+  // ni le prix barré ni le badge, plutôt que de crier une aubaine inexistante.
+  const remiseReelle = item.refPrice > 0 && item.pct >= 3;
   return (
     <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
     <button
@@ -120,7 +126,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 ...(item.img ? {} : { background: T.surface2, borderRadius: 10, alignSelf: "flex-start" }),
               }}
             >
-              {!isErr && item.pct > 0 && (
+              {!isErr && remiseReelle && (
                 <span style={{ position: "absolute", top: -6, left: -6, background: T.purple, color: "#fff", fontSize: 11, fontWeight: 800, padding: "5px 9px", borderRadius: 7, zIndex: 1 }}>
                   −{item.pct}%
                 </span>
@@ -159,7 +165,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                     le tarif que le marchand dit pratiquer est un argument.
                     Le site vend la première ; il ne doit pas laisser croire
                     qu'il garantit la seconde. */}
-                {item.refPrice > 0 && (
+                {remiseReelle && (
                   <span
                     className="rp-hint"
                     tabIndex={0}
@@ -181,7 +187,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-              {item.seller && <MerchantBadge name={item.seller} size={30} />}
+              {item.seller && <MerchantBadge name={item.seller} domaine={item.marchandDomaine} size={30} />}
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.seller || "Vendeur inconnu"}
