@@ -2737,10 +2737,10 @@ export default function RadarPrixSite() {
 
   // Détermine l'onglet actif dans MobileNav à partir de l'état de navigation existant.
   const mobileNavActive =
-    view === "favoris" ? "favoris" :
+    COMMUNITY_VIEWS.includes(view) ? "communaute" :
     view === "profil" ? "profil" :
-    view === "results" && tab === "erreurs" ? "erreurs" :
     view === "results" && searchTerm ? "recherche" :
+    view === "results" ? "deals" :
     view === "home" ? "home" :
     null;
 
@@ -2752,7 +2752,7 @@ export default function RadarPrixSite() {
 
   const handleMobileNav = (key) => {
     if (key === "home") return goHome();
-    if (key === "erreurs") return openTab("erreurs");
+    if (key === "deals") return openTab("deals");
     // La recherche était absente de la navigation mobile alors que c'est le
     // geste le plus courant sur un site de prix. On renvoie à l'accueil, où
     // le champ pleine largeur est immédiatement saisissable.
@@ -2763,12 +2763,8 @@ export default function RadarPrixSite() {
       setTimeout(() => document.querySelector('input[type="search"], .rp-search input')?.focus(), 80);
       return;
     }
-    if (key === "favoris") {
-      if (!authToken) return setAuthOpen(true);
-      setView("favoris");
-      window.scrollTo(0, 0);
-      return;
-    }
+    // goToCommunity ouvre lui-même la fenêtre de connexion si besoin.
+    if (key === "communaute") return goToCommunity("communaute-picks");
     if (key === "profil") {
       if (!authToken) return setAuthOpen(true);
       if (authUser?.pseudo) return ouvrirProfil(authUser.pseudo);

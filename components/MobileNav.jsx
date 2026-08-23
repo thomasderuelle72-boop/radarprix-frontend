@@ -4,7 +4,6 @@
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
 import Avatar from "./Avatar.jsx";
-import useRadar from "./useRadar.js";
 
 /* Cinq entrées, jamais plus : au-delà, les libellés deviennent illisibles sur
    un écran étroit. Le choix de ces cinq-là suit un principe simple — la barre
@@ -18,28 +17,31 @@ import useRadar from "./useRadar.js";
    de prix. */
 const ITEMS = [
   { key: "home", icon: "home", label: "Accueil" },
-  // La promesse distinctive du site passe en deuxième position, juste après
-  // l'accueil : c'est ce pour quoi on vient.
-  { key: "erreurs", icon: "alertCircle", label: "Erreurs", compteur: "anomalies" },
+  /* « Deals » prend la deuxième place, occupée jusqu'ici par « Erreurs ».
+     Deux raisons. La page des erreurs de prix est vide — le site n'en
+     détecte aucune aujourd'hui, et un onglet permanent vers une page vide
+     est la pire promesse qu'une navigation puisse faire. Et les deals sont
+     le contenu réel du site : c'est là qu'il faut mener. */
+  { key: "deals", icon: "flame", label: "Deals" },
   { key: "recherche", icon: "search", label: "Chercher" },
-  // Les favoris reprennent cette place. Elle avait été donnée à « Activité »
-  // faute de mieux : messages et notifications n'avaient alors aucun accès
-  // propre. Ils en ont un maintenant — la cloche et l'enveloppe de l'en-tête,
-  // visibles sur toutes les pages, y compris ici. Les répéter dans la barre
-  // du bas ferait deux chemins vers la même chose.
-  { key: "favoris", icon: "star", label: "Favoris" },
+  /* La communauté remplace les favoris. Un favori se consulte de temps en
+     temps ; la communauté se visite. Elle reste accessible depuis le menu
+     latéral et le pied de page, comme les erreurs de prix. */
+  { key: "communaute", icon: "users", label: "Communauté" },
   // L'avatar remplace l'icône quand le membre est connecté : c'est son
   // compte, pas une silhouette générique. Voir `vignette` plus bas.
   { key: "profil", icon: "user", label: "Profil", avatar: true },
 ];
 
 export default function MobileNav({ active, onNavigate, utilisateur }) {
-  /* Une barre de navigation ordinaire est une table des matières. Celle-ci
-     est un instrument : elle dit ce que le radar a trouvé À CET INSTANT.
-     Une erreur de prix vit vingt minutes — une navigation qui ne sait pas
-     annoncer « il y en a trois, maintenant » rate le seul argument du site. */
-  const radar = useRadar();
+  /* La barre interrogeait le radar toutes les quatre-vingt-dix secondes pour
+     poser une pastille sur l'onglet « Erreurs ». Cet onglet a disparu, et
+     aucun de ceux qui restent ne mérite de pastille : le radar ne publie que
+     des totaux, et un « 27 » rouge en permanence n'est pas un compteur, c'est
+     du bruit. Une pastille annonce du NOUVEAU, ou elle ne sert à rien.
 
+     L'appel périodique est donc retiré plutôt que laissé à tourner pour un
+     affichage qui n'existe plus. */
   return (
     <nav className="rp-mobile-nav" aria-label="Navigation mobile">
       {ITEMS.map((it) => (
@@ -83,32 +85,6 @@ export default function MobileNav({ active, onNavigate, utilisateur }) {
               </span>
             ) : (
               <Icon name={it.icon} size={19} />
-            )}
-            {/* Pastille de compte. Elle n'apparaît qu'à partir de un : un
-                « 0 » attirerait l'œil pour annoncer qu'il n'y a rien. */}
-            {it.compteur && radar?.[it.compteur] > 0 && (
-              <span
-                className="rp-nav-pastille"
-                aria-label={`${radar[it.compteur]} en attente`}
-                style={{
-                  position: "absolute",
-                  top: -5,
-                  left: "calc(50% + 4px)",
-                  minWidth: 16,
-                  height: 16,
-                  padding: "0 4px",
-                  borderRadius: 999,
-                  background: T.red,
-                  color: "#fff",
-                  fontSize: 9.5,
-                  fontWeight: 900,
-                  lineHeight: "16px",
-                  textAlign: "center",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {radar[it.compteur] > 99 ? "99+" : radar[it.compteur]}
-              </span>
             )}
           </span>
           <span style={{ fontSize: 10, fontWeight: 800 }}>{it.label}</span>
