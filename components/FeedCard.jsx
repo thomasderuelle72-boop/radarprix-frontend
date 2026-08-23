@@ -100,6 +100,10 @@ export default function FeedCard({ deal, index = 0 }) {
       className="fade-up"
       style={{
         display: "flex", flexDirection: "column", gap: 12,
+        // En grille, les cartes d'une même rangée occupent la même hauteur :
+        // sans ça, les descriptions de longueur inégale donnaient un bord
+        // inférieur en dents de scie et des boutons à six hauteurs.
+        height: "100%",
         background: T.gradSurface,
         border: `1px solid ${T.line}`,
         borderRadius: T.radiusLg,
@@ -218,8 +222,9 @@ export default function FeedCard({ deal, index = 0 }) {
         </div>
       </div>
 
-      {/* Pied : provenance et lien */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      {/* Pied : provenance et lien. Collé au bas de la carte, pour que les
+          boutons « Voir l'offre » s'alignent d'une carte à l'autre. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: "auto" }}>
         <span style={{ fontSize: 11, color: T.muted }}>
           {relativeTime(deal.firstSeenAt)}
         </span>

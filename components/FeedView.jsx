@@ -130,11 +130,17 @@ export default function FeedView({ onBack, occasion = false }) {
           : "Erreurs de prix, produits offerts, codes promo et promotions, réunis au même endroit."
       }
       onBack={onBack}
-      width={860}
+      /* Même raison que la page de résultats : une colonne de 860 px sur un
+         écran de 1 920 laissait les deux tiers de la page vides et n'offrait
+         que trois offres à la fois. La largeur rejoint celle de l'accueil et
+         du pied de page, et les cartes passent en grille. */
+      width={1200}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {/* Filtres par nature (flux principal) ou par état (occasion) */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {/* Filtres par nature (flux principal) ou par état (occasion).
+            Les puces et la catégorie occupaient deux lignes pour deux
+            boutons et une liste déroulante : elles partagent la même. */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {occasion ? (
             <>
               <Puce actif={etat === "reconditionne"} onClick={() => setEtat("reconditionne")} couleur={T.steel}>
@@ -156,26 +162,27 @@ export default function FeedView({ onBack, occasion = false }) {
               </Puce>
             ))
           )}
-        </div>
 
-        <select
-          value={categorie}
-          onChange={(e) => setCategorie(e.target.value)}
-          aria-label="Filtrer par catégorie"
-          style={{
-            alignSelf: "flex-start",
-            padding: "8px 12px", borderRadius: T.radiusSm,
-            background: T.surface2, color: T.ink,
-            border: `1px solid ${T.line}`, fontSize: 13, fontWeight: 700,
-            fontFamily: T.fontBody, cursor: "pointer",
-          }}
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+          <span style={{ flex: 1 }} />
+
+          <select
+            value={categorie}
+            onChange={(e) => setCategorie(e.target.value)}
+            aria-label="Filtrer par catégorie"
+            style={{
+              padding: "8px 12px", borderRadius: T.radiusSm,
+              background: T.surface2, color: T.ink,
+              border: `1px solid ${T.line}`, fontSize: 13, fontWeight: 700,
+              fontFamily: T.fontBody, cursor: "pointer",
+            }}
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {erreur && (
           <div
@@ -191,7 +198,7 @@ export default function FeedView({ onBack, occasion = false }) {
 
         {items.length === 0 && !chargement && !erreur && <Vide filtre={filtre === "tout" ? null : filtre} />}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="rp-resultats-grille">
           {items.map((d, i) => (
             <FeedCard key={d.id} deal={d} index={i} />
           ))}

@@ -5,6 +5,7 @@
 // façon coupon (classe .rp-ticket déjà définie dans GlobalStyles).
 // Toute la carte est cliquable et ouvre la fiche produit — les cartes-listes
 // n'ont aucun bouton inline dans la maquette.
+import { useState } from "react";
 import { T } from "../theme.js";
 import { relativeTime, euros, comparaison } from "../utils.js";
 import MerchantBadge from "./MerchantBadge.jsx";
@@ -81,14 +82,20 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   // apprendre — pire, il laissait croire à un jugement défavorable alors
   // qu'il n'y avait simplement rien à juger.
   const scoreParlant = item.refSource === "mesure" && (remiseReelle || isErr);
+
+  // Une URL d'image de marchand casse parfois. Le cas est suivi ici pour que
+  // la carte se replie proprement plutôt que de garder une colonne vide.
+  const [imageCassee, setImageCassee] = useState(false);
+  const aUneImage = Boolean(item.img) && !imageCassee;
   return (
-    <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
+    <Tilt3D max={7} lift={12} style={{ width: "100%", height: "100%" }}>
     <button
       onClick={() => onOpenDetail && onOpenDetail(item)}
       className="fade-up rp-deal-card rp-ticket"
       style={{
         width: "100%",
         textAlign: "left",
+        height: "100%",
         cursor: onOpenDetail ? "pointer" : "default",
         background: T.surface,
         border: `1.5px solid ${isErr ? T.red : T.line}`,
@@ -130,12 +137,12 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
             <div
               style={{
                 position: "relative",
-                width: item.img ? "34%" : 46,
-                minWidth: item.img ? 64 : 46,
+                width: aUneImage ? "34%" : 46,
+                minWidth: aUneImage ? 64 : 46,
                 flexShrink: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                minHeight: item.img ? 74 : 46,
-                ...(item.img ? {} : { background: T.surface2, borderRadius: 10, alignSelf: "flex-start" }),
+                minHeight: aUneImage ? 74 : 46,
+                ...(aUneImage ? {} : { background: T.surface2, borderRadius: 10, alignSelf: "flex-start" }),
               }}
             >
               {!isErr && remiseReelle && (
@@ -143,12 +150,16 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   −{item.pct}%
                 </span>
               )}
-              {item.img ? (
+              {item.img && !imageCassee ? (
                 <img
                   src={item.img}
                   alt={item.name}
                   loading="lazy"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  /* Cacher l'image laissait un trou : la colonne reste
+                     réservée à 34 % de la carte, et l'offre s'affichait avec
+                     un tiers de vide. On repasse sur l'icône, qui rend sa
+                     place au titre et au prix. */
+                  onError={() => setImageCassee(true)}
                   style={{ maxWidth: "100%", maxHeight: 78, objectFit: "contain" }}
                 />
               ) : (
@@ -193,15 +204,18 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 )}
               </div>
               {compare && (
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 600, color: compare.alerte ? T.yellow : T.green, lineHeight: 1.25 }}>
-                  <Icon name={compare.alerte ? "alertTriangle" : "check"} size={11} color={compare.alerte ? T.yellow : T.green} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compare.libelle}</span>
+                <div style={{ display: "flex", gap: 5, fontSize: 10.5, fontWeight: 600, color: compare.alerte ? T.yellow : T.green, lineHeight: 1.3, alignItems: "flex-start" }}>
+                  <Icon name={compare.alerte ? "alertTriangle" : "check"} size={11} color={compare.alerte ? T.yellow : T.green} style={{ flexShrink: 0, marginTop: 1 }} />
+                  {/* Coupée à « Aussi chez Amazon — 299,9… », la ligne perdait
+                      justement le prix qui la rend utile : elle passe à la
+                      ligne plutôt que de s'arrêter au milieu d'un nombre. */}
+                  <span style={{ minWidth: 0 }}>{compare.libelle}</span>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="rp-ticket-sep" />
+          <div className="rp-ticket-sep" style={{ marginTop: "auto" }} />
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -259,11 +273,14 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
         <div
           aria-hidden="true"
           style={{
-            width: 26,
+            width: 20,
             flexShrink: 0,
             height: "100%",
             backgroundImage: `repeating-linear-gradient(0deg, ${isErr ? T.red : T.sub} 0 2px, transparent 2px 3px, ${isErr ? T.red : T.sub} 3px 4px, transparent 4px 7px, ${isErr ? T.red : T.sub} 7px 9px, transparent 9px 10px)`,
-            opacity: 0.5,
+            /* La bande occupait toute la hauteur de la carte depuis que les
+               cartes s'alignent en grille : à 0,5 elle rayait le bord droit
+               et tirait l'œil plus que le prix. Elle redevient une texture. */
+            opacity: 0.16,
             borderTopRightRadius: 15,
             borderBottomRightRadius: 15,
           }}

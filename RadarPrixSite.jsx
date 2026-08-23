@@ -348,6 +348,54 @@ const GlobalStyles = () => (
       .rp-filtres-grille > span { padding-top: 6px; }
     }
 
+    /* — Résultats — La liste tenait dans une colonne de 620 px centrée sur
+         un écran de 1920 : deux tiers de la page vides, une carte par ligne,
+         quatre offres visibles à la fois. Les listes de produits se lisent en
+         grille sur ordinateur ; l'Institut Baymard recommande de ne jamais
+         dépasser quatre articles par rangée, au-delà desquels on ne compare
+         plus, on subit. Trois colonnes de 380 px dans les 1 200 px que
+         tiennent déjà l'accueil et le pied de page.
+
+         La grille ne contient que des cartes : le bouton « voir plus », les
+         messages d'erreur et l'avertissement d'achat restent en pleine
+         largeur sous elle, sinon ils deviendraient des cases de grille et
+         se retrouveraient à côté d'une offre. — */
+    .rp-resultats-grille {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 14px;
+      /* stretch (défaut) plutôt que start : les cartes d'une rangée prennent
+         la même hauteur, les marchands et les boutons s'alignent, et le bas
+         de rangée cesse d'être en dents de scie. */
+      align-items: stretch;
+    }
+    @media (max-width: 720px) {
+      .rp-resultats-grille { grid-template-columns: 1fr; gap: 10px; }
+    }
+
+    /* — Filtres — Cinq intitulés empilés mangeaient 240 px de hauteur avant
+         la première offre. Baymard note qu'une barre horizontale l'emporte
+         sur une colonne latérale quand les filtres sont peu nombreux : c'est
+         le cas ici, ils sont cinq. Ils tiennent donc sur une à deux lignes,
+         et repassent en colonnes sur petit écran. — */
+    .rp-filtres-grille {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 22px;
+    }
+    .rp-filtre { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    @media (max-width: 860px) {
+      .rp-filtres-grille {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 12px;
+        row-gap: 9px;
+        align-items: center;
+      }
+      .rp-filtre { display: contents; }
+    }
+
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
     .rp-scroll-x::-webkit-scrollbar { display: none; }
 
@@ -529,14 +577,16 @@ const GlobalStyles = () => (
       /* Le menu latéral prend le relais des onglets masqués ci-dessous : sans
          lui, les sections secondaires deviendraient inatteignables sur mobile. */
       .rp-burger { display: inline-flex !important; }
-      /* Le logo tient le centre de l'en-tête, quelle que soit la largeur
-         de ce qui l'entoure : positionné en absolu, il ne se décale plus
-         selon qu'un bouton « Connexion » est affiché à droite ou non. */
-      .rp-logo {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-      }
+      /* Le logo se rangeait au centre exact de l'écran, en absolu. Sur un
+         téléphone, le menu à sa gauche fait 40 px et le bouton « Connexion »
+         à sa droite en fait 95 : centré sur la fenêtre, le logo laissait
+         84 px de vide à gauche et venait toucher le bouton à droite. Il
+         paraissait collé à droite parce qu'il l'était, optiquement.
+
+         Il reprend donc sa place dans le flux, juste après le menu : le
+         regard trouve « menu + marque » à gauche, l'action à droite, comme
+         dans n'importe quel en-tête de téléphone. */
+      .rp-logo { margin-right: auto; }
       /* Le profil vit dans le tiroir sur mobile : deux accès au même endroit
          encombreraient un en-tête où le logo doit rester centré. */
       .rp-nav-profil { display: none !important; }
@@ -1374,7 +1424,7 @@ function FilterChip({ active, onClick, children }) {
    commencer à trois abscisses différentes. */
 function LigneFiltre({ libelle, children }) {
   return (
-    <div style={{ display: "contents" }}>
+    <div className="rp-filtre">
       <span
         style={{
           fontSize: 11.5, color: T.muted, fontWeight: 800,
@@ -3088,7 +3138,7 @@ export default function RadarPrixSite() {
         )}
 
         {view === "results" && (
-          <main style={{ maxWidth: 620, margin: "0 auto", padding: "22px 16px 40px" }}>
+          <main style={{ maxWidth: 1200, margin: "0 auto", padding: "22px 16px 40px" }}>
             <button onClick={goHome} style={{ background: "none", border: "none", color: T.sub, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0, marginBottom: 12, fontFamily: "'Inter', sans-serif" }}>
               ← Accueil
             </button>
@@ -3159,10 +3209,7 @@ export default function RadarPrixSite() {
                 )}
               </div>
 
-              <div
-                className="rp-filtres-grille"
-                style={{ display: "grid", gridTemplateColumns: "auto 1fr", columnGap: 12, rowGap: 9, alignItems: "center" }}
-              >
+              <div className="rp-filtres-grille">
                 {/* La catégorie est un filtre comme les autres ; elle flottait
                     au-dessus du panneau, seule sur sa ligne. */}
                 {!searchTerm && (
@@ -3247,32 +3294,34 @@ export default function RadarPrixSite() {
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {loading && (
-                <>
-                  <div style={{ textAlign: "center", color: T.sub, fontSize: 13, marginBottom: 4 }}>
-                    Interrogation des marchands en cours…
-                  </div>
-                  {[0, 1, 2, 3].map((i) => (
-                    <SkeletonCard key={`skeleton-${i}`} />
-                  ))}
-                </>
-              )}
-              {error && (
-                <div style={{ background: "rgba(255,59,48,0.12)", border: `1.5px solid ${T.red}`, borderRadius: 10, padding: 12, fontSize: 14, color: T.ink }}>
-                  {error}
-                </div>
-              )}
-              {items && visible.length === 0 && !loading && (
-                <div style={{ textAlign: "center", color: T.sub, fontSize: 14, padding: 26 }}>
-                  {items.length > 0
-                    ? `${items.length} offre(s) trouvée(s) mais masquée(s) par vos filtres — élargissez-les.`
-                    : "Aucune anomalie de prix détectée à l'instant pour cette recherche. Essayez une autre catégorie ou revenez plus tard."}
-                </div>
-              )}
+            {loading && (
+              <div style={{ textAlign: "center", color: T.sub, fontSize: 13, marginBottom: 12 }}>
+                Interrogation des marchands en cours…
+              </div>
+            )}
+            {error && (
+              <div style={{ background: "rgba(255,59,48,0.12)", border: `1.5px solid ${T.red}`, borderRadius: 10, padding: 12, fontSize: 14, color: T.ink, marginBottom: 12 }}>
+                {error}
+              </div>
+            )}
+            {items && visible.length === 0 && !loading && (
+              <div style={{ textAlign: "center", color: T.sub, fontSize: 14, padding: 26 }}>
+                {items.length > 0
+                  ? `${items.length} offre(s) trouvée(s) mais masquée(s) par vos filtres — élargissez-les.`
+                  : "Aucune anomalie de prix détectée à l'instant pour cette recherche. Essayez une autre catégorie ou revenez plus tard."}
+              </div>
+            )}
+
+            {/* La grille ne porte que des cartes : tout le reste vit dessous,
+                en pleine largeur. */}
+            <div className="rp-resultats-grille">
+              {loading && [0, 1, 2, 3, 4, 5].map((i) => <SkeletonCard key={`skeleton-${i}`} />)}
               {visible.map((it, i) => (
                 <DealCard key={i} item={it} index={i} authToken={authToken} onNeedAuth={() => setAuthOpen(true)} onOpenDetail={openDealDetail} />
               ))}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
               {items && items.length > 0 && !loading && !searchTerm && hasMore && (
                 <button
                   onClick={loadMoreDeals}
