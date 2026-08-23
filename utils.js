@@ -100,3 +100,24 @@ export function comparaison(item) {
   }
   return { libelle: `Aussi chez ${total - 1} autres marchands`, alerte: false, avantage, total };
 }
+
+/**
+ * Empêche la page de défiler derrière un panneau qui la recouvre.
+ * Rend la fonction qui rétablit l'état d'avant.
+ *
+ * Poser `overflow: hidden` sur `body` ne suffit pas, et c'est le piège :
+ * ça se lit bien, ça ne fait rien. Ici comme sur la plupart des pages,
+ * l'élément qui défile est `html` — `document.scrollingElement` le dit —
+ * et c'est donc lui qu'il faut figer. Mesuré : feuille de filtres ouverte,
+ * la molette faisait glisser le fond de 0 à 900 px jusqu'au pied de page.
+ */
+export function bloquerDefilementDeFond() {
+  const racine = document.documentElement;
+  const avant = { racine: racine.style.overflow, corps: document.body.style.overflow };
+  racine.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
+  return () => {
+    racine.style.overflow = avant.racine;
+    document.body.style.overflow = avant.corps;
+  };
+}

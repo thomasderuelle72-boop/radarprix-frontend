@@ -12,6 +12,7 @@
 import { useEffect, useRef } from "react";
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
+import { bloquerDefilementDeFond } from "../utils.js";
 import useRadar, { depuis } from "./useRadar.js";
 import useActivite from "./useActivite.js";
 
@@ -99,13 +100,13 @@ export default function DrawerMenu({ ouvert, onFermer, onNavigate, connecte, adm
     };
     document.addEventListener("keydown", surTouche);
     // Le fond ne doit pas défiler derrière le menu : c'est le défaut le plus
-    // visible d'un tiroir mal fait sur mobile.
-    const overflowInitial = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // visible d'un tiroir mal fait sur mobile. Il le faisait pourtant : poser
+    // overflow sur body ne bloque rien quand c'est html qui défile.
+    const rendreLeDefilement = bloquerDefilementDeFond();
     panneau.current?.focus();
     return () => {
       document.removeEventListener("keydown", surTouche);
-      document.body.style.overflow = overflowInitial;
+      rendreLeDefilement();
     };
   }, [ouvert, onFermer]);
 

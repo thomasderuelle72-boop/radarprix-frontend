@@ -27,7 +27,7 @@ const ChatView = lazy(() => import("./components/ChatView.jsx"));
 const AdminView = lazy(() => import("./components/AdminView.jsx"));
 const InfoView = lazy(() => import("./components/InfoView.jsx"));
 const MessagerieView = lazy(() => import("./components/MessagerieView.jsx"));
-import { relativeTime } from "./utils.js";
+import { relativeTime, bloquerDefilementDeFond } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 
@@ -394,6 +394,108 @@ const GlobalStyles = () => (
         align-items: center;
       }
       .rp-filtre { display: contents; }
+    }
+
+    /* — Le panneau de filtres : deux formes, un seul balisage —
+         Il restait ouvert en permanence. Sur un téléphone, ses cinq
+         intitulés empilés occupaient tout l'écran et la première offre
+         n'apparaissait qu'au deuxième défilement : un filtre sert à
+         trouver, pas à remplir la page.
+
+         Sur grand écran il se déplie sous la barre, à côté d'une liste qui
+         se filtre sous les yeux. Sur téléphone il devient une feuille qui
+         monte du bas — le patron des sites où l'on filtre beaucoup, parce
+         qu'un panneau inséré dans le flux y repousse le contenu hors de
+         l'écran, c'est-à-dire exactement le défaut qu'on répare. — */
+    .rp-barre-filtres {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .rp-panneau-filtres {
+      background: ${T.gradSurface};
+      border: 1px solid ${T.line};
+      border-radius: ${T.radiusLg}px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .rp-panneau-titre,
+    .rp-panneau-valider,
+    .rp-voile-filtres { display: none; }
+
+    @media (max-width: 720px) {
+      .rp-voile-filtres {
+        display: block;
+        position: fixed; inset: 0;
+        background: rgba(4,6,12,0.62);
+        z-index: 60;
+        animation: rp-voile-in .18s ease-out;
+      }
+      .rp-panneau-filtres {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 61;
+        margin: 0;
+        max-height: 82vh;
+        overflow-y: auto;
+        border: none;
+        border-top: 1px solid ${T.line};
+        border-radius: 20px 20px 0 0;
+        background: ${T.surface};
+        box-shadow: 0 -18px 44px rgba(0,0,0,.5);
+        padding: 4px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        animation: rp-feuille-in .22s cubic-bezier(.22,.9,.3,1);
+      }
+      /* Une feuille doit dire d'où elle vient et comment la refermer : d'où
+         la poignée, le titre et la croix, tous trois collés en haut. */
+      .rp-panneau-titre {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        background: ${T.surface};
+        padding: 14px 0 10px;
+        margin-bottom: 4px;
+        z-index: 1;
+      }
+      .rp-panneau-titre::before {
+        content: "";
+        position: absolute;
+        top: 4px; left: 50%;
+        transform: translateX(-50%);
+        width: 38px; height: 4px;
+        border-radius: 999px;
+        background: ${T.line};
+      }
+      /* Le bouton reste sous le pouce quelle que soit la longueur du
+         panneau, et dit combien d'offres attendent derrière la feuille. */
+      .rp-panneau-valider {
+        display: block;
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+        margin-top: 14px;
+        padding: 14px;
+        border: none;
+        border-radius: 12px;
+        background: ${T.ember};
+        color: #0C0E14;
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+    }
+    @media (max-width: 720px) {
+      .rp-etiquette-tri { display: none; }
+    }
+    @keyframes rp-voile-in { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes rp-feuille-in {
+      from { transform: translateY(100%) }
+      to   { transform: translateY(0) }
     }
 
     .rp-scroll-x { scrollbar-width: none; -ms-overflow-style: none; }
@@ -1387,6 +1489,34 @@ const champFiltre = (largeur) => ({
   color: T.ink,
   fontFamily: "'Inter', sans-serif",
 });
+
+/**
+ * Un filtre appliqué, nommé et retirable d'un geste.
+ *
+ * La croix seule ferait une cible tactile d'une douzaine de pixels, sous les
+ * 44 px recommandés : un doigt retire alors le filtre voisin. La puce entière
+ * est donc le bouton, et la croix n'en est que le dessin.
+ */
+function PuceActive({ libelle, onRetirer }) {
+  return (
+    <button
+      onClick={onRetirer}
+      aria-label={`Retirer le filtre ${libelle}`}
+      className="rp-pressable"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 7,
+        minHeight: 34, padding: "6px 11px 6px 13px", borderRadius: 20,
+        border: `1px solid ${T.emberSolid}66`,
+        background: "rgba(255,106,53,0.12)",
+        color: T.ink, fontSize: 12, fontWeight: 700, lineHeight: 1,
+        cursor: "pointer", fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      {libelle}
+      <Icon name="x" size={13} color={T.emberSolid} />
+    </button>
+  );
+}
 
 function FilterChip({ active, onClick, children }) {
   return (
@@ -2383,6 +2513,9 @@ export default function RadarPrixSite() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [sellerFilter, setSellerFilter] = useState("tous");
+  // Replié par défaut : ouvert, le panneau occupait la totalité d'un écran
+  // de téléphone et repoussait la première offre sous la ligne de flottaison.
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [totalDeals, setTotalDeals] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -2518,13 +2651,48 @@ export default function RadarPrixSite() {
     })
     .sort((a, b) => (sortBy === "prix" ? Number(a.price) - Number(b.price) : b.score - a.score));
 
-  const filtresActifs = (verdictFilter !== "all") + Boolean(minPrice) + Boolean(maxPrice) + (sellerFilter !== "tous");
+  /* Ce qui est filtré en ce moment, dit en toutes lettres.
+     Baymard mesure que 28 % des sites n'offrent aucun récapitulatif des
+     filtres appliqués, et en fait une source directe de désorientation :
+     on ne sait plus pourquoi la liste est courte. Ces puces vivent HORS du
+     panneau, pour rester lisibles sans avoir à le rouvrir. */
+  const pucesActives = [
+    verdictFilter !== "all" && {
+      cle: "verdict",
+      libelle: verdictFilter === "erreur" ? "Erreurs de prix" : "Deals",
+      retirer: () => setVerdictFilter("all"),
+    },
+    minPrice && { cle: "min", libelle: `à partir de ${minPrice} €`, retirer: () => setMinPrice("") },
+    maxPrice && { cle: "max", libelle: `jusqu'à ${maxPrice} €`, retirer: () => setMaxPrice("") },
+    sellerFilter !== "tous" && { cle: "vendeur", libelle: sellerFilter, retirer: () => setSellerFilter("tous") },
+  ].filter(Boolean);
+  const filtresActifs = pucesActives.length;
+
   const reinitialiserFiltres = () => {
     setVerdictFilter("all");
     setMinPrice("");
     setMaxPrice("");
     setSellerFilter("tous");
   };
+
+  /* Le panneau de filtres se referme à l'Échap, et sur téléphone — où il
+     recouvre l'écran comme une feuille montante — le fond cesse de défiler
+     derrière lui. Sur grand écran il se déplie en place : y bloquer le
+     défilement serait absurde. */
+  useEffect(() => {
+    if (!filtresOuverts) return undefined;
+    const surTouche = (e) => {
+      if (e.key === "Escape") setFiltresOuverts(false);
+    };
+    document.addEventListener("keydown", surTouche);
+
+    const enFeuille = window.matchMedia("(max-width: 720px)").matches;
+    const rendreLeDefilement = enFeuille ? bloquerDefilementDeFond() : null;
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      if (rendreLeDefilement) rendreLeDefilement();
+    };
+  }, [filtresOuverts]);
 
   /** Messagerie privée, éventuellement sur une conversation précise. */
   const ouvrirMessages = (cibleId = null) => {
@@ -3181,118 +3349,207 @@ export default function RadarPrixSite() {
               </p>
             )}
 
-            {/* Les filtres formaient trois rangées flottantes, sans cadre ni
-                alignement commun : on ne voyait pas qu'elles allaient
-                ensemble. Elles tiennent maintenant dans un panneau unique,
-                intitulés alignés sur une même colonne. */}
-            <div
-              style={{
-                background: T.gradSurface,
-                border: `1px solid ${T.line}`,
-                borderRadius: T.radiusLg,
-                padding: "12px 14px",
-                marginBottom: 14,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 800, color: T.ink }}>
-                  <Icon name="filter" size={14} /> Filtres
-                </span>
+            {/* ── Commandes de tri et de filtre ────────────────────────
+                Le panneau restait ouvert en permanence : sur un téléphone,
+                ses cinq intitulés empilés occupaient la totalité de l'écran
+                et la première offre n'apparaissait qu'au deuxième défilement.
+                Un filtre sert à trouver, pas à remplir la page.
+
+                Il vit donc derrière un bouton, et la barre ne garde que ce
+                qui se consulte sans réfléchir : le nombre d'offres, et le
+                tri — le contrôle le plus utilisé d'une liste de prix, qu'il
+                serait absurde d'enterrer sous un clic. */}
+            <div className="rp-barre-filtres">
+              <button
+                onClick={() => setFiltresOuverts((v) => !v)}
+                aria-expanded={filtresOuverts}
+                aria-controls="rp-panneau-filtres"
+                className="rp-pressable"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "9px 15px", borderRadius: 20,
+                  border: `1.5px solid ${filtresActifs > 0 ? T.emberSolid : T.line}`,
+                  background: filtresActifs > 0 ? "rgba(255,106,53,0.13)" : T.surface2,
+                  color: T.ink, fontWeight: 800, fontSize: 12.5, lineHeight: 1,
+                  cursor: "pointer", fontFamily: "'Inter', sans-serif", flexShrink: 0,
+                }}
+              >
+                <Icon name="filter" size={14} />
+                Filtres
                 {filtresActifs > 0 && (
-                  <button
-                    onClick={reinitialiserFiltres}
-                    className="rp-pressable"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", color: T.emberSolid, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: 0 }}
-                  >
-                    <Icon name="x" size={12} /> Réinitialiser ({filtresActifs})
-                  </button>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999,
+                    background: T.emberSolid, color: "#0C0E14", fontSize: 11, fontWeight: 900,
+                  }}>
+                    {filtresActifs}
+                  </span>
                 )}
-              </div>
+              </button>
 
-              <div className="rp-filtres-grille">
-                {/* La catégorie est un filtre comme les autres ; elle flottait
-                    au-dessus du panneau, seule sur sa ligne. */}
-                {!searchTerm && (
-                  <LigneFiltre libelle="Catégorie">
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      aria-label="Catégorie de produits"
-                      style={{ ...champFiltre(), fontWeight: 700, minWidth: 190, cursor: "pointer" }}
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => openTab(tab)}
-                      disabled={loading}
-                      className="rp-pressable"
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        padding: "7px 14px", borderRadius: 20, border: "none",
-                        background: loading ? T.surface2 : T.ember,
-                        color: loading ? T.sub : "#0C0E14",
-                        fontWeight: 800, fontSize: 12, lineHeight: 1,
-                        cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif",
-                      }}
-                    >
-                      <Icon name="refresh" size={13} /> Relancer
-                    </button>
-                  </LigneFiltre>
-                )}
+              {/* Le tri est une liste déroulante et non deux puces : sur un
+                  téléphone, « Meilleur score » et « Prix croissant » côte à
+                  côte ne laissaient plus la place au bouton Filtres. */}
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                {/* Le mot « Trier » disparaît sur téléphone : il poussait le
+                    décompte à la ligne suivante, alors que « Meilleur score »
+                    dans la liste dit déjà de quoi il s'agit. Le lecteur
+                    d'écran, lui, garde l'étiquette via aria-label. */}
+                <span className="rp-etiquette-tri" style={{ fontSize: 11.5, color: T.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, flexShrink: 0 }}>
+                  Trier
+                </span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Trier les résultats"
+                  style={{ ...champFiltre(), padding: "9px 11px", fontWeight: 700, cursor: "pointer", minWidth: 0 }}
+                >
+                  <option value="score">Meilleur score</option>
+                  <option value="prix">Prix croissant</option>
+                </select>
+              </label>
 
-                <LigneFiltre libelle="Afficher">
-                  <FilterChip active={verdictFilter === "all"} onClick={() => setVerdictFilter("all")}>Tout</FilterChip>
-                  <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}><Icon name="alertCircle" size={13} /> Erreurs</FilterChip>
-                  <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}><Icon name="flame" size={13} /> Deals</FilterChip>
-                </LigneFiltre>
+              <span style={{ flex: 1 }} />
 
-                <LigneFiltre libelle="Trier">
-                  <FilterChip active={sortBy === "score"} onClick={() => setSortBy("score")}><Icon name="gem" size={13} /> Meilleur score</FilterChip>
-                  <FilterChip active={sortBy === "prix"} onClick={() => setSortBy("prix")}>Prix croissant</FilterChip>
-                </LigneFiltre>
-
-                {/* Tranche de prix et marchand : les deux premiers réflexes de
-                    quelqu'un qui cherche une affaire. Seul le prix maximum
-                    existait jusqu'ici. */}
-                <LigneFiltre libelle="Prix">
-                  <input
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                    placeholder="min €"
-                    inputMode="numeric"
-                    aria-label="Prix minimum en euros"
-                    style={champFiltre(78)}
-                  />
-                  <span style={{ color: T.muted, fontSize: 12 }}>–</span>
-                  <input
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                    placeholder="max €"
-                    inputMode="numeric"
-                    aria-label="Prix maximum en euros"
-                    style={champFiltre(78)}
-                  />
-                </LigneFiltre>
-
-                {sellersDisponibles.length > 1 && (
-                  <LigneFiltre libelle="Marchand">
-                    <select
-                      value={sellerFilter}
-                      onChange={(e) => setSellerFilter(e.target.value)}
-                      aria-label="Filtrer par marchand"
-                      style={{ ...champFiltre(), fontWeight: 700, maxWidth: 200, cursor: "pointer" }}
-                    >
-                      <option value="tous">Tous les marchands</option>
-                      {sellersDisponibles.map((v) => (
-                        <option key={v} value={v}>{v}</option>
-                      ))}
-                    </select>
-                  </LigneFiltre>
-                )}
-              </div>
+              {/* Le décompte se lit sans ouvrir quoi que ce soit : c'est la
+                  réponse à « est-ce que mes filtres ont servi à quelque
+                  chose ». */}
+              {items && !loading && (
+                <span style={{ fontSize: 12.5, color: T.sub, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {visible.length} offre{visible.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
+
+            {/* Les filtres appliqués, en toutes lettres et retirables un par
+                un, au-dessus de la liste plutôt que dans le panneau. */}
+            {pucesActives.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 12 }}>
+                {pucesActives.map((f) => (
+                  <PuceActive key={f.cle} libelle={f.libelle} onRetirer={f.retirer} />
+                ))}
+                <button
+                  onClick={reinitialiserFiltres}
+                  className="rp-pressable"
+                  style={{ background: "none", border: "none", color: T.emberSolid, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "'Inter', sans-serif", padding: "0 6px" }}
+                >
+                  Tout effacer
+                </button>
+              </div>
+            )}
+
+            {/* Le voile n'existe que sur téléphone, où le panneau est une
+                feuille montante posée par-dessus la liste. */}
+            {filtresOuverts && <div className="rp-voile-filtres" onClick={() => setFiltresOuverts(false)} aria-hidden="true" />}
+
+            {filtresOuverts && (
+              <div id="rp-panneau-filtres" className="rp-panneau-filtres">
+                <div className="rp-panneau-titre">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 14, fontWeight: 800, color: T.ink }}>
+                    <Icon name="filter" size={15} /> Filtres
+                  </span>
+                  <button
+                    onClick={() => setFiltresOuverts(false)}
+                    aria-label="Fermer les filtres"
+                    className="rp-pressable"
+                    style={{ background: "none", border: "none", color: T.sub, cursor: "pointer", padding: 6, display: "inline-flex" }}
+                  >
+                    <Icon name="x" size={16} />
+                  </button>
+                </div>
+
+                <div className="rp-filtres-grille">
+                  {/* La catégorie est un filtre comme les autres ; elle flottait
+                      au-dessus du panneau, seule sur sa ligne. */}
+                  {!searchTerm && (
+                    <LigneFiltre libelle="Catégorie">
+                      <select
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        aria-label="Catégorie de produits"
+                        style={{ ...champFiltre(), fontWeight: 700, minWidth: 190, cursor: "pointer" }}
+                      >
+                        {CATEGORIES.map((c) => (
+                          <option key={c.id} value={c.id}>{c.label}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => openTab(tab)}
+                        disabled={loading}
+                        className="rp-pressable"
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          padding: "7px 14px", borderRadius: 20, border: "none",
+                          background: loading ? T.surface2 : T.ember,
+                          color: loading ? T.sub : "#0C0E14",
+                          fontWeight: 800, fontSize: 12, lineHeight: 1,
+                          cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif",
+                        }}
+                      >
+                        <Icon name="refresh" size={13} /> Relancer
+                      </button>
+                    </LigneFiltre>
+                  )}
+
+                  <LigneFiltre libelle="Afficher">
+                    <FilterChip active={verdictFilter === "all"} onClick={() => setVerdictFilter("all")}>Tout</FilterChip>
+                    <FilterChip active={verdictFilter === "erreur"} onClick={() => setVerdictFilter("erreur")}><Icon name="alertCircle" size={13} /> Erreurs</FilterChip>
+                    <FilterChip active={verdictFilter === "deal"} onClick={() => setVerdictFilter("deal")}><Icon name="flame" size={13} /> Deals</FilterChip>
+                  </LigneFiltre>
+
+                  {/* Tranche de prix et marchand : les deux premiers réflexes de
+                      quelqu'un qui cherche une affaire. */}
+                  <LigneFiltre libelle="Prix">
+                    <input
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="min €"
+                      inputMode="numeric"
+                      aria-label="Prix minimum en euros"
+                      style={champFiltre(78)}
+                    />
+                    <span style={{ color: T.muted, fontSize: 12 }}>–</span>
+                    <input
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="max €"
+                      inputMode="numeric"
+                      aria-label="Prix maximum en euros"
+                      style={champFiltre(78)}
+                    />
+                  </LigneFiltre>
+
+                  {sellersDisponibles.length > 1 && (
+                    <LigneFiltre libelle="Marchand">
+                      <select
+                        value={sellerFilter}
+                        onChange={(e) => setSellerFilter(e.target.value)}
+                        aria-label="Filtrer par marchand"
+                        style={{ ...champFiltre(), fontWeight: 700, maxWidth: 200, cursor: "pointer" }}
+                      >
+                        <option value="tous">Tous les marchands</option>
+                        {sellersDisponibles.map((v) => (
+                          <option key={v} value={v}>{v}</option>
+                        ))}
+                      </select>
+                    </LigneFiltre>
+                  )}
+                </div>
+
+                {/* Sur téléphone, la feuille couvre la liste : le bouton dit
+                    donc ce qu'on trouvera en la refermant, et le compte se met
+                    à jour à chaque touche. Sur grand écran il n'existe pas —
+                    le panneau est à côté de la liste, qui se filtre sous les
+                    yeux, et Baymard note qu'un bouton « Appliquer » y fait
+                    cliquer deux fois ou croire la page cassée. */}
+                <button
+                  onClick={() => setFiltresOuverts(false)}
+                  className="rp-panneau-valider rp-pressable"
+                >
+                  Voir {visible.length} offre{visible.length > 1 ? "s" : ""}
+                </button>
+              </div>
+            )}
 
             {loading && (
               <div style={{ textAlign: "center", color: T.sub, fontSize: 13, marginBottom: 12 }}>
