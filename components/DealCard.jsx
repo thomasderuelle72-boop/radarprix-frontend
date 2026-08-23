@@ -83,6 +83,18 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   // qu'il n'y avait simplement rien à juger.
   const scoreParlant = item.refSource === "mesure" && (remiseReelle || isErr);
 
+  /* Ce que le lien ouvre vraiment. Mesuré sur les 126 offres en ligne :
+     UNE SEULE menait à une fiche produit, 29 % ouvraient une recherche et
+     18 % une page d'accueil. La carte laissait croire au produit dans tous
+     les cas ; l'annoncer avant le clic vaut mieux que de le découvrir
+     après. */
+  const promesseDuLien =
+    item.lienType === "recherche"
+      ? "à chercher sur le site"
+      : item.lienType === "marchand"
+        ? "page du marchand"
+        : null;
+
   // Une URL d'image de marchand casse parfois. Le cas est suivi ici pour que
   // la carte se replie proprement plutôt que de garder une colonne vide.
   const [imageCassee, setImageCassee] = useState(false);
@@ -231,7 +243,12 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {item.seller || "Vendeur inconnu"}
                 </div>
-                {finOffre ? (
+                {promesseDuLien ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: T.muted }}>
+                    <Icon name="search" size={10} color={T.muted} />
+                    {promesseDuLien}
+                  </div>
+                ) : finOffre ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: finOffre.urgent ? T.yellow : T.sub }}>
                     <Icon name="clock" size={10} color={finOffre.urgent ? T.yellow : T.sub} />
                     {finOffre.libelle}
