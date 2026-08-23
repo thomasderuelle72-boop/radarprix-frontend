@@ -31,15 +31,6 @@ import { relativeTime, bloquerDefilementDeFond } from "./utils.js";
 import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 
-/* ════════════════════════════════════════════════════════════════
-   RADARPRIX — interface, branchée sur le backend Railway.
-
-   SerpApi et Google Shopping ont été retirés du moteur ; la collecte
-   passe aujourd'hui par les catalogues marchands (sitemaps), les flux
-   d'affiliation, les flux RSS et Firecrawl. L'analyse tourne côté
-   serveur (src/algorithm.js), en pur code.
-   ════════════════════════════════════════════════════════════════ */
-
 import {
   fetchDeals,
   apiGetLatest,
