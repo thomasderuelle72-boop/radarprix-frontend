@@ -192,10 +192,17 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   <span
                     className="rp-hint"
                     tabIndex={0}
+                    /* « Prix habituel constaté chez les autres vendeurs »
+                       s'affichait sur des produits qu'un seul marchand vend :
+                       aucun autre vendeur n'avait jamais été consulté. La
+                       phrase dit maintenant ce qui a réellement été comparé,
+                       et combien de marchands le soutiennent. */
                     data-hint={
                       item.refSource === "flux"
                         ? "Prix barré annoncé par le marchand. RadarPrix ne l'a pas vérifié."
-                        : "Prix habituel constaté chez les autres vendeurs."
+                        : item.baseReference === "marche"
+                          ? `Prix habituel constaté chez ${item.marchandsComparés || 2} marchands.`
+                          : "Prix pratiqué par ce marchand avant la baisse. Aucun autre vendeur n'a été comparé."
                     }
                     style={{ color: T.sub, textDecoration: "line-through", fontSize: 12.5 }}
                   >
@@ -248,7 +255,11 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 <span
                   className="rp-hint rp-hint-end"
                   tabIndex={0}
-                  data-hint="Note sur 100 mesurant l'écart entre ce prix et le prix habituel du produit chez les autres vendeurs. Plus il est haut, plus la remise est forte."
+                  data-hint={
+                    item.baseReference === "marche"
+                      ? "Note sur 100 mesurant l'écart entre ce prix et le prix habituel du produit chez les autres vendeurs. Plus il est haut, plus la remise est forte."
+                      : "Note sur 100 mesurant l'écart entre ce prix et celui que ce marchand pratiquait avant. Aucun autre vendeur n'a été comparé."
+                  }
                   style={{ display: "inline-block", fontSize: 9.5, color: T.sub, lineHeight: 1.2 }}
                 >
                   Score RadarPrix
