@@ -6,7 +6,7 @@
 // Toute la carte est cliquable et ouvre la fiche produit — les cartes-listes
 // n'ont aucun bouton inline dans la maquette.
 import { T } from "../theme.js";
-import { relativeTime } from "../utils.js";
+import { relativeTime, euros, comparaison } from "../utils.js";
 import MerchantBadge from "./MerchantBadge.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
 import Tilt3D from "./Tilt3D.jsx";
@@ -69,6 +69,18 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
   // l'écart relève de l'arrondi ou du prix conseillé recopié : on n'affiche
   // ni le prix barré ni le badge, plutôt que de crier une aubaine inexistante.
   const remiseReelle = item.refPrice > 0 && item.pct >= 3;
+
+  // Le même produit chez d'autres vendeurs, et le fait de savoir si c'est
+  // ici qu'il est le moins cher. Sans cette ligne, la même serrure Nuki
+  // occupait deux cartes de la page d'accueil.
+  const compare = comparaison(item);
+  const leMoinsCher = compare && !compare.alerte;
+
+  // Un score n'a de sens que s'il mesure un écart. Sur une offre sans
+  // remise, « 15/100 » occupait un tiers du pied de carte pour ne rien
+  // apprendre — pire, il laissait croire à un jugement défavorable alors
+  // qu'il n'y avait simplement rien à juger.
+  const scoreParlant = item.refSource === "mesure" && (remiseReelle || isErr);
   return (
     <Tilt3D max={7} lift={12} style={{ width: "100%" }}>
     <button
@@ -176,10 +188,16 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                     }
                     style={{ color: T.sub, textDecoration: "line-through", fontSize: 12.5 }}
                   >
-                    {Number(item.refPrice).toFixed(2).replace(".", ",")} €
+                    {euros(item.refPrice)}
                   </span>
                 )}
               </div>
+              {compare && (
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 600, color: compare.alerte ? T.yellow : T.green, lineHeight: 1.25 }}>
+                  <Icon name={compare.alerte ? "alertTriangle" : "check"} size={11} color={compare.alerte ? T.yellow : T.green} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{compare.libelle}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -211,7 +229,7 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                 évalué et jugé sans intérêt, alors qu'on ne l'a pas mesuré.
                 Et un prix barré venu du marchand ne fonde aucun score : il
                 n'est pas une mesure. */}
-            {item.refSource === "mesure" && (
+            {scoreParlant ? (
               <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10 }}>
                 <span
                   className="rp-hint rp-hint-end"
@@ -226,7 +244,15 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                   <div style={{ fontSize: 9, color: T.yellow, fontWeight: 700, marginTop: 2, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 3 }}><Icon name="alertTriangle" size={10} /> à vérifier</div>
                 )}
               </div>
-            )}
+            ) : leMoinsCher ? (
+              /* Faute de score à montrer, la place sert à dire ce qu'on sait
+                 vraiment : c'est ici que ce produit est au prix le plus bas
+                 parmi les marchands que RadarPrix suit. */
+              <div style={{ textAlign: "right", flexShrink: 0, borderLeft: `1px solid ${T.line}`, paddingLeft: 10, fontSize: 9.5, fontWeight: 800, color: T.green, lineHeight: 1.25 }}>
+                Le moins cher<br />
+                <span style={{ color: T.sub, fontWeight: 600 }}>sur {compare.total} marchands</span>
+              </div>
+            ) : null}
           </div>
         </div>
 

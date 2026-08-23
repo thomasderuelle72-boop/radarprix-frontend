@@ -57,3 +57,40 @@ export function nombreLisible(n) {
   if (n === null || n === undefined) return "—";
   return Number(n).toLocaleString("fr-FR");
 }
+
+/** Prix en français : « 299,99 € ». */
+export const euros = (n) => `${Number(n).toFixed(2).replace(".", ",")} \u20ac`;
+
+/**
+ * Ce que les autres marchands disent du même produit.
+ *
+ * Le même article publié par deux marchands donnait deux cartes identiques,
+ * au même prix, sans que rien ne les relie : un comparateur qui ne compare
+ * pas. Le backend les regroupe désormais par clé produit ; il reste à le
+ * dire, y compris quand la nouvelle est mauvaise pour nous — si quelqu'un
+ * vend moins cher, on l'annonce plutôt que de le taire.
+ *
+ * Rend `null` quand il n'y a rien à comparer, pour que l'appelant n'ait
+ * qu'une condition à écrire.
+ */
+export function comparaison(item) {
+  const autres = Array.isArray(item.autresMarchands) ? item.autresMarchands : [];
+  if (!autres.length) return null;
+
+  // La liste est plafonnée à quatre côté serveur ; le décompte, lui, est
+  // complet. On compte avec le second et on nomme avec la première, sans
+  // quoi une carte annoncerait « 5 marchands » là où il y en a sept.
+  const total = Math.max(Number(item.nbMarchands) || 0, autres.length + 1);
+
+  const moinsCher = autres
+    .filter((a) => Number(a.prix) > 0 && Number(a.prix) < Number(item.price))
+    .sort((a, b) => a.prix - b.prix)[0];
+
+  if (moinsCher) {
+    return { libelle: `Moins cher chez ${moinsCher.marchand} : ${euros(moinsCher.prix)}`, alerte: true, total };
+  }
+  if (total === 2) {
+    return { libelle: `Aussi chez ${autres[0].marchand} \u2014 ${euros(autres[0].prix)}`, alerte: false, total };
+  }
+  return { libelle: `Aussi chez ${total - 1} autres marchands`, alerte: false, total };
+}

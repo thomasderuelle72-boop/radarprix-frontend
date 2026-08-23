@@ -268,6 +268,37 @@ export default function ProductDetailView({ item, authToken, onNeedAuth, onBack,
             </div>
           )}
 
+          {/* Où trouver le même article ailleurs. C'est la promesse d'un
+              comparateur, et la fiche produit est l'endroit où on la tient :
+              on liste les autres marchands, prix compris, moins cher
+              d'abord — y compris quand le moins cher n'est pas celui dont
+              on affiche la fiche. */}
+          {Array.isArray(item.autresMarchands) && item.autresMarchands.length > 0 && (
+            <div style={{ background: T.surface2, border: `1px solid ${T.line}`, borderRadius: 12, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: T.sub, letterSpacing: "0.02em" }}>
+                Le même produit ailleurs
+              </div>
+              {[...item.autresMarchands]
+                .sort((a, b) => a.prix - b.prix)
+                .map((o) => (
+                  <div key={`${o.marchand}-${o.prix}`} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <MerchantBadge name={o.marchand} domaine={o.domaine} size={22} />
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {o.marchand}
+                    </span>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: Number(o.prix) < Number(item.price) ? T.green : T.sub }}>
+                      {Number(o.prix).toFixed(2).replace(".", ",")} €
+                    </span>
+                    {o.url && (
+                      <a href={o.url} target="_blank" rel="noopener noreferrer" style={{ color: T.emberSolid, fontSize: 12, fontWeight: 800, textDecoration: "none", flexShrink: 0 }}>
+                        Voir →
+                      </a>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {item.url && (
               <a

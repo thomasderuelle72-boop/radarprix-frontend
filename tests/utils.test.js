@@ -10,7 +10,7 @@
 // laquelle on les lance — c'est exactement le genre de test qui, sinon,
 // échoue un jour sur trente sans que personne ne comprenne pourquoi.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { relativeTime, anciennete, dateLongue, estExpire, nombreLisible } from "../utils.js";
+import { relativeTime, anciennete, dateLongue, estExpire, nombreLisible, comparaison } from "../utils.js";
 
 const MAINTENANT = new Date("2026-08-20T12:00:00Z");
 
@@ -132,5 +132,63 @@ describe("nombreLisible", () => {
   it("distingue zéro d'une donnée absente", () => {
     // Le piège classique : `if (!n)` afficherait « — » pour un vrai zéro.
     expect(nombreLisible(0)).toBe("0");
+  });
+});
+
+/* La même serrure Nuki occupait deux cartes de l'accueil, au même prix,
+   sans qu'aucune ne dise qu'il s'agissait du même article. */
+describe("comparaison", () => {
+  it("ne dit rien quand il n'y a rien à comparer", () => {
+    expect(comparaison({ price: 100, autresMarchands: [] })).toBeNull();
+    expect(comparaison({ price: 100 })).toBeNull();
+  });
+
+  it("nomme l'autre marchand quand ils sont deux", () => {
+    const c = comparaison({
+      price: 299.99,
+      nbMarchands: 2,
+      autresMarchands: [{ marchand: "Boulanger", prix: 299.99 }],
+    });
+    expect(c.alerte).toBe(false);
+    expect(c.total).toBe(2);
+    expect(c.libelle).toBe("Aussi chez Boulanger — 299,99 €");
+  });
+
+  it("annonce le moins cher même quand ce n'est pas celui de la carte", () => {
+    const c = comparaison({
+      price: 299.99,
+      nbMarchands: 3,
+      autresMarchands: [
+        { marchand: "Fnac", prix: 310 },
+        { marchand: "Boulanger", prix: 269.9 },
+      ],
+    });
+    expect(c.alerte).toBe(true);
+    expect(c.libelle).toBe("Moins cher chez Boulanger : 269,90 €");
+  });
+
+  it("compte tous les marchands, pas seulement ceux qui sont listés", () => {
+    // Le serveur plafonne la liste à quatre : le décompte doit rester juste.
+    const c = comparaison({
+      price: 100,
+      nbMarchands: 7,
+      autresMarchands: [
+        { marchand: "A", prix: 100 },
+        { marchand: "B", prix: 110 },
+        { marchand: "C", prix: 120 },
+        { marchand: "D", prix: 130 },
+      ],
+    });
+    expect(c.libelle).toBe("Aussi chez 6 autres marchands");
+    expect(c.total).toBe(7);
+  });
+
+  it("ignore un prix absent au lieu de le prendre pour une aubaine", () => {
+    const c = comparaison({
+      price: 100,
+      nbMarchands: 2,
+      autresMarchands: [{ marchand: "Cdiscount", prix: 0 }],
+    });
+    expect(c.alerte).toBe(false);
   });
 });
