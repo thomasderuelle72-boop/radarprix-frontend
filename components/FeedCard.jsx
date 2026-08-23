@@ -13,9 +13,9 @@
 //
 // Chacune reçoit donc le traitement que sa nature appelle, plutôt qu'un
 // gabarit unique qui afficherait « — » dans la moitié des cases.
-import { useState } from "react";
 import { T } from "../theme.js";
 import Icon from "./Icon.jsx";
+import CodePromo from "./CodePromo.jsx";
 import { relativeTime } from "../utils.js";
 
 // Chaque nature a sa couleur et son libellé. Écrits une fois ici : le même
@@ -47,43 +47,6 @@ function tempsRestant(expiresAt) {
 }
 
 /** Bouton de copie du code promo — l'action principale de ce type de carte. */
-function CodePromo({ code }) {
-  const [copie, setCopie] = useState(false);
-
-  const copier = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopie(true);
-      setTimeout(() => setCopie(false), 2000);
-    } catch {
-      // Le presse-papiers peut être refusé (contexte non sécurisé, permission
-      // navigateur). Le code reste lisible et sélectionnable à l'écran : on
-      // n'affiche pas d'erreur pour une action dont le repli est évident.
-    }
-  };
-
-  return (
-    <button
-      onClick={copier}
-      aria-label={`Copier le code ${code}`}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "8px 12px",
-        borderRadius: T.radiusSm,
-        border: `1px dashed ${copie ? T.green : T.purple}`,
-        background: copie ? "rgba(53,212,117,.12)" : "rgba(139,92,246,.10)",
-        color: copie ? T.green : T.ink,
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontWeight: 800, fontSize: 14, letterSpacing: ".06em",
-        cursor: "pointer",
-      }}
-    >
-      <Icon name={copie ? "check" : "badgeTag"} size={15} />
-      {copie ? "Copié" : code}
-    </button>
-  );
-}
-
 export default function FeedCard({ deal, index = 0 }) {
   const nature = NATURES[deal.type] || NATURES.promo;
   const restant = tempsRestant(deal.expiresAt);

@@ -12,6 +12,7 @@ import MerchantBadge from "./MerchantBadge.jsx";
 import AnimatedPrice from "./AnimatedPrice.jsx";
 import Tilt3D from "./Tilt3D.jsx";
 import Icon from "./Icon.jsx";
+import CodePromo from "./CodePromo.jsx";
 
 /* ── Squelette de chargement, même gabarit qu'une carte ─────────── */
 export function SkeletonCard() {
@@ -188,6 +189,12 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
               <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.3, color: T.ink, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {item.name}
               </div>
+              {/* Une offre de type « code » n'a pas de prix : c'est une
+                  réduction, pas un tarif. Afficher « 0,00 € » ferait passer
+                  un code de −10 % pour un produit gratuit. */}
+              {item.voucherCode && !(item.price > 0) ? (
+                <CodePromo code={item.voucherCode} />
+              ) : (
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                 <AnimatedPrice
                   from={item.refPrice > item.price ? item.refPrice : item.price}
@@ -221,7 +228,10 @@ export default function DealCard({ item, onOpenDetail, variant, index }) {
                     {euros(item.refPrice)}
                   </span>
                 )}
+                {/* Un prix ET un code : la réduction s'applique en plus. */}
+                {item.voucherCode && item.price > 0 && <CodePromo code={item.voucherCode} />}
               </div>
+              )}
               {compare && (
                 <div style={{ display: "flex", gap: 5, fontSize: 10.5, fontWeight: 600, color: compare.alerte ? T.yellow : T.green, lineHeight: 1.3, alignItems: "flex-start" }}>
                   <Icon name={compare.alerte ? "alertTriangle" : "check"} size={11} color={compare.alerte ? T.yellow : T.green} style={{ flexShrink: 0, marginTop: 1 }} />
