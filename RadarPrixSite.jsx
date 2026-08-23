@@ -32,10 +32,12 @@ import AvatarPicker from "./components/AvatarPicker.jsx";
 import OnboardingModal from "./components/OnboardingModal.jsx";
 
 /* ════════════════════════════════════════════════════════════════
-   RADARPRIX v4 — branché sur le vrai backend (Railway + SerpApi).
-   Plus aucun appel à l'API Claude : les scans interrogent Google
-   Shopping via ton propre serveur, et l'algorithme de détection
-   tourne côté serveur (src/algorithm.js), en pur code.
+   RADARPRIX — interface, branchée sur le backend Railway.
+
+   SerpApi et Google Shopping ont été retirés du moteur ; la collecte
+   passe aujourd'hui par les catalogues marchands (sitemaps), les flux
+   d'affiliation, les flux RSS et Firecrawl. L'analyse tourne côté
+   serveur (src/algorithm.js), en pur code.
    ════════════════════════════════════════════════════════════════ */
 
 import {
@@ -1652,7 +1654,13 @@ function Footer({ ouvrirInfo, openTab, goToCommunity, authToken, onNeedAuth, onO
         </div>
 
         <div style={{ borderTop: `1px solid ${T.line}`, marginTop: 28, paddingTop: 18, fontSize: 12, color: "#5A6373", textAlign: "center" }}>
-          © 2026 RadarPrix — Scans propulsés par un algorithme maison sur données Google Shopping. RadarPrix n'est affilié à aucun marchand cité.
+          {/* Cette ligne affirmait deux choses fausses. « Données Google
+              Shopping » : ce canal a été retiré il y a longtemps, les prix
+              viennent des catalogues marchands et de flux d'affiliation.
+              « N'est affilié à aucun marchand » : contredit la FAQ et les
+              CGU du site, qui annoncent des liens d'affiliation — et le
+              deviendra franchement le jour où un programme s'active. */}
+          © 2026 RadarPrix — Prix relevés automatiquement chez les marchands, comparés par un algorithme maison. Certains liens sont des liens d'affiliation.
         </div>
       </div>
     </footer>
@@ -3246,7 +3254,7 @@ export default function RadarPrixSite() {
                   { q: "Suis-je sûr de recevoir le produit si je commande ?", a: "Non, et c'est important : en droit français, un vendeur peut annuler une commande en cas d'erreur manifeste sur le prix. Plus l'erreur est énorme, plus l'annulation est probable. C'est une loterie — parfois ça passe, surtout si le colis est expédié rapidement." },
                   { q: "Comment le prix de référence est-il calculé ?", a: "Notre algorithme compare chaque offre à la médiane des autres vendeurs pour le même produit, et à l'historique de prix déjà enregistré. Plus l'historique est riche, plus la référence est précise." },
                   { q: "Les offres affichées sont-elles garanties exactes ?", a: "Non. Les prix bougent en permanence et l'algorithme peut se tromper, notamment si un vendeur liste un produit différent sous un titre trompeur. Considérez chaque résultat comme une piste à vérifier immédiatement sur le site marchand." },
-                  { q: "RadarPrix touche-t-il une commission sur mes achats ?", a: "Non. Les liens pointent directement vers les fiches produit trouvées lors du scan, sans tracking d'affiliation." },
+                  { q: "RadarPrix touche-t-il une commission sur mes achats ?", a: "Sur certains liens, oui : ce sont des liens d'affiliation, et un achat qui les suit peut rapporter une commission au site — sans un centime de plus pour vous. Ça ne change rien au classement : une offre est publiée parce qu'elle passe les seuils de l'algorithme, jamais parce qu'elle rapporte." },
                 ].map((f) => (
                   <details key={f.q} className="rp-faq">
                     <summary>{f.q}</summary>

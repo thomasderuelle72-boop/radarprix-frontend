@@ -54,7 +54,8 @@ export async function fetchDeals(category, page, pageSize = 15, q) {
   return data; // { category, page, pageSize, total, hasMore, items }
 }
 
-// Recherche libre d'un produit précis : celle-ci lance un vrai scan SerpApi en direct.
+// Recherche libre d'un produit précis : celle-ci déclenche un vrai scan côté
+// serveur, sur les sources actives de la cible (SerpApi a été retiré).
 export async function scanBackend(query, category) {
   const res = await fetch(`${BACKEND_URL}/api/scan`, {
     method: "POST",

@@ -362,7 +362,7 @@ Serveur applicatif et base de données : Railway Corp., États-Unis.`,
       },
       {
         titre: "Nature du service",
-        texte: `RadarPrix est un service d'information sur les prix. Les offres présentées proviennent d'une lecture automatisée de pages marchandes publiques et de flux fournis par les marchands ou leurs plateformes d'affiliation. RadarPrix n'est ni vendeur, ni intermédiaire de vente, et n'est affilié à aucune des enseignes citées.`,
+        texte: `RadarPrix est un service d'information sur les prix. Les offres présentées proviennent d'une lecture automatisée de pages marchandes publiques et de flux fournis par les marchands ou leurs plateformes d'affiliation. RadarPrix n'est ni vendeur, ni intermédiaire de vente : aucune commande ne se conclut sur le site. Le service peut être lié à certaines enseignes par un programme d'affiliation, détaillé à l'article 5 des conditions générales d'utilisation.`,
       },
       {
         titre: "Propriété intellectuelle",
