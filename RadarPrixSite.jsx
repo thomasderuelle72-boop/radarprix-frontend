@@ -3,6 +3,7 @@ import { T, CATEGORIES, FEATURED_MERCHANTS } from "./theme.js";
 import DealCard, { SkeletonCard } from "./components/DealCard.jsx";
 import MobileNav from "./components/MobileNav.jsx";
 import DrawerMenu from "./components/DrawerMenu.jsx";
+import ConnexionExterne from "./components/ConnexionExterne.jsx";
 import NotificationsView from "./components/NotificationsView.jsx";
 import NotificationsMenu from "./components/NotificationsMenu.jsx";
 import useActivite from "./components/useActivite.js";
@@ -857,6 +858,18 @@ function AuthModal({ onClose, onSuccess }) {
         <button type="submit" disabled={loading} style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: loading ? T.surface2 : T.ember, color: loading ? T.sub : "#0C0E14", fontWeight: 900, fontSize: 14, cursor: loading ? "default" : "pointer", fontFamily: "'Inter', sans-serif" }}>
           {loading ? "…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
         </button>
+
+        {/* Après le formulaire, pas avant : l'email et le mot de passe restent
+            le chemin principal, et les connexions externes ne s'affichent que
+            si le serveur les déclare configurées. Un nouveau venu par Google
+            est traité comme une inscription — il découvre le site pour la
+            première fois et mérite le même accueil. */}
+        <div style={{ marginTop: 16 }}>
+          <ConnexionExterne
+            onSuccess={(token, user) => onSuccess(token, user, !user?.pseudo)}
+            onErreur={setError}
+          />
+        </div>
 
         <button
           type="button"

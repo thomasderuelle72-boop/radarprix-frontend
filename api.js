@@ -90,6 +90,32 @@ export async function apiAuth(path, body) {
 }
 
 /**
+ * Les connexions externes proposées par le serveur.
+ *
+ * Le site ne devine pas : il demande. Afficher « Continuer avec Apple »
+ * alors que rien n'est configuré mène le visiteur à une erreur qu'il ne peut
+ * pas comprendre, et l'identifiant client n'a pas à être figé dans le code
+ * du navigateur — il change selon l'environnement.
+ */
+export async function apiFournisseurs() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/fournisseurs`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.fournisseurs) ? data.fournisseurs : [];
+  } catch {
+    // Le formulaire email/mot de passe doit rester utilisable même si cette
+    // requête échoue : on rend une liste vide, pas une erreur.
+    return [];
+  }
+}
+
+/** Échange un jeton d'identité Google ou Apple contre une session RadarPrix. */
+export async function apiConnexionExterne(fournisseur, jeton) {
+  return apiAuth("oidc", { fournisseur, jeton });
+}
+
+/**
  * Suit un produit. `targetPrice` est facultatif : renseigné, le membre est
  * aussi alerté dès que le prix passe sous ce seuil, en plus des erreurs de
  * prix détectées par l'algorithme. Re-suivre un produit déjà suivi met le
