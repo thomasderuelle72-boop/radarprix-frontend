@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DAF
+  CONTROLEUR
+  LECTEUR
+}
+
+enum PeriodStatus {
+  OUVERTE
+  CLOTUREE
+}
+
+enum AlertOperator {
+  LT
+  LTE
+  GT
+  GTE
+}
+
+// Poste normalisé : catégorie comptable standardisée à laquelle chaque ligne
+// importée est rattachée. Le moteur de ratios (apps/api/src/ratios/engine.ts)
+// n'agrège jamais un numéro de compte brut, toujours ces postes.
+enum LinePoste {
+  CHIFFRE_AFFAIRES
+  ACHATS_CONSOMMES
+  CHARGES_EXTERNES
+  CHARGES_PERSONNEL
+  IMPOTS_TAXES
+  DOTATIONS_AMORTISSEMENTS
+  AUTRES_PRODUITS_CHARGES_EXPLOITATION
+  CHARGES_FINANCIERES
+  PRODUITS_FINANCIERS
+  RESULTAT_EXCEPTIONNEL
+  IMPOT_SOCIETES
+  STOCKS
+  CREANCES_CLIENTS
+  AUTRES_CREANCES
+  DISPONIBILITES
+  CAPITAUX_PROPRES
+  DETTES_FINANCIERES
+  DETTES_FOURNISSEURS
+  AUTRES_DETTES
+  IMMOBILISATIONS
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  sector    String?
+  currency  String   @default("EUR")
+  createdAt DateTime @default(now())
+
+  users      User[]
+  entities   Entity[]
+  alertRules AlertRule[]
+  auditLogs  AuditLog[]
+}
+
+// Piste d'audit : trace chaque opération qui modifie des données, écrite par
+// un interceptor global (src/audit/audit.interceptor.ts). Volontairement en
+// écriture seule — aucun code applicatif ne met à jour ni ne supprime une
+// entrée — et l'e-mail de l'auteur y est recopié pour que la trace reste
+// lisible même si le compte est supprimé plus tard.
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  userEmail      String
+  userRole       Role?
+  action         String
+  method         String
+  path           String
+  statusCode     Int
+  targetId       String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  passwordHash   String
+  name           String
+  role           Role         @default(LECTEUR)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+// Filiale / société du groupe. Le pilotage mono-entité du MVP devient un cas
+// particulier (une organisation avec une seule entité) : rien ne change pour
+// les petites structures, la consolidation ne fait que sommer un groupe d'une
+// seule entité.
+model Entity {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  name                  String
+  country               String?
+  currency              String   @default("EUR")
+  // Taux de conversion appliqué lors de la consolidation pour ramener les
+  // montants de cette entité dans la devise de référence du groupe. Saisi
+  // manuellement en V1 (pas d'flux de cours de change en temps réel).
+  fxRateToOrgCurrency   Float    @default(1)
+  createdAt             DateTime @default(now())
+
+  periods           AccountingPeriod[]
+  cashForecastLines CashForecastLine[]
+
+  @@unique([organizationId, name])
+}
+
+enum CashCategory {
+  ENCAISSEMENTS_CLIENTS
+  DECAISSEMENTS_FOURNISSEURS
+  SALAIRES_ET_CHARGES_SOCIALES
+  IMPOTS_ET_TAXES
+  LOYERS_ET_CHARGES_EXTERNES
+  REMBOURSEMENT_EMPRUNT
+  INVESTISSEMENT
+  FINANCEMENT
+  AUTRE
+}
+
+enum CashRecurrence {
+  NONE
+  WEEKLY
+  MONTHLY
+}
+
+// Flux prévisionnel de trésorerie d'une entité. Le montant est signé :
+// positif pour un encaissement, négatif pour un décaissement. Une ligne
+// récurrente est développée en occurrences par le moteur de projection
+// (src/cash-forecast/engine.ts) jusqu'à endDate ou l'horizon demandé.
+model CashForecastLine {
+  id         String         @id @default(cuid())
+  entityId   String
+  entity     Entity         @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  label      String
+  category   CashCategory
+  amount     Decimal        @db.Decimal(14, 2)
+  startDate  DateTime
+  recurrence CashRecurrence @default(NONE)
+  endDate    DateTime?
+  createdAt  DateTime       @default(now())
+
+  @@index([entityId, startDate])
+}
+
+model AccountingPeriod {
+  id        String       @id @default(cuid())
+  entityId  String
+  entity    Entity       @relation(fields: [entityId], references: [id])
+  label     String
+  startDate DateTime
+  endDate   DateTime
+  status    PeriodStatus @default(OUVERTE)
+  createdAt DateTime     @default(now())
+
+  lineItems   FinancialLineItem[]
+  ratioResult RatioResult?
+  budgetLines BudgetLine[]
+
+  @@unique([entityId, label])
+  @@index([entityId, startDate])
+}
+
+model FinancialLineItem {
+  id           String           @id @default(cuid())
+  periodId     String
+  period       AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  accountCode  String
+  label        String
+  amount       Decimal          @db.Decimal(14, 2)
+  poste        LinePoste
+  createdAt    DateTime         @default(now())
+
+  @@index([periodId, poste])
+}
+
+// Cache du dernier calcul de ratios pour la période (recalculé à chaque
+// import ou clôture). Évite de recalculer à chaque affichage du dashboard.
+model RatioResult {
+  id         String           @id @default(cuid())
+  periodId   String           @unique
+  period     AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  aggregates Json
+  derived    Json
+  ratios     Json
+  computedAt DateTime         @default(now())
+}
+
+// Montant budgété pour un poste donné, sur la même période que les lignes
+// réelles importées : la comparaison budget/réalisé se fait poste par poste,
+// puis les écarts sont recalculés avec le même moteur que les ratios.
+model BudgetLine {
+  id             String           @id @default(cuid())
+  periodId       String
+  period         AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  poste          LinePoste
+  amountBudgeted Decimal          @db.Decimal(14, 2)
+  createdAt      DateTime         @default(now())
+
+  @@unique([periodId, poste])
+}
+
+// Règle définissant un seuil à surveiller sur un ratio (ex: liquidité
+// générale < 1.0). Évaluée à chaque recalcul de ratios pour toutes les
+// entités de l'organisation.
+model AlertRule {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  label          String
+  ratioId        String
+  operator       AlertOperator
+  threshold      Float
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+
+  events AlertEvent[]
+
+  @@index([organizationId, active])
+}
+
+// Déclenchement effectif d'une règle pour une entité/période donnée. Un seul
+// événement par (règle, période) : il est mis à jour tant que le seuil reste
+// franchi, et supprimé dès que ce n'est plus le cas (cf RatiosService).
+model AlertEvent {
+  id           String    @id @default(cuid())
+  alertRuleId  String
+  alertRule    AlertRule @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+  entityId     String
+  periodId     String
+  value        Float
+  acknowledged Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([alertRuleId, periodId])
+}
